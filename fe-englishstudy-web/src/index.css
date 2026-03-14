@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* Đảm bảo nền luôn là màu xanh đậm theo yêu cầu của bạn */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #164e63; /* Màu tương đương với bg-cyan-900 */
+}
