@@ -2,20 +2,18 @@ import React from 'react';
 
 function LoginPage({ onNavigateToRegister, onLoginSuccess }) {
   return (
-    // Phần bao ngoài: Chiếm toàn bộ màn hình, căn giữa form, và đổi nền thành màu xanh nước biển đậm
+    // Phần bao ngoài
     <div className="min-h-screen flex items-center justify-center bg-cyan-900">
       {/*Phần đóng khung*/}
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
         
         {/* Tiêu đề */}
         <div className="text-center mb-8">
-          {/* Đổi màu tiêu đề chính thành màu xanh đen đậm */}
           <h1 className="text-4xl font-extrabold text-cyan-950">EngLearn</h1>
           <p className="text-gray-500 mt-2">Học tiếng Anh mỗi ngày</p>
         </div>
 
         {/* Form nhập liệu */}
-        {/* SỬA THẺ FORM VÀ THÊM HÀM XỬ LÝ */}
         <form 
           className="space-y-6" 
           onSubmit={(e) => {
@@ -24,12 +22,12 @@ function LoginPage({ onNavigateToRegister, onLoginSuccess }) {
           }}
         >
           <div>
-            <label className="block text-sm font-medium text-[#164e63] mb-1">Tên đăng nhập</label>
+            <label className="block text-sm font-medium text-cyan-900 mb-1">Email</label>
             <input 
-              type="text" 
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#0284c7] outline-none transition-all"
-              placeholder="Nhập username..." required
-            />
+            type="email" 
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
+            placeholder="Nhập email của bạn..."
+            />  
           </div>
 
           <div>
@@ -50,7 +48,6 @@ function LoginPage({ onNavigateToRegister, onLoginSuccess }) {
         </form>
 
         {/* Phần footer */}
-       {/* Phần footer */}
         <p className="text-center text-sm text-gray-900 mt-6">
           Chưa có tài khoản? 
           <button 

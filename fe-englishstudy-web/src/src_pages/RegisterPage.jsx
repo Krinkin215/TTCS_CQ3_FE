@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// Import 2 icon con mắt từ thư viện
 import { Eye, EyeOff } from 'lucide-react';
 
 
@@ -72,7 +71,7 @@ function RegisterPage({ onNavigateToLogin }) {
 
   // Hàm xử lý khi bấm nút Đăng ký
   const handleSubmit = (e) => {
-    e.preventDefault(); // Ngăn trang web bị reload khi bấm submit
+    e.preventDefault(); 
     
     // 1. Kiểm tra xem các trường có bị bỏ trống không 
     if (!formData.fullName || !formData.email || !formData.username) {
@@ -117,6 +116,14 @@ function RegisterPage({ onNavigateToLogin }) {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-cyan-900 mb-1">Ngày sinh</label>
+            <input 
+              type="date" 
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
+            />
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-[#164e63] mb-1">Email</label>
             <input 
               type="email" name="email"
@@ -127,12 +134,11 @@ function RegisterPage({ onNavigateToLogin }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#164e63] mb-1">Tên đăng nhập</label>
+            <label className="block text-sm font-medium text-cyan-900 mb-1">Tên người dùng</label>
             <input 
-              type="text" name="username"
-              value={formData.username} onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#0284c7] outline-none"
-              placeholder="Nhập username..." required
+              type="text" 
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
+              placeholder="Nhập tên người dùng..."
             />
           </div>
 
@@ -204,7 +210,7 @@ function RegisterPage({ onNavigateToLogin }) {
         {/* Phần footer chuyển trang */}
         <p className="text-center text-sm text-gray-900 mt-6">
           Đã có tài khoản? 
-          {/* Nút bấm giả dạng link để chuyển về Đăng nhập */}
+          {/* Nút bấm để chuyển về Đăng nhập */}
           <button 
             onClick={onNavigateToLogin} 
             className="text-[#0369a1] font-semibold hover:underline ml-1 focus:outline-none"

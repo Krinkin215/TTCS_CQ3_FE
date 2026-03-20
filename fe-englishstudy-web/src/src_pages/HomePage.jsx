@@ -4,6 +4,8 @@ import {
   ChevronLeft, ChevronRight, Zap, BookOpen, User, Flame,
   X, Mail, Calendar, Pencil, Download, LogOut, Cake, Camera, Save, ArrowLeft
 } from 'lucide-react';
+import FavoritePage from './FavoritePage';
+import CollectionPage from './CollectionPage';
 
 function HomePage({ onLogout }) {
   // State quản lý việc thu gọn/mở rộng Sidebar
@@ -149,6 +151,8 @@ function HomePage({ onLogout }) {
 
       {/* NỘI DUNG CHÍNH */}
       <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto h-screen scroll-smooth">
+        {/* CHỈ HIỆN KHI Ở TRANG CHỦ HOẶC CHỦ ĐỀ */}
+        {(activeMenu === 'Trang chủ' || activeMenu === 'Chủ đề') && (
         <div className="max-w-7xl mx-auto p-8">
           
           {/* Top Header (Số từ vựng & Lửa) */}
@@ -291,6 +295,14 @@ function HomePage({ onLogout }) {
           <div className="h-40"></div>
 
         </div>
+        )}
+
+        {/* CHỈ HIỆN KHI BẤM VÀO MENU YÊU THÍCH */}
+        {activeMenu === 'Yêu thích' && <FavoritePage />}
+
+        {/* 👈 THÊM DÒNG NÀY ĐỂ HIỂN THỊ TRANG BỘ TỪ VỰNG */}
+        {activeMenu === 'Bộ từ vựng' && <CollectionPage />}
+        
       </main>
       {/* HỒ SƠ NGƯỜI DÙNG */}
       {isProfileModalOpen && (
@@ -335,7 +347,7 @@ function HomePage({ onLogout }) {
                 {/* Các trường nhập liệu */}
                 <div className="space-y-4 mb-6">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tên đăng nhập</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tên người dùng</label>
                     <input 
                       type="text" 
                       value={editFormData.username}
