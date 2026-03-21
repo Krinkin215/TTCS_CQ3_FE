@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   Home, Heart, Library, LayoutGrid, Gamepad2, Trophy, 
-  ChevronLeft, ChevronRight, Zap, BookOpen, User, Flame,
+  ChevronLeft, ChevronRight, Zap, BookOpen, User, Flame, ChevronDown, ChevronsUpDown,
   X, Mail, Calendar, Pencil, Download, LogOut, Cake, Camera, Save, ArrowLeft
 } from 'lucide-react';
 import FavoritePage from './FavoritePage';
@@ -11,6 +11,16 @@ function HomePage({ onLogout }) {
   // State quản lý việc thu gọn/mở rộng Sidebar
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // STREAK VÀ LỊCH
+  const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date()); 
+  
+  const MOCK_STUDIED_DATES = [
+    '2026-03-15', 
+    '2026-03-16', 
+    '2026-03-17' 
+  ];
 
   const [activeMenu, setActiveMenu] = useState('Trang chủ');
 
@@ -24,17 +34,20 @@ function HomePage({ onLogout }) {
     avatarChar: 'P',
     avatarUrl: null
   });
+
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editFormData, setEditFormData] = useState(userData);
   const handleOpenEdit = () => {
     setEditFormData(userData);
     setIsEditingProfile(true); 
   };
+
   const handleSaveProfile = () => {
     const firstChar = editFormData.fullName ? editFormData.fullName.charAt(0).toUpperCase() : 'U';
     setUserData({ ...editFormData, avatarChar: firstChar }); 
     setIsEditingProfile(false); 
   };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0]; 
     if (file) {
@@ -46,23 +59,42 @@ function HomePage({ onLogout }) {
   // Ref dùng để cuộn trang chủ và chủ đề
   const topicsRef = useRef(null);
   const mainRef = useRef(null);
+  const isScrollingRef = useRef(false); 
+  const scrollTimeoutRef = useRef(null);
 
   const scrollToTopics = () => {
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    isScrollingRef.current = true;
+    
     topicsRef.current?.scrollIntoView({ behavior: 'smooth' });
+    
+    scrollTimeoutRef.current = setTimeout(() => { 
+      isScrollingRef.current = false; 
+    }, 800);
   };
+  
   const scrollToTop = () => {
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    isScrollingRef.current = true;
+    
     mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    scrollTimeoutRef.current = setTimeout(() => { 
+      isScrollingRef.current = false; 
+    }, 800);
   };
-
-  // theo dõi vị trí cuộn trang
   const handleScroll = () => {
-    if (!topicsRef.current) return;
-    const topicsPosition = topicsRef.current.getBoundingClientRect().top;
-    if (topicsPosition <= 250) {
-      setActiveMenu('Chủ đề');
-    } else {
-      setActiveMenu('Trang chủ');
-    }
+    if (isScrollingRef.current) return; 
+    if (!mainRef.current || !topicsRef.current) return;
+    const mainRect = mainRef.current.getBoundingClientRect();
+    const topicsRect = topicsRef.current.getBoundingClientRect();
+    const distance = topicsRect.top - mainRect.top;
+    
+    setActiveMenu(prevMenu => {
+      if (prevMenu !== 'Trang chủ' && prevMenu !== 'Chủ đề') return prevMenu;
+      const targetMenu = distance <= 300 ? 'Chủ đề' : 'Trang chủ';
+      return prevMenu !== targetMenu ? targetMenu : prevMenu;
+    });
   };
 
   const menuItems = [
@@ -80,11 +112,113 @@ function HomePage({ onLogout }) {
       name: 'Chủ đề', 
       icon: <LayoutGrid size={22} />, 
       active: activeMenu === 'Chủ đề', 
-      onClick: () => { setActiveMenu('Chủ đề'); scrollToTopics(); } 
+      onClick: () => { 
+        setActiveMenu('Chủ đề'); 
+        setTimeout(() => {
+          scrollToTopics();
+        }, 100); 
+      } 
     },
     { name: 'Luyện tập', icon: <Gamepad2 size={22} />, active: activeMenu === 'Luyện tập', onClick: () => setActiveMenu('Luyện tập') },
     { name: 'Bảng xếp hạng', icon: <Trophy size={22} />, active: activeMenu === 'Bảng xếp hạng', onClick: () => setActiveMenu('Bảng xếp hạng') },
   ];
+
+  // TÍNH TOÁN TUẦN VÀ CHUỖI HIỆN TẠI
+  const today = new Date();
+  
+  // Lấy danh sách 7 ngày của tuần hiện tại
+  const currentWeekStart = new Date(today);
+  const dayOfWeek = currentWeekStart.getDay(); 
+  const diffToMonday = currentWeekStart.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+  currentWeekStart.setDate(diffToMonday);
+
+  const currentWeekDaysStr = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(currentWeekStart);
+    d.setDate(currentWeekStart.getDate() + i);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+
+  const daysStudiedThisWeek = currentWeekDaysStr.filter(dateStr => MOCK_STUDIED_DATES.includes(dateStr)).length;
+
+  let currentStreak = 0;
+  let checkDate = new Date(today);
+  const todayStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+  
+  if (!MOCK_STUDIED_DATES.includes(todayStr)) {
+     checkDate.setDate(checkDate.getDate() - 1); 
+  }
+  
+  while(true) {
+    const y = checkDate.getFullYear();
+    const m = String(checkDate.getMonth() + 1).padStart(2, '0');
+    const d = String(checkDate.getDate()).padStart(2, '0');
+    const dStr = `${y}-${m}-${d}`;
+    
+    if (MOCK_STUDIED_DATES.includes(dStr)) {
+      currentStreak++;
+      checkDate.setDate(checkDate.getDate() - 1); 
+    } else {
+      break; 
+    }
+  }
+
+  //  TẠO LỊCH STREAK 
+  const year = currentCalendarDate.getFullYear();
+  const month = currentCalendarDate.getMonth();
+  
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(year, month, 1).getDay(); 
+  const emptyDaysBefore = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; 
+
+  //  CÁC MỐC THỜI GIAN GIỚI HẠN 
+  const joinParts = userData.joinDate.split('/'); 
+  const joinYear = parseInt(joinParts[2]);
+  const joinMonth = parseInt(joinParts[1]) - 1; 
+  
+  const currentRealDate = new Date(); 
+  const currentRealYear = currentRealDate.getFullYear();
+  const currentRealMonth = currentRealDate.getMonth();
+
+  const isPrevDisabled = year === joinYear && month === joinMonth;
+  const isNextDisabled = year === currentRealYear && month === currentRealMonth;
+
+  const prevMonth = () => { if (!isPrevDisabled) setCurrentCalendarDate(new Date(year, month - 1, 1)); };
+  const nextMonth = () => { if (!isNextDisabled) setCurrentCalendarDate(new Date(year, month + 1, 1)); };
+
+  const handleYearChange = (e) => {
+    const newYear = parseInt(e.target.value);
+    let newMonth = month;
+    if (newYear === joinYear && newMonth < joinMonth) newMonth = joinMonth;
+    if (newYear === currentRealYear && newMonth > currentRealMonth) newMonth = currentRealMonth;
+    setCurrentCalendarDate(new Date(newYear, newMonth, 1));
+  };
+  const handleMonthChange = (e) => { setCurrentCalendarDate(new Date(year, parseInt(e.target.value), 1)); };
+
+  const availableYears = Array.from({ length: currentRealYear - joinYear + 1 }, (_, i) => joinYear + i);
+  const startM = year === joinYear ? joinMonth : 0;
+  const endM = year === currentRealYear ? currentRealMonth : 11;
+  const availableMonths = Array.from({ length: endM - startM + 1 }, (_, i) => startM + i);
+
+  // ĐẾM CHUỖI 
+  const getStreakUpToDate = (targetYear, targetMonth, targetDate) => {
+    let streak = 0;
+    let currDate = new Date(targetYear, targetMonth, targetDate);
+    
+    while(true) {
+      const y = currDate.getFullYear();
+      const m = String(currDate.getMonth() + 1).padStart(2, '0');
+      const d = String(currDate.getDate()).padStart(2, '0');
+      const dStr = `${y}-${m}-${d}`;
+      
+      if (MOCK_STUDIED_DATES.includes(dStr)) {
+        streak++;
+        currDate.setDate(currDate.getDate() - 1); 
+      } else {
+        break; 
+      }
+    }
+    return streak;
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-gray-800">
@@ -157,9 +291,23 @@ function HomePage({ onLogout }) {
           
           {/* Top Header (Số từ vựng & Lửa) */}
           <div className="flex justify-end items-center mb-8 gap-4">
-            <div className="flex items-center bg-white px-4 py-2 rounded-full shadow-sm hover:shadow-md hover:scale-105 hover:bg-orange-50 transition-all cursor-pointer">
-              <Flame className="text-orange-500 mr-2" size={20} />
-              <span className="font-bold text-gray-700">2 Ngày</span>
+            <div 
+              onClick={() => setIsStreakModalOpen(true)} 
+              className="flex items-center bg-white px-4 py-2 rounded-full shadow-sm hover:shadow-md hover:scale-105 hover:bg-orange-50 transition-all cursor-pointer border border-orange-100"
+            >
+              <span className="font-bold text-cyan-900">Chuỗi</span>
+              <div className="w-px h-5 bg-gray-200 mx-3"></div>
+              <span className="font-bold text-cyan-900 flex items-center gap-2">
+                <span>
+                  {currentStreak === 0 ? (
+                    <span className="text-red-600 font-extrabold text-lg mr-1">{currentStreak}</span>
+                  ) : (
+                    <span className="mr-1">{currentStreak}</span>
+                  )} 
+                  Ngày
+                </span>
+                <Flame className="text-orange-500" size={20} fill="currentColor" />
+              </span>
             </div>
           </div>
 
@@ -205,31 +353,59 @@ function HomePage({ onLogout }) {
               </div>
             </div>
 
-            {/* Khung 3: Chuỗi ngày học */}
-            <div className="bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-center items-center">
-              <h3 className="text-lg font-bold mb-1 opacity-90">CHUỖI NGÀY HỌC</h3>
-              <div className="flex items-baseline mb-6">
-                <span className="text-6xl font-black">2</span>
-                <span className="text-xl ml-2 font-medium opacity-90">ngày</span>
+            {/* Khung 3: ngày học trong tuần */}
+            <div className="bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-center items-center relative overflow-hidden">
+              <h3 className="text-sm font-bold mb-3 opacity-90 uppercase tracking-wider z-10 text-center">Tuần này bạn đã học được</h3>
+              
+              <div className="flex items-baseline mb-6 z-10">
+                {daysStudiedThisWeek === 0 ? (
+                  <span className="text-3xl font-black text-red-600 bg-white px-5 py-2 rounded-xl shadow-md border-2 border-red-200 animate-pulse">
+                    0 ngày
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-6xl font-black">{daysStudiedThisWeek}</span>
+                    <span className="text-xl ml-2 font-medium opacity-90">ngày</span>
+                  </>
+                )}
               </div>
-              <div className="flex w-full justify-between px-2">
-                {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((day, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-2">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${idx === 3 || idx === 4 ? 'bg-white text-orange-500 shadow-md' : 'bg-white/20'}`}>
-                      {idx === 3 || idx === 4 ? <Flame size={18} /> : ''}
+
+              <div className="flex w-full justify-between px-2 z-10">
+                {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((day, idx) => {
+                  const dateStr = currentWeekDaysStr[idx];
+                  const hasStudied = MOCK_STUDIED_DATES.includes(dateStr);
+                  
+                  return (
+                    <div key={idx} className="flex flex-col items-center gap-2">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                        hasStudied 
+                          ? 'bg-white text-orange-500 shadow-md scale-110' 
+                          : 'bg-white/20'
+                      }`}>
+                        {hasStudied ? <Flame size={18} fill="currentColor" /> : ''}
+                      </div>
+                      <span className="text-xs font-medium opacity-80">{day}</span>
                     </div>
-                    <span className="text-xs font-medium opacity-80">{day}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+              
+              <Flame className="absolute -bottom-10 -right-4 text-white opacity-10 pointer-events-none" size={150} />
             </div>
+
           </div>
 
           {/* TRUY CẬP NHANH */}
           <div className="mb-10">
             <h2 className="text-xl font-bold text-[#083344] mb-4 text-center">Truy cập nhanh</h2>
             <div className="flex justify-center gap-4 flex-wrap">
-              <button onClick={scrollToTopics} className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-[#0e7490] hover:shadow-md transition-all group min-w-[200px]">
+              <button 
+                onClick={() => {
+                  setActiveMenu('Chủ đề');
+                  scrollToTopics();
+                }} 
+                className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-[#0e7490] hover:shadow-md transition-all group min-w-[200px]"
+              >
                 <div className="bg-blue-100 p-3 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
                   <BookOpen size={24} />
                 </div>
@@ -291,16 +467,13 @@ function HomePage({ onLogout }) {
             </div>
           </div>
           
-          {/* Không gian trống ở dưới để cuộn thoải mái */}
           <div className="h-40"></div>
 
         </div>
         )}
 
-        {/* CHỈ HIỆN KHI BẤM VÀO MENU YÊU THÍCH */}
         {activeMenu === 'Yêu thích' && <FavoritePage />}
 
-        {/* 👈 THÊM DÒNG NÀY ĐỂ HIỂN THỊ TRANG BỘ TỪ VỰNG */}
         {activeMenu === 'Bộ từ vựng' && <CollectionPage />}
         
       </main>
@@ -454,6 +627,131 @@ function HomePage({ onLogout }) {
                 </button>
               </div>
             )}
+
+          </div>
+        </div>
+      )}
+
+      {/* LỊCH STREAK */}
+      {isStreakModalOpen && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative animate-in zoom-in duration-200">
+            
+            <button onClick={() => setIsStreakModalOpen(false)} className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition-colors p-1">
+              <X size={24} />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <Flame size={36} fill="currentColor" />
+              </div>
+              <h2 className="text-2xl font-black text-cyan-950">Chuỗi ngày học</h2>
+              <p className="text-gray-500 mt-1.5 font-medium">
+                {currentStreak === 0 ? (
+                  <span>Bạn đang có chuỗi <strong className="text-red-600 text-xl mx-1">0</strong> ngày. Vào học ngay nào! 🔥</span>
+                ) : (
+                  <span>Bạn đang có chuỗi <strong className="text-orange-500 text-xl mx-1">{currentStreak}</strong> ngày liên tiếp!</span>
+                )}
+              </p>
+            </div>
+
+            {/* Điều hướng tháng/năm (Có Dropdown) */}
+            <div className="flex justify-between items-center mb-6 bg-cyan-50 p-2 rounded-xl border border-cyan-100">
+              <button 
+                onClick={prevMonth} 
+                disabled={isPrevDisabled}
+                className={`p-2 rounded-lg transition-colors ${isPrevDisabled ? 'text-cyan-200 cursor-not-allowed' : 'text-cyan-700 hover:bg-cyan-100'}`}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              
+              {/* Dropdown Chọn tự do Tháng & Năm */}
+              <div className="flex gap-2">
+              <div className="relative">
+                <select 
+                  value={month} 
+                  onChange={handleMonthChange}
+                  className="w-full bg-white border border-cyan-200 text-cyan-900 font-bold py-1.5 pl-3 pr-9 rounded-lg outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer text-sm appearance-none"
+                >
+                  {availableMonths.map(m => (
+                    <option key={m} value={m}>Tháng {m + 1}</option>
+                  ))}
+                </select>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-500 pointer-events-none">
+                  <ChevronDown size={18} strokeWidth={2.5} />
+                </span>
+              </div>
+              
+              <div className="relative">
+                <select 
+                  value={year} 
+                  onChange={handleYearChange}
+                  className="w-full bg-white border border-cyan-200 text-cyan-900 font-bold py-1.5 pl-3 pr-9 rounded-lg outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer text-sm appearance-none"
+                >
+                  {availableYears.map(y => (
+                    <option key={y} value={y}>Năm {y}</option>
+                  ))}
+                </select>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-500 pointer-events-none">
+                  <ChevronDown size={18} strokeWidth={2.5} />
+                </span>
+              </div>
+              </div>
+
+              <button 
+                onClick={nextMonth} 
+                disabled={isNextDisabled}
+                className={`p-2 rounded-lg transition-colors ${isNextDisabled ? 'text-cyan-200 cursor-not-allowed' : 'text-cyan-700 hover:bg-cyan-100'}`}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            {/* Khung Lịch */}
+            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(day => (
+                  <div key={day} className="text-center text-xs font-bold text-gray-400 py-2">{day}</div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: emptyDaysBefore }).map((_, i) => (
+                  <div key={`empty-${i}`} className="h-10"></div>
+                ))}
+                
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const dateNum = i + 1;
+                  const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(dateNum).padStart(2, '0')}`;
+                  
+                  const hasStudied = MOCK_STUDIED_DATES.includes(dateString);
+                  const streakCount = hasStudied ? getStreakUpToDate(year, month, dateNum) : 0;
+                  
+                  const isToday = year === currentRealYear && month === currentRealMonth && dateNum === currentRealDate.getDate();
+
+                  return (
+                    <div key={dateNum} className="relative flex justify-center group cursor-default">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                        hasStudied 
+                          ? 'bg-orange-100 text-orange-600 shadow-sm border border-orange-200' 
+                          : isToday
+                            ? 'bg-cyan-50 text-cyan-700 ring-2 ring-cyan-400 ring-offset-1 font-extrabold shadow-sm' 
+                            : 'text-gray-600 hover:bg-gray-200'
+                      }`}>
+                        {hasStudied ? <Flame size={18} fill="currentColor" /> : dateNum}
+                      </div>
+
+                      {hasStudied && (
+                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-cyan-950 text-white text-xs font-bold py-1.5 px-3 rounded-lg pointer-events-none whitespace-nowrap z-10 shadow-xl">
+                          Đã đạt {streakCount} ngày
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-cyan-950"></div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
           </div>
         </div>
