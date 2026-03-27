@@ -1,0 +1,892 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { FolderPlus, Search, X, Filter, Heart, Plus, Upload, FileText, Zap, ChevronDown, Trash2, HelpCircle, Download, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import VocabTable from '../src_components/VocabTable'; 
+
+const MOCK_VOCABULARIES = [
+  { id: 1, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', level: 'B2', isFavorite: true },
+  { id: 2, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', level: 'B1', isFavorite: false },
+  { id: 3, word: 'Apple', pronunciation: '/ˈæp.əl/', type: 'Danh từ', meaning: 'Quả táo', example: 'I eat an apple every day.', level: 'A1', isFavorite: true },
+  { id: 4, word: 'Fascinating', pronunciation: '/ˈfæs.ən.eɪ.tɪŋ/', type: 'Tính từ', meaning: 'Hấp dẫn, lôi cuốn', example: 'I found the whole movie fascinating.', level: 'B2', isFavorite: false },
+  { id: 5, word: 'Accomplish', pronunciation: '/əˈkʌm.plɪʃ/', type: 'Động từ', meaning: 'Hoàn thành, đạt được', example: 'The students accomplished the task in less than ten minutes.', level: 'C1', isFavorite: false },
+  { id: 6, word: 'Benevolent', pronunciation: '/bəˈnev.əl.ənt/', type: 'Tính từ', meaning: 'Nhân từ, rộng lượng', example: 'He was a benevolent old man.', level: 'C1', isFavorite: false },
+  { id: 7, word: 'Crucial', pronunciation: '/ˈkruː.ʃəl/', type: 'Tính từ', meaning: 'Quan trọng, cốt yếu', example: 'Her work has been crucial to the project.', level: 'B2', isFavorite: true },
+  { id: 8, word: 'Diligent', pronunciation: '/ˈdɪl.ɪ.dʒənt/', type: 'Tính từ', meaning: 'Siêng năng, cần cù', example: 'He is a diligent student.', level: 'B2', isFavorite: false },
+  { id: 9, word: 'Eloquent', pronunciation: '/ˈel.ə.kwənt/', type: 'Tính từ', meaning: 'Có tài hùng biện', example: 'She made an eloquent appeal for action.', level: 'C1', isFavorite: false },
+  { id: 10, word: 'Genuine', pronunciation: '/ˈdʒen.ju.ɪn/', type: 'Tính từ', meaning: 'Thành thật, chân chính', example: 'He is a very genuine person.', level: 'B2', isFavorite: true },
+  { id: 11, word: 'Harmony', pronunciation: '/ˈhɑː.mə.ni/', type: 'Danh từ', meaning: 'Sự hài hòa, hòa thuận', example: 'We must ensure that tourism develops in harmony with the environment.', level: 'B2', isFavorite: false },
+  { id: 12, word: 'Inevitable', pronunciation: '/ɪˈnev.ɪ.tə.bəl/', type: 'Tính từ', meaning: 'Không thể tránh khỏi', example: 'The accident was the inevitable consequence of carelessness.', level: 'C1', isFavorite: false },
+  { id: 13, word: 'Joyful', pronunciation: '/ˈdʒɔɪ.fəl/', type: 'Tính từ', meaning: 'Vui vẻ, hân hoan', example: 'Christmas is a joyful occasion for children.', level: 'A2', isFavorite: true },
+  { id: 14, word: 'Keen', pronunciation: '/kiːn/', type: 'Tính từ', meaning: 'Say mê, nhiệt tình', example: 'They were very keen to start work.', level: 'B1', isFavorite: false },
+  { id: 15, word: 'Lucid', pronunciation: '/ˈluː.sɪd/', type: 'Tính từ', meaning: 'Rõ ràng, dễ hiểu', example: 'She gave a clear and lucid account of her plans.', level: 'C2', isFavorite: false },
+];
+
+const MOCK_COLLECTIONS = [
+  { id: 1, name: 'Từ vựng luyện thi TOEIC' },
+  { id: 2, name: 'Communication English' },
+  { id: 3, name: 'Từ khó nhớ - A1/A2' },
+];
+
+const MOCK_TOPICS = [
+  { id: 1, name: 'Động vật (Animals)' },
+  { id: 2, name: 'Công nghệ (Technology)' },
+  { id: 3, name: 'Kinh doanh (Business)' },
+  { id: 4, name: 'Du lịch (Travel)' }
+];
+
+const FILTER_OPTIONS = {
+  statuses: ['Đã thuộc', 'Đã học', 'Chưa thuộc', 'Chưa học'],
+  types: ['Danh từ', 'Động từ', 'Tính từ', 'Trạng từ'],
+  levels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+};
+
+const ITEMS_PER_PAGE = 10;
+
+function VocabularyPage({ initialFilter }) {
+  const [vocabularies, setVocabularies] = useState(MOCK_VOCABULARIES);
+  
+  //  TƯƠNG TÁC UI 
+  const [isSelectMode, setIsSelectMode] = useState(false); 
+  const [selectedIds, setSelectedIds] = useState([]); 
+  const [searchTerm, setSearchTerm] = useState(''); 
+
+  const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
+  const [wordToAdd, setWordToAdd] = useState(null); 
+  const [isBulkAddMode, setIsBulkAddMode] = useState(false); 
+  const [modalSearchTerm, setModalSearchTerm] = useState(''); 
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
+
+  
+  // MODAL THÊM TỪ VỰNG MỚI
+  const [showAddWordModal, setShowAddWordModal] = useState(false);
+  const [addWordTab, setAddWordTab] = useState('manual'); 
+  const [showImportDropdown, setShowImportDropdown] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
+  const [showExitWarning, setShowExitWarning] = useState(false);
+  
+  const fileInputRef = useRef(null);
+
+  const defaultDraftRow = { id: Date.now(), word: '', pronunciation: '', type: '', meaning: '', level: 'A1', example: '' };
+  const [draftWords, setDraftWords] = useState([{ ...defaultDraftRow }]);
+  
+  const [pasteText, setPasteText] = useState('');
+  const [isSaving, setIsSaving] = useState(false); 
+
+  // BỘ LỌC TỪ VỰNG
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [openFilterDropdown, setOpenFilterDropdown] = useState(null); 
+  const [filterSearch, setFilterSearch] = useState({ collections: '', topics: '' });
+
+  const initialFilters = { collections: [], topics: [], statuses: [], types: [], levels: [] };
+  const [activeFilters, setActiveFilters] = useState(initialFilters); 
+  const [draftFilters, setDraftFilters] = useState(initialFilters);  
+
+  useEffect(() => {
+    const baseFilters = { collections: [], topics: [], statuses: [], types: [], levels: [] };
+    
+    if (initialFilter) {
+      let statusesToSet = [initialFilter];
+      if (initialFilter === 'Tổng từ đã học') {
+        statusesToSet = ['Đã thuộc', 'Đã học', 'Chưa thuộc'];
+      }
+      
+      const newFilters = { ...baseFilters, statuses: statusesToSet };
+      setActiveFilters(newFilters);
+      setDraftFilters(newFilters);
+    } else {
+      setActiveFilters(baseFilters);
+      setDraftFilters(baseFilters);
+    }
+  }, [initialFilter]);
+
+  const toggleDraftFilter = (category, value) => {
+    setDraftFilters(prev => {
+      let newCategoryValues = prev[category].includes(value) 
+        ? prev[category].filter(v => v !== value) 
+        : [...prev[category], value];
+
+      if (category === 'statuses') {
+        if (value === 'Đã học' && !prev[category].includes('Đã học')) {
+          if (!newCategoryValues.includes('Đã thuộc')) newCategoryValues.push('Đã thuộc');
+          if (!newCategoryValues.includes('Chưa thuộc')) newCategoryValues.push('Chưa thuộc');
+        }
+        
+      }
+
+      return {
+        ...prev,
+        [category]: newCategoryValues
+      };
+    });
+  };
+
+  const toggleAllDraftFilter = (category, allValues) => {
+    setDraftFilters(prev => ({
+      ...prev,
+      [category]: prev[category].length === allValues.length && allValues.length > 0 ? [] : allValues
+    }));
+  };
+
+  const applyFilters = () => {
+    setActiveFilters(draftFilters);
+    setShowFilterModal(false);
+    setOpenFilterDropdown(null);
+  };
+
+  const clearFilters = () => {
+    setDraftFilters(initialFilters);
+  };
+
+  const filteredVocabularies = vocabularies.filter(word => {
+    if (activeFilters.types.length > 0 && !activeFilters.types.includes(word.type)) return false;
+    if (activeFilters.levels.length > 0 && !activeFilters.levels.includes(word.level)) return false;
+    
+    let mockStatus = 'Chưa học';
+    if (word.isFavorite) {
+      mockStatus = 'Đã thuộc';
+    } else if (word.id % 3 === 0) {
+      mockStatus = 'Đã học';
+    } else if (word.id % 2 === 0) {
+      mockStatus = 'Chưa thuộc';
+    }
+
+    if (activeFilters.statuses.length > 0 && !activeFilters.statuses.includes(mockStatus)) return false;
+
+    if (activeFilters.collections.length > 0) {
+      const wColls = word.collectionIds || [];
+      if (!activeFilters.collections.some(id => wColls.includes(id))) return false;
+    }
+    if (activeFilters.topics.length > 0) {
+      const wTopics = word.topicIds || [];
+      if (!activeFilters.topics.some(id => wTopics.includes(id))) return false;
+    }
+
+    return true;
+  });
+
+  // 1. bảng Nhập thủ công
+  const handleAddDraftRow = () => setDraftWords([...draftWords, { ...defaultDraftRow, id: Date.now() }]);
+  const handleRemoveDraftRow = (id) => setDraftWords(draftWords.filter(w => w.id !== id));
+  const handleDraftChange = (id, field, value) => {
+    setDraftWords(draftWords.map(w => w.id === id ? { ...w, [field]: value } : w));
+  };
+
+  // 2. Kiểm tra trước khi thoát 
+  const handleCloseAddModal = () => {
+    const hasUnsavedData = addWordTab === 'manual' 
+      ? draftWords.some(w => w.word.trim() || w.meaning.trim()) 
+      : pasteText.trim().length > 0;
+
+    if (hasUnsavedData) {
+      setShowExitWarning(true);
+    } else {
+      forceCloseAddModal();
+    }
+  };
+
+  const forceCloseAddModal = () => {
+    setShowAddWordModal(false);
+    setShowExitWarning(false);
+    setDraftWords([{ ...defaultDraftRow }]);
+    setPasteText('');
+    setAddWordTab('manual');
+  };
+
+  // 3. Lưu dữ liệu & Lọc trùng lặp
+  const handleSaveNewWords = async () => {
+    let wordsToProcess = [];
+    if (addWordTab === 'manual') {
+      wordsToProcess = draftWords.filter(w => w.word.trim() && w.meaning.trim());
+    } else {
+      const lines = pasteText.split('\n');
+      wordsToProcess = lines.map((line, idx) => {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length >= 2 && parts[0] && parts[3]) { 
+          return {
+            id: Date.now() + idx,
+            word: parts[0], pronunciation: parts[1] || '', type: parts[2] || '',
+            meaning: parts[3] || '', level: parts[4] || 'A1', example: parts[5] || '',
+            isFavorite: false
+          };
+        }
+        return null;
+      }).filter(Boolean);
+    }
+
+    if (wordsToProcess.length === 0) {
+      alert("⚠️ Vui lòng nhập ít nhất 1 từ vựng có đủ TỪ TIẾNG ANH và NGHĨA!");
+      return;
+    }
+
+    setIsSaving(true); 
+    
+    let addedCount = 0;
+    let duplicateCount = 0;
+    let formatErrorCount = 0;
+    let apiErrorCount = 0;
+    const currentVocabs = [...vocabularies];
+
+    const wordRegex = /^[a-zA-Z\s-]+$/; 
+    const pronunRegex = /^\/.*\/$/;     
+
+    for (const newWord of wordsToProcess) {
+      const wordTrimmed = newWord.word.trim();
+
+      // KIỂM TRA ĐỊNH DẠNG 
+      if (!wordRegex.test(wordTrimmed)) {
+        formatErrorCount++; continue;
+      }
+      if (newWord.pronunciation && !pronunRegex.test(newWord.pronunciation.trim())) {
+        formatErrorCount++; continue;
+      }
+
+      // KIỂM TRA TRÙNG LẶP
+      const exists = currentVocabs.some(v => v.word.toLowerCase() === wordTrimmed.toLowerCase());
+      if (exists) {
+        duplicateCount++; continue;
+      }
+
+      // TRA TỪ ĐIỂN THỰC TẾ 
+      try {
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${wordTrimmed}`);
+        if (!response.ok) { 
+          apiErrorCount++; 
+          continue; 
+        }
+      } catch (error) {
+        console.warn("Lỗi kết nối API từ điển, tạm bỏ qua check ngữ nghĩa.");
+      }
+
+      // PASS TOÀN BỘ -> ĐƯỢC PHÉP LƯU
+      currentVocabs.unshift({ ...newWord, word: wordTrimmed, id: Date.now() + Math.random() });
+      addedCount++;
+    }
+
+    setVocabularies(currentVocabs);
+    setIsSaving(false); 
+
+    // TỔNG HỢP BÁO CÁO CHO NGƯỜI DÙNG
+    let alertMsg = `KẾT QUẢ THÊM TỪ VỰNG:\n\n`;
+    if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} từ mới.\n`;
+    if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} từ (Đã có sẵn trong hệ thống).\n`;
+    if (formatErrorCount > 0) alertMsg += `❌ Lỗi định dạng: ${formatErrorCount} từ (Có chứa số/kí tự lạ hoặc phiên âm thiếu dấu / /).\n`;
+    if (apiErrorCount > 0) alertMsg += `🌐 Từ vô nghĩa: Bỏ qua ${apiErrorCount} từ (Không tìm thấy trong từ điển tiếng Anh).\n`;
+
+    alert(alertMsg);
+
+    if (addedCount > 0) forceCloseAddModal();
+  };
+
+  // 4. chức năng Tải file mẫu & Mở file
+  const handleDownloadTemplate = () => alert("Đang tải file mẫu Template_ThemTuVung.xlsx về máy...");
+  const triggerFileInput = () => {
+    setShowImportDropdown(false);
+    fileInputRef.current?.click();
+  };
+  const handleFileUpload = (e) => {
+    if (e.target.files.length > 0) alert(`Đã tải lên file: ${e.target.files[0].name}. (Cần Backend để parse file này)`);
+    e.target.value = null;
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  };
+
+  const handleSelectAllCurrentPage = (currentWords) => {
+    const isAllCurrentSelected = currentWords.every(v => selectedIds.includes(v.id));
+    if (isAllCurrentSelected && currentWords.length > 0) {
+      const currentIds = currentWords.map(v => v.id);
+      setSelectedIds(prev => prev.filter(id => !currentIds.includes(id)));
+    } else {
+      const newIds = currentWords.map(v => v.id).filter(id => !selectedIds.includes(id));
+      setSelectedIds(prev => [...prev, ...newIds]);
+    }
+  };
+
+  const toggleFavorite = (id) => {
+    setVocabularies(vocabularies.map(v => 
+      v.id === id ? { ...v, isFavorite: !v.isFavorite } : v
+    ));
+  };
+
+  const handleBulkFavorite = () => {
+    if (selectedIds.length === 0) return;
+    const newlyAddedCount = selectedIds.filter(id => {
+      const word = vocabularies.find(v => v.id === id);
+      return word && !word.isFavorite;
+    }).length;
+
+    setVocabularies(vocabularies.map(v => 
+      selectedIds.includes(v.id) ? { ...v, isFavorite: true } : v
+    ));
+
+    alert(`Đã thêm ${newlyAddedCount} từ vào danh sách Yêu thích!`);
+    
+    setIsSelectMode(false);
+    setSelectedIds([]);
+  };
+
+  // Modal Thêm vào bộ từ
+  const modalFilteredCollections = MOCK_COLLECTIONS.filter(c =>
+    c.name.toLowerCase().includes(modalSearchTerm.toLowerCase())
+  );
+
+  const handleOpenAddToCollectionModal = (word = null) => {
+    if (word) {
+      setWordToAdd(word);
+      setIsBulkAddMode(false); 
+    } else {
+      setWordToAdd(null);
+      setIsBulkAddMode(true);  
+    }
+    setSelectedCollectionIds([]); 
+    setModalSearchTerm('');       
+    setShowAddToCollectionModal(true);
+  };
+
+  const toggleModalCollectionSelect = (id) => {
+    setSelectedCollectionIds(prev => prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]);
+  };
+
+  const handleSelectAllModalCollections = () => {
+    if (selectedCollectionIds.length === modalFilteredCollections.length && modalFilteredCollections.length > 0) {
+      setSelectedCollectionIds([]);
+    } else {
+      setSelectedCollectionIds(modalFilteredCollections.map(c => c.id));
+    }
+  };
+
+  const confirmAddWordToCollections = () => {
+    if (selectedCollectionIds.length === 0) return;
+    if (isBulkAddMode) {
+      alert(`Đã thêm ${selectedIds.length} từ vựng vào ${selectedCollectionIds.length} bộ từ!`);
+      setIsSelectMode(false); 
+      setSelectedIds([]);     
+    } else {
+      alert(`Đã thêm từ "${wordToAdd.word}" vào ${selectedCollectionIds.length} bộ từ!`);
+    }
+    setShowAddToCollectionModal(false);
+  };
+
+  const playAudio = (word) => {
+    console.log(`Đang phát âm thanh từ: ${word}`);
+  };
+
+  const unfavoritedSelectedCount = selectedIds.filter(id => {
+    const word = vocabularies.find(v => v.id === id);
+    return word && !word.isFavorite;
+  }).length;
+
+  // Cột Hành động của trang Từ Vựng
+  const VocabularyActionColumn = ({ item }) => (
+    <div className="flex items-center justify-center gap-2">
+      <button 
+        onClick={() => handleOpenAddToCollectionModal(item)}
+        className="px-3 py-1.5 bg-white border border-cyan-200 text-cyan-700 rounded-lg text-xs font-bold shadow-sm hover:bg-cyan-50 transition-colors whitespace-nowrap"
+      >
+        + Bộ từ
+      </button>
+      <button 
+        onClick={() => toggleFavorite(item.id)}
+        className="p-2 rounded-full transition-all hover:scale-110 hover:bg-red-50"
+      >
+        <Heart 
+          size={22} 
+          fill={item.isFavorite ? "currentColor" : "none"} 
+          className={`transition-colors duration-300 ${item.isFavorite ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}`}
+        />
+      </button>
+    </div>
+  );
+
+  const renderFilterDropdown = (title, category, options, isObject = false, searchKey = null) => {
+    const isOpen = openFilterDropdown === category;
+    let displayOptions = options;
+    
+    if (searchKey) {
+      displayOptions = options.filter(opt => 
+        (isObject ? opt.name : opt).toLowerCase().includes(filterSearch[searchKey].toLowerCase())
+      );
+    }
+
+    const allValues = options.map(opt => isObject ? opt.id : opt);
+    const isAllSelected = draftFilters[category].length === allValues.length && allValues.length > 0;
+
+    return (
+      <div className="relative col-span-1">
+        <label className="block text-sm font-bold text-gray-700 mb-1.5">{title}</label>
+        <div 
+          onClick={() => setOpenFilterDropdown(isOpen ? null : category)}
+          className={`w-full px-4 py-2.5 border rounded-xl cursor-pointer flex justify-between items-center transition-colors ${isOpen ? 'bg-cyan-50 border-cyan-400' : 'bg-white border-gray-300 hover:border-cyan-400'}`}
+        >
+          <span className="text-gray-700 font-medium truncate pr-2">
+            {draftFilters[category].length === 0 
+              ? 'Tất cả' 
+              : draftFilters[category].length === allValues.length 
+                ? 'Đã chọn tất cả' 
+                : `Đã chọn (${draftFilters[category].length})`}
+          </span>
+          <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180 text-cyan-600' : ''}`} />
+        </div>
+
+        {isOpen && (
+          <div className="absolute z-[100] top-full left-0 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 flex flex-col overflow-hidden">
+            {searchKey && (
+              <div className="p-2 border-b border-gray-100 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                  <input type="text" placeholder="Tìm kiếm..." value={filterSearch[searchKey]} onChange={(e) => setFilterSearch({...filterSearch, [searchKey]: e.target.value})} className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+                </div>
+              </div>
+            )}
+            <div className="overflow-y-auto p-2 flex-1 scrollbar-thin">
+              <label className="flex items-center gap-3 p-2.5 hover:bg-cyan-50 rounded-lg cursor-pointer border-b border-gray-50 group">
+                <input type="checkbox" checked={isAllSelected} onChange={() => toggleAllDraftFilter(category, allValues)} className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer" />
+                <span className="font-bold text-cyan-900 group-hover:text-cyan-700">Chọn tất cả</span>
+              </label>
+              {displayOptions.length > 0 ? displayOptions.map(opt => {
+                const val = isObject ? opt.id : opt;
+                const label = isObject ? opt.name : opt;
+                return (
+                  <label key={val} className="flex items-center gap-3 p-2.5 hover:bg-cyan-50 rounded-lg cursor-pointer group">
+                    <input type="checkbox" checked={draftFilters[category].includes(val)} onChange={() => toggleDraftFilter(category, val)} className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer shrink-0" />
+                    <span className="text-gray-700 font-medium group-hover:text-cyan-900 truncate">{label}</span>
+                  </label>
+                );
+              }) : (
+                <div className="p-4 text-center text-gray-400 text-sm">Không tìm thấy kết quả.</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-8 bg-slate-50 min-h-screen">
+      
+      {/* KHỐI 1: THANH CÔNG CỤ */}
+      <div className="bg-white rounded-[1.25rem] shadow-sm border border-gray-200 p-4 mb-6 flex justify-between items-center transition-all">
+        
+        <div className="flex gap-4 items-center w-full max-w-xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Tìm kiếm từ vựng..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 bg-gray-50/50 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#0e7490] transition-all outline-none font-medium text-gray-700"
+            />
+          </div>
+          <button 
+            onClick={() => { setDraftFilters(activeFilters); setShowFilterModal(true); setOpenFilterDropdown(null); }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 font-semibold transition-colors shrink-0 shadow-sm relative"
+          >
+            <Filter size={18} /> Bộ lọc
+            {Object.values(activeFilters).some(arr => arr.length > 0) && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white"></span>
+            )}
+          </button>
+        </div>
+
+        <div className="flex gap-3 items-center">
+          {!isSelectMode && (
+            <button 
+              onClick={() => setShowAddWordModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-sm transition-colors mr-2"
+            >
+              <Plus size={20} /> Thêm từ
+            </button>
+          )}
+
+          {isSelectMode && (
+            <>
+              <button 
+                onClick={() => handleOpenAddToCollectionModal(null)}
+                disabled={selectedIds.length === 0}
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${
+                  selectedIds.length > 0
+                    ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
+                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
+                }`}
+              >
+                <FolderPlus size={18} /> Thêm vào...
+              </button>
+
+              <button 
+                onClick={handleBulkFavorite}
+                disabled={unfavoritedSelectedCount === 0}
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${
+                  unfavoritedSelectedCount > 0 
+                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer' 
+                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
+                }`}
+              >
+                <Heart size={18} fill={unfavoritedSelectedCount > 0 ? "currentColor" : "none"} /> 
+                Yêu thích ({unfavoritedSelectedCount})
+              </button>
+            </>
+          )}
+          
+          <button 
+            onClick={() => {
+              setIsSelectMode(!isSelectMode);
+              if (isSelectMode) setSelectedIds([]); 
+            }}
+            className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-colors ${
+              isSelectMode 
+                ? 'bg-[#164e63] text-white' 
+                : 'bg-[#0e7490] hover:bg-[#164e63] text-white'
+            }`}
+          >
+            {isSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
+          </button>
+        </div>
+      </div>
+
+      {/* KHỐI 2: BẢNG DANH SÁCH TỪ VỰNG */}
+      <VocabTable 
+        words={filteredVocabularies}
+        searchTerm={searchTerm}
+        isSelectMode={isSelectMode}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+        onSelectAll={handleSelectAllCurrentPage}
+        ActionColumn={VocabularyActionColumn} 
+      />
+
+      {/* THÊM TỪ VÀO BỘ TỪ VỰNG */}
+      {showAddToCollectionModal && (wordToAdd || isBulkAddMode) && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-gray-100 flex flex-col max-h-[85vh] animate-in zoom-in duration-200">
+            
+            <div className="flex justify-between items-center p-5 pb-4 border-b border-gray-100 shrink-0">
+              <div>
+                <h2 className="text-xl font-bold text-cyan-950">Lưu vào bộ từ</h2>
+                <p className="text-sm text-gray-500 mt-0.5 truncate max-w-[200px]">
+                  {isBulkAddMode ? (
+                    <span>Đang chọn: <span className="font-bold text-cyan-700">{selectedIds.length} từ vựng</span></span>
+                  ) : (
+                    <span>Từ: <span className="font-bold text-cyan-700">{wordToAdd?.word}</span></span>
+                  )}
+                </p>
+              </div>
+              <button onClick={() => setShowAddToCollectionModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-gray-50 shrink-0 bg-gray-50/50">
+              <div className="flex items-center justify-between gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder="Tìm kiếm bộ từ..." 
+                    value={modalSearchTerm}
+                    onChange={(e) => setModalSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
+                  />
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer shrink-0" title="Chọn tất cả">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tất cả</span>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedCollectionIds.length === modalFilteredCollections.length && modalFilteredCollections.length > 0}
+                    onChange={handleSelectAllModalCollections}
+                    className="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
+              {modalFilteredCollections.length > 0 ? (
+                modalFilteredCollections.map(collection => (
+                  <label key={collection.id} className="flex items-center justify-between p-3 hover:bg-cyan-50 rounded-xl cursor-pointer transition-colors group">
+                    <span className="text-gray-700 font-medium group-hover:text-cyan-900 transition-colors truncate pr-4">{collection.name}</span>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedCollectionIds.includes(collection.id)}
+                      onChange={() => toggleModalCollectionSelect(collection.id)}
+                      className="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer shrink-0"
+                    />
+                  </label>
+                ))
+              ) : (
+                <div className="py-8 text-center text-gray-400 text-sm">Không tìm thấy bộ từ nào.</div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-gray-50/50 rounded-b-2xl">
+              <button onClick={() => setShowAddToCollectionModal(false)} className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-100 transition-colors">
+                Hủy
+              </button>
+              <button 
+                onClick={confirmAddWordToCollections}
+                disabled={selectedCollectionIds.length === 0}
+                className={`px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                  selectedCollectionIds.length > 0 ? 'bg-cyan-600 text-white hover:bg-cyan-700 cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                Thêm vào ({selectedCollectionIds.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* MODAL: THÊM TỪ VỰNG MỚI */}
+      {showAddWordModal && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] animate-in zoom-in duration-200 border border-gray-100 relative overflow-hidden">
+            
+            {/* 1. HEADER & TOOLBAR */}
+            <div className="p-5 border-b border-gray-100 shrink-0 bg-white z-20">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-2xl font-black text-cyan-950">Thêm từ vựng mới</h2>
+                <button onClick={handleCloseAddModal} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="flex gap-3 items-center">
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowImportDropdown(!showImportDropdown)}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#0e7490] hover:bg-[#164e63] text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
+                  >
+                    <Upload size={18} /> Nhập file <ChevronDown size={16} className={`transition-transform ${showImportDropdown ? 'rotate-180' : ''}`}/>
+                  </button>
+                  {showImportDropdown && (
+                    <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 shadow-xl rounded-xl py-2 z-50">
+                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600"/> Nhập file CSV (.csv)</button>
+                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600"/> Nhập file Excel (.xlsx)</button>
+                    </div>
+                  )}
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
+                </div>
+
+                <button onClick={() => setShowGuideModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-bold rounded-lg transition-colors shadow-sm">
+                  <HelpCircle size={18} className="text-cyan-600"/> Hướng dẫn
+                </button>
+
+                <div className="w-px h-6 bg-gray-200 mx-1"></div>
+
+                <button 
+                  onClick={() => setAddWordTab(addWordTab === 'manual' ? 'paste' : 'manual')}
+                  className={`flex items-center gap-2 px-4 py-2 border text-sm font-bold rounded-lg transition-colors shadow-sm ${addWordTab === 'paste' ? 'bg-cyan-100 border-cyan-300 text-cyan-800' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                >
+                  <Zap size={18} className={addWordTab === 'paste' ? 'text-orange-500 fill-orange-500' : 'text-orange-400'}/> Thêm nhanh (Paste)
+                </button>
+              </div>
+            </div>
+
+            {/* 2. KHU VỰC NHẬP DỮ LIỆU */}
+            <div className="flex-1 overflow-y-auto bg-gray-50/50 p-6">
+              
+              {/* TAB 1: NHẬP THỦ CÔNG */}
+              {addWordTab === 'manual' && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-cyan-50/50 border-b border-gray-200 text-cyan-900 text-xs uppercase tracking-wider">
+                        <th className="p-3 w-12 text-center">#</th>
+                        <th className="p-3 w-1/6">Từ vựng <span className="text-red-500">*</span></th>
+                        <th className="p-3 w-1/6">Phiên âm</th>
+                        <th className="p-3 w-32">Loại từ</th>
+                        <th className="p-3 w-1/6">Nghĩa <span className="text-red-500">*</span></th>
+                        <th className="p-3 w-28 text-center">Cấp độ</th>
+                        <th className="p-3">Ví dụ</th>
+                        <th className="p-3 w-12 text-center"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {draftWords.map((word, index) => (
+                        <tr key={word.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                          <td className="p-3 text-center text-gray-400 font-bold">{index + 1}</td>
+                          <td className="p-3"><input type="text" placeholder="Apple" value={word.word} onChange={(e) => handleDraftChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950"/></td>
+                          <td className="p-3"><input type="text" placeholder="/ˈæp.əl/" value={word.pronunciation} onChange={(e) => handleDraftChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600"/></td>
+                          <td className="p-3">
+                            <select value={word.type} onChange={(e) => handleDraftChange(word.id, 'type', e.target.value)} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white">
+                              <option value="">-- Chọn --</option>
+                              <option value="Danh từ">Danh từ</option>
+                              <option value="Động từ">Động từ</option>
+                              <option value="Tính từ">Tính từ</option>
+                              <option value="Trạng từ">Trạng từ</option>
+                            </select>
+                          </td>
+                          <td className="p-3"><input type="text" placeholder="Quả táo" value={word.meaning} onChange={(e) => handleDraftChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium"/></td>
+                          <td className="p-3 text-center">
+                            <select value={word.level} onChange={(e) => handleDraftChange(word.id, 'level', e.target.value)} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white">
+                              {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => <option key={lvl} value={lvl}>{lvl}</option>)}
+                            </select>
+                          </td>
+                          <td className="p-3"><input type="text" placeholder="I eat an apple." value={word.example} onChange={(e) => handleDraftChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic"/></td>
+                          <td className="p-3 text-center">
+                            {draftWords.length > 1 && (
+                              <button onClick={() => handleRemoveDraftRow(word.id)} className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded transition-colors"><Trash2 size={16}/></button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <button onClick={handleAddDraftRow} className="w-full py-3 bg-gray-50 hover:bg-cyan-50 text-cyan-700 text-sm font-bold flex justify-center items-center gap-2 border-t border-gray-200 transition-colors">
+                    <Plus size={18}/> Thêm dòng
+                  </button>
+                </div>
+              )}
+
+              {/* TAB 2: PASTE NHANH TỪ AI */}
+              {addWordTab === 'paste' && (
+                <div className="flex flex-col h-full animate-in fade-in duration-300">
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4 flex gap-3">
+                    <div className="bg-purple-200/50 p-2 rounded-lg h-fit text-purple-700"><Zap size={20} fill="currentColor"/></div>
+                    <div>
+                      <h4 className="font-bold text-purple-900 mb-1 text-sm">Hướng dẫn dùng AI (ChatGPT, Gemini) để tạo từ vựng:</h4>
+                      <p className="text-sm text-gray-700 mb-2">Hãy copy đoạn lệnh (prompt) dưới đây và dán vào AI cùng danh sách từ của bạn. Sau đó copy kết quả dán vào ô bên dưới.</p>
+                      <div className="bg-white border border-purple-100 p-3 rounded-lg flex items-center justify-between group">
+                        <code className="text-xs text-purple-800 font-medium">Hãy tạo bảng từ vựng với các cột cách nhau bằng dấu '|' theo thứ tự: Từ vựng | Phiên âm | Loại từ | Nghĩa tiếng Việt | Cấp độ (A1-C2) | Câu ví dụ. Dưới đây là danh sách từ của tôi: [Điền từ của bạn vào đây]</code>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 relative">
+                    <span className="absolute top-3 left-4 text-xs font-bold text-gray-400 uppercase tracking-wider z-10">Định dạng: Từ vựng | Phiên âm | Loại từ | Nghĩa | Cấp độ | Ví dụ</span>
+                    <textarea 
+                      value={pasteText}
+                      onChange={(e) => setPasteText(e.target.value)}
+                      placeholder="apple | /ˈæp.əl/ | Danh từ | quả táo | A1 | I eat an apple&#10;determine | /dɪˈtɜː.mɪn/ | Động từ | xác định | B1 | Determine your goal"
+                      className="w-full h-full min-h-[300px] p-4 pt-10 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none resize-none font-mono text-sm leading-relaxed text-gray-700 shadow-inner"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. FOOTER */}
+            <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
+              <button onClick={handleCloseAddModal} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">
+                Hủy
+              </button>
+              <button 
+                onClick={handleSaveNewWords}
+                disabled={isSaving}
+                className={`px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 ${
+                  isSaving 
+                    ? 'bg-gray-400 text-white cursor-not-allowed' 
+                    : 'bg-[#65a30d] hover:bg-[#4d7c0f] text-white hover:shadow-xl hover:-translate-y-0.5'
+                }`}
+              >
+                {isSaving ? (
+                  <>Đang kiểm tra dữ liệu...</>
+                ) : (
+                  <>Lưu từ vựng</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HƯỚNG DẪN NHẬP FILE */}
+      {showGuideModal && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-in zoom-in duration-200 overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-cyan-50/30">
+              <h3 className="text-xl font-bold text-cyan-950 flex items-center gap-2"><HelpCircle className="text-cyan-600"/> Hướng dẫn nhập từ vựng</h3>
+              <button onClick={() => setShowGuideModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full"><X size={20}/></button>
+            </div>
+            <div className="p-6 text-sm text-gray-700 space-y-4">
+              <p>Hệ thống hỗ trợ nhập dữ liệu hàng loạt qua file <strong>Excel (.xlsx)</strong> hoặc <strong>CSV (.csv)</strong>.</p>
+              <ul className="space-y-2 list-disc pl-5">
+                <li><strong className="text-cyan-800">Cấu trúc bảng:</strong> Mỗi cột tương ứng với một thuộc tính.</li>
+                <li><strong className="text-cyan-800">Thứ tự cột (Bắt buộc đúng thứ tự):</strong>
+                  <ol className="list-decimal pl-5 mt-1 space-y-1 text-gray-600 font-medium">
+                    <li><span className="text-red-500"></span> <strong className="text-gray-800">Word</strong> - Từ tiếng Anh</li>
+                    <li><strong>Pronunciation</strong> - Phiên âm</li>
+                    <li><strong>Type</strong> - Loại từ (Danh từ, Động từ...)</li>
+                    <li><span className="text-red-500"></span> <strong className="text-gray-800">Meaning</strong> - Nghĩa tiếng Việt</li>
+                    <li><strong>Level</strong> - Cấp độ (A1, A2, B1, B2, C1, C2)</li>
+                    <li><strong>Example</strong> - Câu ví dụ</li>
+                  </ol>
+                </li>
+                <li><strong className="text-cyan-800">Dòng đầu tiên:</strong> Có thể có hoặc không có Header (Tiêu đề cột).</li>
+              </ul>
+              
+              <div className="mt-6 pt-4 border-t border-gray-100 flex justify-center">
+                <button onClick={handleDownloadTemplate} className="flex items-center gap-2 px-6 py-2.5 bg-[#84cc16] hover:bg-[#65a30d] text-white font-bold rounded-lg shadow-md transition-colors">
+                  <Download size={18}/> Tải file mẫu (Template)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CẢNH BÁO: CHƯA LƯU DỮ LIỆU KHI THOÁT */}
+      {showExitWarning && (
+        <div className="fixed inset-0 bg-cyan-950/80 z-[120] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in duration-200">
+            <h3 className="text-xl font-bold text-cyan-950 mb-3">Xác nhận thoát</h3>
+            <p className="text-gray-600 mb-6">Bạn đang có dữ liệu chưa lưu. Bạn có chắc chắn muốn thoát và hủy bỏ toàn bộ dữ liệu này không?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowExitWarning(false)} className="px-5 py-2.5 bg-[#84cc16] hover:bg-[#65a30d] text-white font-bold rounded-xl shadow-sm transition-colors">
+                Ở lại
+              </button>
+              <button onClick={forceCloseAddModal} className="px-5 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl transition-colors">
+                Thoát luôn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BỘ LỌC */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-[150] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-2xl flex flex-col animate-in zoom-in duration-200 border border-gray-100">
+            
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-cyan-50/30 rounded-t-[1.5rem]">
+              <div className="flex items-center gap-3">
+                <div className="bg-cyan-100 p-2 rounded-lg text-cyan-600"><Filter size={20} /></div>
+                <h2 className="text-xl font-black text-cyan-950">Bộ lọc từ vựng</h2>
+              </div>
+              <button onClick={() => setShowFilterModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 grid grid-cols-2 gap-y-6 gap-x-6 relative min-h-[320px]">
+               {renderFilterDropdown("Bộ từ vựng", "collections", MOCK_COLLECTIONS, true, "collections")}
+               {renderFilterDropdown("Chủ đề", "topics", MOCK_TOPICS, true, "topics")}
+               {renderFilterDropdown("Trạng thái", "statuses", FILTER_OPTIONS.statuses)}
+               {renderFilterDropdown("Loại từ", "types", FILTER_OPTIONS.types)}
+               {renderFilterDropdown("Cấp độ", "levels", FILTER_OPTIONS.levels)}
+            </div>
+
+            <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center rounded-b-[1.5rem]">
+              <button onClick={clearFilters} className="px-5 py-2.5 text-gray-500 font-bold hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+                Xóa bộ lọc
+              </button>
+              <div className="flex gap-3">
+                <button onClick={() => setShowFilterModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">
+                  Hủy
+                </button>
+                <button onClick={applyFilters} className="px-8 py-2.5 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
+                  Duyệt thao tác
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+export default VocabularyPage;

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import FavoritePage from './FavoritePage';
 import CollectionPage from './CollectionPage';
+import VocabularyPage from './VocabularyPage';
 
 function HomePage({ onLogout }) {
   // State quản lý việc thu gọn/mở rộng Sidebar
@@ -23,6 +24,13 @@ function HomePage({ onLogout }) {
   ];
 
   const [activeMenu, setActiveMenu] = useState('Trang chủ');
+
+  const [vocabFilter, setVocabFilter] = useState(null);
+
+  const navigateToVocabWithFilter = (status) => {
+    setVocabFilter(status);
+    setActiveMenu('Từ vựng');
+  };
 
   // QUẢN LÝ DỮ LIỆU NGƯỜI DÙNG & CHẾ ĐỘ SỬA
   const [userData, setUserData] = useState({
@@ -106,7 +114,7 @@ function HomePage({ onLogout }) {
     },
     { name: 'Yêu thích', icon: <Heart size={22} />, active: activeMenu === 'Yêu thích', onClick: () => setActiveMenu('Yêu thích') },
     { name: 'Bộ từ vựng', icon: <Library size={22} />, active: activeMenu === 'Bộ từ vựng', onClick: () => setActiveMenu('Bộ từ vựng') },
-    { name: 'Từ vựng', icon: <BookOpen size={22} />, active: activeMenu === 'Từ vựng', onClick: () => setActiveMenu('Từ vựng') },
+    { name: 'Từ vựng', icon: <BookOpen size={22} />, active: activeMenu === 'Từ vựng', onClick: () => { setActiveMenu('Từ vựng'); setVocabFilter(null); } },
     
     { 
       name: 'Chủ đề', 
@@ -260,7 +268,6 @@ function HomePage({ onLogout }) {
         </div>
 
         {/* User Profile */}
-        {/* User Profile (Góc dưới trái) */}
         <div className="p-4 border-t border-[#164e63]">
           <div 
             className={`flex items-center cursor-pointer hover:bg-[#164e63] p-2 rounded-xl transition-colors ${!isSidebarOpen && 'justify-center'}`}
@@ -285,7 +292,6 @@ function HomePage({ onLogout }) {
 
       {/* NỘI DUNG CHÍNH */}
       <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto h-screen scroll-smooth">
-        {/* CHỈ HIỆN KHI Ở TRANG CHỦ HOẶC CHỦ ĐỀ */}
         {(activeMenu === 'Trang chủ' || activeMenu === 'Chủ đề') && (
         <div className="max-w-7xl mx-auto p-8">
           
@@ -330,22 +336,22 @@ function HomePage({ onLogout }) {
               <h3 className="text-lg font-bold text-[#083344] mb-4">Thống kê từ vựng</h3>
               <div className="grid grid-cols-2 gap-3 flex-1">
                 
-                <div className="bg-blue-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
+                <div onClick={() => navigateToVocabWithFilter('Tổng từ đã học')} className="bg-blue-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
                   <span className="text-blue-600 font-bold text-xl">120</span>
                   <span className="text-sm text-gray-500 font-medium mt-1">Tổng từ đã học</span>
                 </div>
                 
-                <div className="bg-green-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
+                <div onClick={() => navigateToVocabWithFilter('Đã thuộc')} className="bg-green-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
                   <span className="text-green-600 font-bold text-xl">85</span>
                   <span className="text-sm text-gray-500 font-medium mt-1">Đã thuộc (Mastered)</span>
                 </div>
                 
-                <div className="bg-orange-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
+                <div onClick={() => navigateToVocabWithFilter('Chưa thuộc')} className="bg-orange-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
                   <span className="text-orange-500 font-bold text-xl">35</span>
                   <span className="text-sm text-gray-500 font-medium mt-1 leading-tight">Chưa thuộc (Learning)</span>
                 </div>
                 
-                <div className="bg-gray-50 rounded-xl p-3 flex flex-col items-center justify-center border border-gray-100 text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
+                <div onClick={() => navigateToVocabWithFilter('Chưa học')} className="bg-gray-50 rounded-xl p-3 flex flex-col items-center justify-center border border-gray-100 text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
                   <span className="text-gray-400 font-bold text-xl">500+</span>
                   <span className="text-sm text-gray-400 font-medium mt-1">Chưa học (New)</span>
                 </div>
@@ -358,16 +364,16 @@ function HomePage({ onLogout }) {
               <h3 className="text-sm font-bold mb-3 opacity-90 uppercase tracking-wider z-10 text-center">Tuần này bạn đã học được</h3>
               
               <div className="flex items-baseline mb-6 z-10">
-                {daysStudiedThisWeek === 0 ? (
-                  <span className="text-3xl font-black text-red-600 bg-white px-5 py-2 rounded-xl shadow-md border-2 border-red-200 animate-pulse">
-                    0 ngày
-                  </span>
-                ) : (
-                  <>
-                    <span className="text-6xl font-black">{daysStudiedThisWeek}</span>
-                    <span className="text-xl ml-2 font-medium opacity-90">ngày</span>
-                  </>
-                )}
+                <span className={`text-6xl font-black transition-all ${
+                  daysStudiedThisWeek === 0 
+                    ? 'text-red-700 drop-shadow-md' 
+                    : 'text-white'
+                }`}>
+                  {daysStudiedThisWeek}
+                </span>
+                <span className="text-3xl ml-3 font-bold text-white opacity-90">
+                  ngày
+                </span>
               </div>
 
               <div className="flex w-full justify-between px-2 z-10">
@@ -475,6 +481,8 @@ function HomePage({ onLogout }) {
         {activeMenu === 'Yêu thích' && <FavoritePage />}
 
         {activeMenu === 'Bộ từ vựng' && <CollectionPage />}
+
+        {activeMenu === 'Từ vựng' && <VocabularyPage initialFilter={vocabFilter} />}
         
       </main>
       {/* HỒ SƠ NGƯỜI DÙNG */}

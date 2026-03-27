@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp } from 'lucide-react';
+import VocabTable from '../src_components/VocabTable';
+import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp, MoreVertical, Heart, FolderPlus } from 'lucide-react';
 
 const COLLECTION_NAME_LIMIT = 50;
 const MOCK_COLLECTIONS = [
   { id: 0, name: 'Từ vựng của tôi', wordCount: 12 },
-  { id: 1, name: 'Từ vựng luyện thi TOEIC', wordCount: 150 },
+  { id: 1, name: 'Từ vựng luyện thi TOEIC', wordCount: 150 }, 
   { id: 2, name: 'Communication English (Part 1)', wordCount: 85 },
   { id: 3, name: 'Từ khó nhớ - A1/A2', wordCount: 42 },
   { id: 4, name: 'Chuyên ngành Công nghệ thông tin', wordCount: 210 },
@@ -44,9 +45,42 @@ function CollectionPage() {
   const [selectedWordIds, setSelectedWordIds] = useState([]);
   const [showWordDeleteModal, setShowWordDeleteModal] = useState(false);
   const [wordToDelete, setWordToDelete] = useState(null); 
-  const [openWordExampleId, setOpenWordExampleId] = useState(null);
 
-  // Tạo bộ từ mới
+  // MODAL THÊM VÀO BỘ TỪ ("Từ vựng của tôi")
+  const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
+  const [wordToAdd, setWordToAdd] = useState(null);
+  const [isBulkAddMode, setIsBulkAddMode] = useState(false);
+  const [addModalSearchTerm, setAddModalSearchTerm] = useState('');
+  const [selectedTargetCollectionIds, setSelectedTargetCollectionIds] = useState([]);
+
+  const handleOpenAddToCollectionModal = (word = null) => {
+    if (word) { setWordToAdd(word); setIsBulkAddMode(false); } 
+    else { setWordToAdd(null); setIsBulkAddMode(true); }
+    setSelectedTargetCollectionIds([]);
+    setAddModalSearchTerm('');
+    setShowAddToCollectionModal(true);
+  };
+
+  const targetFilteredCollections = collections.filter(c =>
+    c.name.toLowerCase().includes(addModalSearchTerm.toLowerCase()) && c.id !== 0 
+  );
+
+  const confirmAddWordToCollections = () => {
+    if (selectedTargetCollectionIds.length === 0) return;
+    if (isBulkAddMode) {
+      alert(`Đã thêm ${selectedWordIds.length} từ vựng vào ${selectedTargetCollectionIds.length} bộ từ!`);
+      setIsWordSelectMode(false); setSelectedWordIds([]);
+    } else {
+      alert(`Đã thêm từ "${wordToAdd.word}" vào ${selectedTargetCollectionIds.length} bộ từ!`);
+    }
+    setShowAddToCollectionModal(false);
+  };
+
+  const toggleFavorite = (id) => {
+    setCollectionWords(collectionWords.map(w => w.id === id ? { ...w, isFavorite: !w.isFavorite } : w));
+  };
+
+  // Tạo bộ từ mới  
   const handleCreateCollection = (e) => {
     e.preventDefault(); 
     if (!newCollectionName.trim()) return;
@@ -59,7 +93,7 @@ function CollectionPage() {
       wordCount: 0 
     };
     
-    setCollections([newCollection, ...collections]);
+    setCollections([...collections, newCollection]);
     
     setShowCreateModal(false);
     setNewCollectionName('');
@@ -142,33 +176,43 @@ function CollectionPage() {
   // DANH SÁCH TỪ VỰNG TRONG BỘ TỪ 
   const openWordList = (collection) => {
     setActiveCollection(collection);
-    const mockWords = [
-      { id: 101, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', type: 'Tính từ', level: 'B2', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer when the team score.' },
-      { id: 102, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', type: 'Động từ', level: 'C1', meaning: 'Xác định, quyết định', example: 'Your attitude, not your aptitude, determines your altitude.' },
-      { id: 103, word: 'Apple', pronunciation: '/ˈæp.əl/', type: 'Danh từ', level: 'A1', meaning: 'Quả táo', example: 'An apple a day keeps the doctor away.' }
+    const baseMockWords = [
+      { word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', type: 'Tính từ', level: 'B2', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer when the team score.' },
+      { word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', type: 'Động từ', level: 'C1', meaning: 'Xác định, quyết định', example: 'Your attitude, not your aptitude, determines your altitude.' },
+      { word: 'Apple', pronunciation: '/ˈæp.əl/', type: 'Danh từ', level: 'A1', meaning: 'Quả táo', example: 'An apple a day keeps the doctor away.' }
     ];
-    setCollectionWords(collection.wordCount > 0 ? mockWords.slice(0, collection.wordCount) : []);
+    const generatedWords = Array.from({ length: collection.wordCount }).map((_, index) => {
+      const baseWord = baseMockWords[index % baseMockWords.length];
+      return {
+        ...baseWord,
+        id: 1000 + index, 
+        word: index >= baseMockWords.length ? `${baseWord.word} ${index + 1}` : baseWord.word 
+      };
+    });
+
+    setCollectionWords(generatedWords);
     setShowWordListModal(true);
     setIsWordSelectMode(false);
     setSelectedWordIds([]);
-    setOpenWordExampleId(null);
   };
 
   const closeWordList = () => {
     setShowWordListModal(false);
     setActiveCollection(null);
-    setOpenWordExampleId(null);
   };
 
   const toggleWordSelect = (id) => {
     setSelectedWordIds(prev => prev.includes(id) ? prev.filter(wId => wId !== id) : [...prev, id]);
   };
 
-  const handleSelectAllWords = () => {
-    if (selectedWordIds.length === collectionWords.length && collectionWords.length > 0) {
-      setSelectedWordIds([]);
+  const handleSelectAllCurrentPageWords = (currentWords) => {
+    const isAllCurrentSelected = currentWords.every(v => selectedWordIds.includes(v.id));
+    if (isAllCurrentSelected && currentWords.length > 0) {
+      const currentIds = currentWords.map(v => v.id);
+      setSelectedWordIds(prev => prev.filter(id => !currentIds.includes(id)));
     } else {
-      setSelectedWordIds(collectionWords.map(w => w.id));
+      const newIds = currentWords.map(v => v.id).filter(id => !selectedWordIds.includes(id));
+      setSelectedWordIds(prev => [...prev, ...newIds]);
     }
   };
 
@@ -206,6 +250,60 @@ function CollectionPage() {
   const filteredCollections = collections.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Cột Hành động 
+  const CollectionWordActionColumn = ({ item }) => {
+    const [openMenuId, setOpenMenuId] = useState(null);
+
+    // NẾU LÀ BỘ "TỪ VỰNG CỦA TÔI" 
+    if (activeCollection?.id === 0) {
+      return (
+        <div className="relative flex justify-center">
+          <button 
+            onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+            className="p-2 text-gray-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-full transition-colors"
+          >
+            <MoreVertical size={20} />
+          </button>
+
+          {openMenuId === item.id && (
+            <div className="absolute right-8 top-10 w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-50 text-left">
+              <button 
+                onClick={() => { setOpenMenuId(null); handleOpenAddToCollectionModal(item); }}
+                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium"
+              >
+                Thêm vào bộ từ...
+              </button>
+              <button 
+                onClick={() => { setOpenMenuId(null); toggleFavorite(item.id); }}
+                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium flex justify-between items-center"
+              >
+                Yêu thích <Heart size={16} fill={item.isFavorite ? "currentColor" : "none"} className={item.isFavorite ? "text-red-500" : "text-gray-400"}/>
+              </button>
+              <button 
+                onClick={() => { setOpenMenuId(null); handleWordDeleteClick(item); }}
+                className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
+              >
+                Xóa khỏi hệ thống
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // NẾU LÀ CÁC BỘ TỪ KHÁC 
+    return (
+      <div className="flex justify-center">
+        <button 
+          onClick={() => handleWordDeleteClick(item)}
+          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="p-8 bg-slate-50 min-h-screen relative">
@@ -538,7 +636,7 @@ function CollectionPage() {
                   </button>
                 )}
                 
-                {collectionWords.length > 0 && activeCollection.id !== 0 &&  (
+                {collectionWords.length > 0 && (
                   <button 
                     onClick={() => {
                       setIsWordSelectMode(!isWordSelectMode);
@@ -563,107 +661,17 @@ function CollectionPage() {
             </div>
 
             {/* Bảng Danh sách từ */}
-            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin">
+            <div className="flex-1 overflow-y-auto mt-2">
               {collectionWords.length > 0 ? (
-                <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-white z-10 shadow-sm outline outline-1 outline-gray-100">
-                    <tr className="bg-cyan-50 text-cyan-900 text-sm uppercase tracking-wider [&>th:first-child]:rounded-tl-lg [&>th:last-child]:rounded-tr-lg">
-                      <th className="p-4 font-semibold text-center w-12 border-b border-cyan-100">STT</th>
-                      <th className="p-4 font-semibold border-b border-cyan-100">Từ vựng</th>
-                      <th className="p-4 font-semibold border-b border-cyan-100">Phiên âm</th>
-                      <th className="p-4 font-semibold border-b border-cyan-100">Loại từ</th>
-                      <th className="p-4 font-semibold border-b border-cyan-100">Cấp độ</th> 
-                      <th className="p-4 font-semibold border-b border-cyan-100">Nghĩa</th>
-                      <th className="p-4 font-semibold text-center border-b border-cyan-100">Audio</th>
-                      {activeCollection.id !== 0 && (
-                        !isWordSelectMode ? (
-                          <th className="p-4 font-semibold text-center w-16 border-b border-cyan-100">Xóa</th>
-                        ) : (
-                          <th className="p-4 font-semibold text-center w-16 border-b border-cyan-100">
-                            <input 
-                              type="checkbox" 
-                              checked={selectedWordIds.length === collectionWords.length && collectionWords.length > 0}
-                              onChange={handleSelectAllWords}
-                              className="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
-                            />
-                          </th>
-                        )
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="text-gray-700">
-                    {collectionWords.map((item, index) => (
-                      <React.Fragment key={item.id}>
-                        <tr className="border-b border-gray-100 hover:bg-cyan-50/50 transition-colors group/row">
-                          <td className="p-4 text-center text-gray-400 font-medium">{index + 1}</td>
-                          <td className="p-4 font-bold text-cyan-950 text-base">{item.word}</td>
-                          <td className="p-4 text-gray-500 text-sm">{item.pronunciation}</td>
-                          <td className="p-4 whitespace-nowrap"><span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap">{item.type}</span></td>
-                          
-                          <td className="p-4">
-                            <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded text-xs font-bold whitespace-nowrap">
-                              {item.level}
-                            </span>
-                          </td>
-                          
-                          <td className="p-4">
-                            <button 
-                              onClick={() => setOpenWordExampleId(openWordExampleId === item.id ? null : item.id)}
-                              className="w-full flex items-center justify-between gap-3 text-sm font-semibold text-left hover:text-cyan-700 group/meaning"
-                            >
-                              <span className="flex-1">{item.meaning}</span>
-                              <span className={`text-gray-300 transition-colors ${openWordExampleId === item.id ? 'text-cyan-600' : 'group-hover/meaning:text-cyan-500'}`}>
-                                {openWordExampleId === item.id ? (
-                                  <ChevronUp size={20} />
-                                ) : (
-                                  <ChevronDown size={20} />
-                                )}
-                              </span>
-                            </button>
-                          </td>
-                          
-                          <td className="p-4 text-center">
-                            <button className="p-2 text-cyan-600 hover:bg-cyan-100 rounded-full transition-colors">
-                              <Volume2 size={18} />
-                            </button>
-                          </td>
-                          
-                          {activeCollection.id !== 0 && (
-                            !isWordSelectMode ? (
-                              <td className="p-4 text-center">
-                                <button 
-                                  onClick={() => handleWordDeleteClick(item)}
-                                  className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover/row:opacity-100"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </td>
-                            ) : (
-                              <td className="p-4 text-center">
-                                <input 
-                                  type="checkbox" 
-                                  checked={selectedWordIds.includes(item.id)}
-                                  onChange={() => toggleWordSelect(item.id)}
-                                  className="w-5 h-5 text-cyan-600 rounded focus:ring-cyan-500 cursor-pointer"
-                                />
-                              </td>
-                            )
-                          )}
-                        </tr>
-
-                        {openWordExampleId === item.id && (
-                          <tr className="bg-gray-50/70 border-b border-gray-100">
-                            <td colSpan={activeCollection.id !== 0 ? 8 : 7} className="p-4 px-12 text-sm text-gray-600 italic">
-                              <span className="font-semibold text-cyan-700 mr-2 not-italic">Ví dụ:</span>
-                              "{item.example}"
-                            </td>
-                          </tr>
-                        )}
-                        
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                <VocabTable 
+                  words={collectionWords}
+                  searchTerm=""
+                  isSelectMode={isWordSelectMode}
+                  selectedIds={selectedWordIds}
+                  onToggleSelect={toggleWordSelect}
+                  onSelectAll={handleSelectAllCurrentPageWords}
+                  ActionColumn={CollectionWordActionColumn} 
+                />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full py-20 text-gray-400">
                   <FolderClosed size={64} className="text-cyan-100 mb-6" />
@@ -675,41 +683,78 @@ function CollectionPage() {
         </div>
       )}
 
-      {/* XÁC NHẬN XÓA TỪ VỰNG KHỎI BỘ TỪ  */}
+      {/* Cảnh báo Xóa với Từ vựng của tôi */}
       {showWordDeleteModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[110] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full border border-gray-100 scale-100 transition-all">
             <div className="flex items-center gap-4 text-red-600 mb-6 pb-4 border-b border-gray-100">
               <AlertTriangle size={32} />
-              <h2 className="text-2xl font-bold">Xác nhận xóa từ vựng?</h2>
+              <h2 className="text-2xl font-bold">{activeCollection?.id === 0 ? 'Xác nhận xóa khỏi hệ thống?' : 'Xác nhận xóa từ vựng?'}</h2>
             </div>
             
             <p className="text-gray-700 text-lg leading-relaxed mb-6">
               {wordToDelete ? (
-                <>Bạn có chắc chắn muốn xóa từ <strong>"{wordToDelete.word}"</strong> khỏi bộ từ vựng này không?</>
+                <>Bạn có chắc chắn muốn xóa từ <strong>"{wordToDelete.word}"</strong> khỏi {activeCollection?.id === 0 ? 'hệ thống' : 'bộ từ vựng này'} không?</>
               ) : (
-                <>Bạn có chắc chắn muốn xóa <strong className="text-red-600">{selectedWordIds.length} từ vựng</strong> đã chọn khỏi bộ từ vựng này không?</>
-              )}
-              
-              {selectedWordIds.length === collectionWords.length && !wordToDelete && (
-                <span className="block mt-3 text-red-500 font-bold bg-red-50 p-2 rounded">
-                  ⚠️ Lưu ý: Bạn đang xóa TẤT CẢ từ vựng trong bộ này!
-                </span>
+                <>Bạn có chắc chắn muốn xóa <strong className="text-red-600">{selectedWordIds.length} từ vựng</strong> đã chọn khỏi {activeCollection?.id === 0 ? 'hệ thống' : 'bộ từ vựng này'} không?</>
               )}
             </p>
             
             <div className="flex justify-end gap-3 pt-2">
-              <button 
-                onClick={() => setShowWordDeleteModal(false)}
-                className="px-6 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg font-bold hover:bg-gray-50 transition-colors"
-              >
-                Hủy
-              </button>
-              <button 
-                onClick={confirmWordDelete}
-                className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg hover:shadow-red-500/50"
-              >
-                Xóa ngay
+              <button onClick={() => setShowWordDeleteModal(false)} className="px-6 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg font-bold hover:bg-gray-50 transition-colors">Hủy</button>
+              <button onClick={confirmWordDelete} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg hover:shadow-red-500/50">Xóa ngay</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* THÊM TỪ VÀO BỘ TỪ KHÁC */}
+      {showAddToCollectionModal && (wordToAdd || isBulkAddMode) && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-[120] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-gray-100 flex flex-col max-h-[85vh] animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center p-5 pb-4 border-b border-gray-100 shrink-0">
+              <div>
+                <h2 className="text-xl font-bold text-cyan-950">Lưu vào bộ từ</h2>
+                <p className="text-sm text-gray-500 mt-0.5 truncate max-w-[200px]">
+                  {isBulkAddMode ? <span>Đang chọn: <span className="font-bold text-cyan-700">{selectedWordIds.length} từ vựng</span></span> : <span>Từ: <span className="font-bold text-cyan-700">{wordToAdd?.word}</span></span>}
+                </p>
+              </div>
+              <button onClick={() => setShowAddToCollectionModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><X size={20} /></button>
+            </div>
+
+            <div className="p-4 border-b border-gray-50 shrink-0 bg-gray-50/50">
+              <div className="flex items-center justify-between gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input type="text" placeholder="Tìm kiếm bộ từ..." value={addModalSearchTerm} onChange={(e) => setAddModalSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none" />
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">tất cả</span>
+                  <input type="checkbox" checked={selectedTargetCollectionIds.length === targetFilteredCollections.length && targetFilteredCollections.length > 0} onChange={() => {
+                    if (selectedTargetCollectionIds.length === targetFilteredCollections.length && targetFilteredCollections.length > 0) setSelectedTargetCollectionIds([]);
+                    else setSelectedTargetCollectionIds(targetFilteredCollections.map(c => c.id));
+                  }} className="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500" />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
+              {targetFilteredCollections.length > 0 ? (
+                targetFilteredCollections.map(collection => (
+                  <label key={collection.id} className="flex items-center justify-between p-3 hover:bg-cyan-50 rounded-xl cursor-pointer group">
+                    <span className="text-gray-700 font-medium group-hover:text-cyan-900 truncate pr-4">{collection.name}</span>
+                    <input type="checkbox" checked={selectedTargetCollectionIds.includes(collection.id)} onChange={() => {
+                      setSelectedTargetCollectionIds(prev => prev.includes(collection.id) ? prev.filter(id => id !== collection.id) : [...prev, collection.id]);
+                    }} className="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 shrink-0" />
+                  </label>
+                ))
+              ) : (<div className="py-8 text-center text-gray-400 text-sm">Không tìm thấy bộ từ nào.</div>)}
+            </div>
+
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-gray-50/50 rounded-b-2xl">
+              <button onClick={() => setShowAddToCollectionModal(false)} className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-100">Hủy</button>
+              <button onClick={confirmAddWordToCollections} disabled={selectedTargetCollectionIds.length === 0} className={`px-5 py-2 rounded-lg text-sm font-bold shadow-sm ${selectedTargetCollectionIds.length > 0 ? 'bg-cyan-600 text-white hover:bg-cyan-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                Thêm vào ({selectedTargetCollectionIds.length})
               </button>
             </div>
           </div>
