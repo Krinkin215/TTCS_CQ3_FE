@@ -6,6 +6,7 @@ function RegisterPage({ onNavigateToLogin }) {
     // 1. Tạo state để lưu trữ dữ liệu người dùng nhập
   const [formData, setFormData] = useState({
     fullName: '',
+    date_of_birth: '',
     email: '',
     username: '',
     password: '',
@@ -74,7 +75,7 @@ function RegisterPage({ onNavigateToLogin }) {
     e.preventDefault(); 
     
     // 1. Kiểm tra xem các trường có bị bỏ trống không 
-    if (!formData.fullName || !formData.email || !formData.username) {
+    if (!formData.fullName || !formData.email || !formData.username || !formData.date_of_birth) {
       alert("Vui lòng điền đầy đủ thông tin!");
       return;
     }
@@ -119,6 +120,9 @@ function RegisterPage({ onNavigateToLogin }) {
             <label className="block text-sm font-medium text-cyan-900 mb-1">Ngày sinh</label>
             <input 
               type="date" 
+              name="date_of_birth"          
+              value={formData.date_of_birth} 
+              onChange={handleChange}        
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
             />
           </div>
@@ -137,6 +141,9 @@ function RegisterPage({ onNavigateToLogin }) {
             <label className="block text-sm font-medium text-cyan-900 mb-1">Tên người dùng</label>
             <input 
               type="text" 
+              name="username"         
+              value={formData.username} 
+              onChange={handleChange}   
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
               placeholder="Nhập tên người dùng..."
             />

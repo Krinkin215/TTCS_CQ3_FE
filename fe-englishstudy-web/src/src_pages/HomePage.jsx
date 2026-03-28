@@ -7,6 +7,7 @@ import {
 import FavoritePage from './FavoritePage';
 import CollectionPage from './CollectionPage';
 import VocabularyPage from './VocabularyPage';
+import LeaderboardPage from './LeaderboardPage';
 
 function HomePage({ onLogout }) {
   // State quản lý việc thu gọn/mở rộng Sidebar
@@ -37,7 +38,7 @@ function HomePage({ onLogout }) {
     username: 'pmd1506',
     fullName: 'Phạm Minh Đức',
     email: 'pmducc1506@gmail.com',
-    dob: '2004-06-15', 
+    date_of_birth: '2004-06-15', 
     joinDate: '02/03/2026',
     avatarChar: 'P',
     avatarUrl: null
@@ -431,7 +432,10 @@ function HomePage({ onLogout }) {
                 </div>
               </button>
 
-              <button className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-yellow-500 hover:shadow-md transition-all group min-w-[200px]">
+              <button 
+                onClick={() => setActiveMenu('Bảng xếp hạng')}
+                className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-yellow-500 hover:shadow-md transition-all group min-w-[200px]"
+              >
                 <div className="bg-yellow-100 p-3 rounded-full text-yellow-600 group-hover:scale-110 transition-transform">
                   <Trophy size={24} />
                 </div>
@@ -439,7 +443,7 @@ function HomePage({ onLogout }) {
                   <p className="font-bold text-gray-800">Xếp hạng</p>
                   <p className="text-xs text-gray-500">Xem thành tích</p>
                 </div>
-              </button>
+              </button> 
             </div>
           </div>
 
@@ -483,6 +487,8 @@ function HomePage({ onLogout }) {
         {activeMenu === 'Bộ từ vựng' && <CollectionPage />}
 
         {activeMenu === 'Từ vựng' && <VocabularyPage initialFilter={vocabFilter} />}
+
+        {activeMenu === 'Bảng xếp hạng' && <LeaderboardPage />}
         
       </main>
       {/* HỒ SƠ NGƯỜI DÙNG */}
@@ -558,8 +564,8 @@ function HomePage({ onLogout }) {
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ngày sinh</label>
                     <input 
                       type="date" 
-                      value={editFormData.dob}
-                      onChange={(e) => setEditFormData({...editFormData, dob: e.target.value})}
+                      value={editFormData.date_of_birth}
+                      onChange={(e) => setEditFormData({...editFormData, date_of_birth: e.target.value})}
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-[#0e7490] focus:ring-1 focus:ring-[#0e7490] transition-all cursor-pointer"
                     />
                   </div>
@@ -613,7 +619,7 @@ function HomePage({ onLogout }) {
                   </div>
                   <div className="flex items-center text-gray-700">
                     <Cake size={16} className="text-[#0e7490] w-6" />
-                    <span className="text-sm">Ngày sinh: <span className="font-semibold text-gray-900 ml-1">{userData.dob.split('-').reverse().join('/')}</span></span>
+                    <span className="text-sm">Ngày sinh: <span className="font-semibold text-gray-900 ml-1">{userData.date_of_birth.split('-').reverse().join('/')}</span></span>
                   </div>
                   <div className="flex items-center text-gray-700">
                     <Calendar size={16} className="text-[#0e7490] w-6" />

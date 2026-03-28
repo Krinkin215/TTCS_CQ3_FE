@@ -3,7 +3,7 @@ import { Volume2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Search } fr
 
 const ITEMS_PER_PAGE = 10;
 
-const LEVEL_WEIGHT = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
+const LEVEL_LABEL = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
 
 function VocabTable({ 
   words, 
@@ -37,13 +37,7 @@ function VocabTable({
     } 
     
     if (sortConfig.key === 'level') {
-      const weightA = LEVEL_WEIGHT[a.level] || 0;
-      const weightB = LEVEL_WEIGHT[b.level] || 0;
-      
-      if (weightA !== weightB) {
-        return sortConfig.direction === 'asc' ? weightA - weightB : weightB - weightA;
-      }
-      return a.word.localeCompare(b.word);
+      return sortConfig.direction === 'asc' ? a.level - b.level : b.level - a.level;
     }
     return 0;
   });
@@ -147,9 +141,9 @@ function VocabTable({
                   </td>
                   
                   <td className="p-4 text-gray-500">{item.pronunciation}</td>
-                  <td className="p-4"><span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-sm font-medium">{item.type}</span></td>
+                  <td className="p-4"><span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-sm font-medium">{item.word_type}</span></td>
                   <td className="p-4 font-medium max-w-[200px] truncate" title={item.meaning}>{item.meaning}</td>
-                  <td className="p-4 text-center"><span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{item.level}</span></td>
+                  <td className="p-4 text-center"><span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{LEVEL_LABEL[item.level]}</span></td>
                   
                   <td className="p-4 text-center">
                     <button onClick={() => playAudio(item.word)} className="p-2 text-cyan-600 hover:bg-cyan-100 rounded-full transition-colors">

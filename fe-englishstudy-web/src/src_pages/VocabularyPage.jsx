@@ -1,26 +1,31 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FolderPlus, Search, X, Filter, Heart, Plus, Upload, FileText, Zap, ChevronDown, Trash2, HelpCircle, Download, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import VocabTable from '../src_components/VocabTable'; 
+import AddToCollectionModal from '../src_components/AddToCollectionModal';
+
+const CURRENT_USER_ID = 5; 
+const ADMIN_USER_ID = 1;
 
 const MOCK_VOCABULARIES = [
-  { id: 1, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', level: 'B2', isFavorite: true },
-  { id: 2, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', level: 'B1', isFavorite: false },
-  { id: 3, word: 'Apple', pronunciation: '/ˈæp.əl/', type: 'Danh từ', meaning: 'Quả táo', example: 'I eat an apple every day.', level: 'A1', isFavorite: true },
-  { id: 4, word: 'Fascinating', pronunciation: '/ˈfæs.ən.eɪ.tɪŋ/', type: 'Tính từ', meaning: 'Hấp dẫn, lôi cuốn', example: 'I found the whole movie fascinating.', level: 'B2', isFavorite: false },
-  { id: 5, word: 'Accomplish', pronunciation: '/əˈkʌm.plɪʃ/', type: 'Động từ', meaning: 'Hoàn thành, đạt được', example: 'The students accomplished the task in less than ten minutes.', level: 'C1', isFavorite: false },
-  { id: 6, word: 'Benevolent', pronunciation: '/bəˈnev.əl.ənt/', type: 'Tính từ', meaning: 'Nhân từ, rộng lượng', example: 'He was a benevolent old man.', level: 'C1', isFavorite: false },
-  { id: 7, word: 'Crucial', pronunciation: '/ˈkruː.ʃəl/', type: 'Tính từ', meaning: 'Quan trọng, cốt yếu', example: 'Her work has been crucial to the project.', level: 'B2', isFavorite: true },
-  { id: 8, word: 'Diligent', pronunciation: '/ˈdɪl.ɪ.dʒənt/', type: 'Tính từ', meaning: 'Siêng năng, cần cù', example: 'He is a diligent student.', level: 'B2', isFavorite: false },
-  { id: 9, word: 'Eloquent', pronunciation: '/ˈel.ə.kwənt/', type: 'Tính từ', meaning: 'Có tài hùng biện', example: 'She made an eloquent appeal for action.', level: 'C1', isFavorite: false },
-  { id: 10, word: 'Genuine', pronunciation: '/ˈdʒen.ju.ɪn/', type: 'Tính từ', meaning: 'Thành thật, chân chính', example: 'He is a very genuine person.', level: 'B2', isFavorite: true },
-  { id: 11, word: 'Harmony', pronunciation: '/ˈhɑː.mə.ni/', type: 'Danh từ', meaning: 'Sự hài hòa, hòa thuận', example: 'We must ensure that tourism develops in harmony with the environment.', level: 'B2', isFavorite: false },
-  { id: 12, word: 'Inevitable', pronunciation: '/ɪˈnev.ɪ.tə.bəl/', type: 'Tính từ', meaning: 'Không thể tránh khỏi', example: 'The accident was the inevitable consequence of carelessness.', level: 'C1', isFavorite: false },
-  { id: 13, word: 'Joyful', pronunciation: '/ˈdʒɔɪ.fəl/', type: 'Tính từ', meaning: 'Vui vẻ, hân hoan', example: 'Christmas is a joyful occasion for children.', level: 'A2', isFavorite: true },
-  { id: 14, word: 'Keen', pronunciation: '/kiːn/', type: 'Tính từ', meaning: 'Say mê, nhiệt tình', example: 'They were very keen to start work.', level: 'B1', isFavorite: false },
-  { id: 15, word: 'Lucid', pronunciation: '/ˈluː.sɪd/', type: 'Tính từ', meaning: 'Rõ ràng, dễ hiểu', example: 'She gave a clear and lucid account of her plans.', level: 'C2', isFavorite: false },
+  { id: 1, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', word_type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', level: 4, created_by: ADMIN_USER_ID },
+  { id: 2, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', word_type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', level: 3, created_by: ADMIN_USER_ID },
+  { id: 3, word: 'Apple', pronunciation: '/ˈæp.əl/', word_type: 'Danh từ', meaning: 'Quả táo', example: 'I eat an apple every day.', level: 1, created_by: CURRENT_USER_ID }, // Từ này do chính User tạo
+  { id: 4, word: 'Fascinating', pronunciation: '/ˈfæs.ən.eɪ.tɪŋ/', word_type: 'Tính từ', meaning: 'Hấp dẫn, lôi cuốn', example: 'I found the whole movie fascinating.', level: 4, created_by: ADMIN_USER_ID },
+  { id: 5, word: 'Accomplish', pronunciation: '/əˈkʌm.plɪʃ/', word_type: 'Động từ', meaning: 'Hoàn thành, đạt được', example: 'The students accomplished the task in less than ten minutes.', level: 5, created_by: ADMIN_USER_ID },
+  { id: 6, word: 'Benevolent', pronunciation: '/bəˈnev.əl.ənt/', word_type: 'Tính từ', meaning: 'Nhân từ, rộng lượng', example: 'He was a benevolent old man.', level: 5, created_by: ADMIN_USER_ID },
+  { id: 7, word: 'Crucial', pronunciation: '/ˈkruː.ʃəl/', word_type: 'Tính từ', meaning: 'Quan trọng, cốt yếu', example: 'Her work has been crucial to the project.', level: 4, created_by: ADMIN_USER_ID },
+  { id: 8, word: 'Diligent', pronunciation: '/ˈdɪl.ɪ.dʒənt/', word_type: 'Tính từ', meaning: 'Siêng năng, cần cù', example: 'He is a diligent student.', level: 4, created_by: ADMIN_USER_ID },
+  { id: 9, word: 'Eloquent', pronunciation: '/ˈel.ə.kwənt/', word_type: 'Tính từ', meaning: 'Có tài hùng biện', example: 'She made an eloquent appeal for action.', level: 5, created_by: ADMIN_USER_ID },
+  { id: 10, word: 'Genuine', pronunciation: '/ˈdʒen.ju.ɪn/', word_type: 'Tính từ', meaning: 'Thành thật, chân chính', example: 'He is a very genuine person.', level: 4, created_by: ADMIN_USER_ID },
+  { id: 11, word: 'Harmony', pronunciation: '/ˈhɑː.mə.ni/', word_type: 'Danh từ', meaning: 'Sự hài hòa, hòa thuận', example: 'We must ensure that tourism develops in harmony with the environment.', level: 4, created_by: ADMIN_USER_ID },
+  { id: 12, word: 'Inevitable', pronunciation: '/ɪˈnev.ɪ.tə.bəl/', word_type: 'Tính từ', meaning: 'Không thể tránh khỏi', example: 'The accident was the inevitable consequence of carelessness.', level: 5, created_by: ADMIN_USER_ID },
+  { id: 13, word: 'Joyful', pronunciation: '/ˈdʒɔɪ.fəl/', word_type: 'Tính từ', meaning: 'Vui vẻ, hân hoan', example: 'Christmas is a joyful occasion for children.', level: 2, created_by: CURRENT_USER_ID }, // Từ này do chính User tạo
+  { id: 14, word: 'Keen', pronunciation: '/kiːn/', word_type: 'Tính từ', meaning: 'Say mê, nhiệt tình', example: 'They were very keen to start work.', level: 3, created_by: ADMIN_USER_ID },
+  { id: 15, word: 'Lucid', pronunciation: '/ˈluː.sɪd/', word_type: 'Tính từ', meaning: 'Rõ ràng, dễ hiểu', example: 'She gave a clear and lucid account of her plans.', level: 6, created_by: ADMIN_USER_ID },
 ];
 
 const MOCK_COLLECTIONS = [
+  { id: 0, name: 'Từ vựng của tôi' }, 
   { id: 1, name: 'Từ vựng luyện thi TOEIC' },
   { id: 2, name: 'Communication English' },
   { id: 3, name: 'Từ khó nhớ - A1/A2' },
@@ -42,7 +47,6 @@ const FILTER_OPTIONS = {
 const ITEMS_PER_PAGE = 10;
 
 function VocabularyPage({ initialFilter }) {
-  const [vocabularies, setVocabularies] = useState(MOCK_VOCABULARIES);
   
   //  TƯƠNG TÁC UI 
   const [isSelectMode, setIsSelectMode] = useState(false); 
@@ -55,6 +59,10 @@ function VocabularyPage({ initialFilter }) {
   const [modalSearchTerm, setModalSearchTerm] = useState(''); 
   const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
 
+  const [vocabularies, setVocabularies] = useState(MOCK_VOCABULARIES);
+  const [collectionVocabDB, setCollectionVocabDB] = useState([]);
+  const [favoriteVocabDB, setFavoriteVocabDB] = useState([1, 3]);
+
   
   // MODAL THÊM TỪ VỰNG MỚI
   const [showAddWordModal, setShowAddWordModal] = useState(false);
@@ -65,7 +73,7 @@ function VocabularyPage({ initialFilter }) {
   
   const fileInputRef = useRef(null);
 
-  const defaultDraftRow = { id: Date.now(), word: '', pronunciation: '', type: '', meaning: '', level: 'A1', example: '' };
+  const defaultDraftRow = { id: Date.now(), word: '', pronunciation: '', word_type: '', meaning: '', level: 1, example: '' };
   const [draftWords, setDraftWords] = useState([{ ...defaultDraftRow }]);
   
   const [pasteText, setPasteText] = useState('');
@@ -109,7 +117,17 @@ function VocabularyPage({ initialFilter }) {
           if (!newCategoryValues.includes('Đã thuộc')) newCategoryValues.push('Đã thuộc');
           if (!newCategoryValues.includes('Chưa thuộc')) newCategoryValues.push('Chưa thuộc');
         }
-        
+
+        const hasDaThuoc = newCategoryValues.includes('Đã thuộc');
+        const hasChuaThuoc = newCategoryValues.includes('Chưa thuộc');
+        const hasDaHoc = newCategoryValues.includes('Đã học');
+
+        if (hasDaThuoc && hasChuaThuoc && !hasDaHoc) {
+          newCategoryValues.push('Đã học');
+        }
+        if (hasDaHoc && (!hasDaThuoc || !hasChuaThuoc) && value !== 'Đã học') {
+          newCategoryValues = newCategoryValues.filter(v => v !== 'Đã học');
+        }
       }
 
       return {
@@ -137,7 +155,7 @@ function VocabularyPage({ initialFilter }) {
   };
 
   const filteredVocabularies = vocabularies.filter(word => {
-    if (activeFilters.types.length > 0 && !activeFilters.types.includes(word.type)) return false;
+    if (activeFilters.types.length > 0 && !activeFilters.types.includes(word.word_type)) return false;
     if (activeFilters.levels.length > 0 && !activeFilters.levels.includes(word.level)) return false;
     
     let mockStatus = 'Chưa học';
@@ -153,7 +171,12 @@ function VocabularyPage({ initialFilter }) {
 
     if (activeFilters.collections.length > 0) {
       const wColls = word.collectionIds || [];
-      if (!activeFilters.collections.some(id => wColls.includes(id))) return false;
+      const isMatch = activeFilters.collections.some(id => {
+        if (id === 0) return word.created_by === CURRENT_USER_ID || wColls.includes(0);
+        
+        return wColls.includes(id); 
+      });
+      if (!isMatch) return false;
     }
     if (activeFilters.topics.length > 0) {
       const wTopics = word.topicIds || [];
@@ -198,13 +221,14 @@ function VocabularyPage({ initialFilter }) {
       wordsToProcess = draftWords.filter(w => w.word.trim() && w.meaning.trim());
     } else {
       const lines = pasteText.split('\n');
+      const LEVEL_TO_INT = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
       wordsToProcess = lines.map((line, idx) => {
         const parts = line.split('|').map(p => p.trim());
         if (parts.length >= 2 && parts[0] && parts[3]) { 
           return {
             id: Date.now() + idx,
-            word: parts[0], pronunciation: parts[1] || '', type: parts[2] || '',
-            meaning: parts[3] || '', level: parts[4] || 'A1', example: parts[5] || '',
+            word: parts[0], pronunciation: parts[1] || '', word_type: parts[2] || '',
+            meaning: parts[3] || '', level: LEVEL_TO_INT[parts[4]] || 1, example: parts[5] || '',
             isFavorite: false
           };
         }
@@ -257,8 +281,12 @@ function VocabularyPage({ initialFilter }) {
       }
 
       // PASS TOÀN BỘ -> ĐƯỢC PHÉP LƯU
-      currentVocabs.unshift({ ...newWord, word: wordTrimmed, id: Date.now() + Math.random() });
-      addedCount++;
+      currentVocabs.unshift({ 
+        ...newWord, 
+        word: wordTrimmed, 
+        id: Date.now() + Math.random(), 
+        created_by: CURRENT_USER_ID 
+      });
     }
 
     setVocabularies(currentVocabs);
@@ -303,27 +331,29 @@ function VocabularyPage({ initialFilter }) {
   };
 
   const toggleFavorite = (id) => {
-    setVocabularies(vocabularies.map(v => 
-      v.id === id ? { ...v, isFavorite: !v.isFavorite } : v
-    ));
+    setFavoriteVocabDB(prev => 
+      prev.includes(id) ? prev.filter(vId => vId !== id) : [...prev, id]
+    );
   };
 
   const handleBulkFavorite = () => {
     if (selectedIds.length === 0) return;
-    const newlyAddedCount = selectedIds.filter(id => {
-      const word = vocabularies.find(v => v.id === id);
-      return word && !word.isFavorite;
-    }).length;
 
-    setVocabularies(vocabularies.map(v => 
-      selectedIds.includes(v.id) ? { ...v, isFavorite: true } : v
-    ));
+    const newFavorites = selectedIds.filter(id => !favoriteVocabDB.includes(id));
+    const favoritedCount = selectedIds.length - newFavorites.length;
 
-    alert(`Đã thêm ${newlyAddedCount} từ vào danh sách Yêu thích!`);
+    setFavoriteVocabDB(prev => [...prev, ...newFavorites]);
+
+    let alertMsg = `KẾT QUẢ THÊM VÀO YÊU THÍCH:\n\n`;
+    if (newFavorites.length > 0) alertMsg += `✅ Thành công: Thêm ${newFavorites.length} từ vào danh sách Yêu thích.\n`;
+    if (favoritedCount > 0) alertMsg += `⚠️ Bỏ qua: ${favoritedCount} từ (Vì đã nằm trong danh sách Yêu thích rồi).`;
+
+    alert(alertMsg);
     
     setIsSelectMode(false);
     setSelectedIds([]);
   };
+
 
   // Modal Thêm vào bộ từ
   const modalFilteredCollections = MOCK_COLLECTIONS.filter(c =>
@@ -355,20 +385,39 @@ function VocabularyPage({ initialFilter }) {
     }
   };
 
-  const confirmAddWordToCollections = () => {
-    if (selectedCollectionIds.length === 0) return;
-    if (isBulkAddMode) {
-      alert(`Đã thêm ${selectedIds.length} từ vựng vào ${selectedCollectionIds.length} bộ từ!`);
-      setIsSelectMode(false); 
-      setSelectedIds([]);     
-    } else {
-      alert(`Đã thêm từ "${wordToAdd.word}" vào ${selectedCollectionIds.length} bộ từ!`);
-    }
-    setShowAddToCollectionModal(false);
-  };
+  const handleConfirmAddToCollections = (targetCollectionIds) => {
+    let addedCount = 0;
+    let duplicateCount = 0;
+    
+    const wordIdsToProcess = isBulkAddMode ? selectedIds : [wordToAdd.id];
+    const newDB = [...collectionVocabDB];
 
-  const playAudio = (word) => {
-    console.log(`Đang phát âm thanh từ: ${word}`);
+    wordIdsToProcess.forEach(wId => {
+      targetCollectionIds.forEach(cId => {
+        const isDuplicate = newDB.some(record => record.vocabId === wId && record.collectionId === cId);
+        
+        if (isDuplicate) {
+          duplicateCount++; 
+        } else {
+          newDB.push({ vocabId: wId, collectionId: cId });
+          addedCount++;
+        }
+      });
+    });
+
+    setCollectionVocabDB(newDB); 
+
+    let alertMsg = `KẾT QUẢ THÊM VÀO BỘ TỪ:\n\n`;
+    if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} lượt từ vào các bộ.\n`;
+    if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} lượt (Vì từ đã tồn tại sẵn trong bộ được chọn).`;
+    
+    alert(alertMsg);
+
+    setShowAddToCollectionModal(false);
+    if (isBulkAddMode) {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+    }
   };
 
   const unfavoritedSelectedCount = selectedIds.filter(id => {
@@ -377,26 +426,30 @@ function VocabularyPage({ initialFilter }) {
   }).length;
 
   // Cột Hành động của trang Từ Vựng
-  const VocabularyActionColumn = ({ item }) => (
-    <div className="flex items-center justify-center gap-2">
-      <button 
-        onClick={() => handleOpenAddToCollectionModal(item)}
-        className="px-3 py-1.5 bg-white border border-cyan-200 text-cyan-700 rounded-lg text-xs font-bold shadow-sm hover:bg-cyan-50 transition-colors whitespace-nowrap"
-      >
-        + Bộ từ
-      </button>
-      <button 
-        onClick={() => toggleFavorite(item.id)}
-        className="p-2 rounded-full transition-all hover:scale-110 hover:bg-red-50"
-      >
-        <Heart 
-          size={22} 
-          fill={item.isFavorite ? "currentColor" : "none"} 
-          className={`transition-colors duration-300 ${item.isFavorite ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}`}
-        />
-      </button>
-    </div>
-  );
+  const VocabularyActionColumn = ({ item }) => {
+    const isFav = favoriteVocabDB.includes(item.id);
+
+    return (
+      <div className="flex items-center justify-center gap-2">
+        <button 
+          onClick={() => handleOpenAddToCollectionModal(item)}
+          className="px-3 py-1.5 bg-white border border-cyan-200 text-cyan-700 rounded-lg text-xs font-bold shadow-sm hover:bg-cyan-50 transition-colors whitespace-nowrap"
+        >
+          + Bộ từ
+        </button>
+        <button 
+          onClick={() => toggleFavorite(item.id)}
+          className="p-2 rounded-full transition-all hover:scale-110 hover:bg-red-50"
+        >
+          <Heart 
+            size={22} 
+            fill={isFav ? "currentColor" : "none"} 
+            className={`transition-colors duration-300 ${isFav ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}`}
+          />
+        </button>
+      </div>
+    );
+  };
 
   const renderFilterDropdown = (title, category, options, isObject = false, searchKey = null) => {
     const isOpen = openFilterDropdown === category;
@@ -557,85 +610,15 @@ function VocabularyPage({ initialFilter }) {
       />
 
       {/* THÊM TỪ VÀO BỘ TỪ VỰNG */}
-      {showAddToCollectionModal && (wordToAdd || isBulkAddMode) && (
-        <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-gray-100 flex flex-col max-h-[85vh] animate-in zoom-in duration-200">
-            
-            <div className="flex justify-between items-center p-5 pb-4 border-b border-gray-100 shrink-0">
-              <div>
-                <h2 className="text-xl font-bold text-cyan-950">Lưu vào bộ từ</h2>
-                <p className="text-sm text-gray-500 mt-0.5 truncate max-w-[200px]">
-                  {isBulkAddMode ? (
-                    <span>Đang chọn: <span className="font-bold text-cyan-700">{selectedIds.length} từ vựng</span></span>
-                  ) : (
-                    <span>Từ: <span className="font-bold text-cyan-700">{wordToAdd?.word}</span></span>
-                  )}
-                </p>
-              </div>
-              <button onClick={() => setShowAddToCollectionModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-4 border-b border-gray-50 shrink-0 bg-gray-50/50">
-              <div className="flex items-center justify-between gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                  <input 
-                    type="text" 
-                    placeholder="Tìm kiếm bộ từ..." 
-                    value={modalSearchTerm}
-                    onChange={(e) => setModalSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-                  />
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer shrink-0" title="Chọn tất cả">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tất cả</span>
-                  <input 
-                    type="checkbox" 
-                    checked={selectedCollectionIds.length === modalFilteredCollections.length && modalFilteredCollections.length > 0}
-                    onChange={handleSelectAllModalCollections}
-                    className="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
-              {modalFilteredCollections.length > 0 ? (
-                modalFilteredCollections.map(collection => (
-                  <label key={collection.id} className="flex items-center justify-between p-3 hover:bg-cyan-50 rounded-xl cursor-pointer transition-colors group">
-                    <span className="text-gray-700 font-medium group-hover:text-cyan-900 transition-colors truncate pr-4">{collection.name}</span>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedCollectionIds.includes(collection.id)}
-                      onChange={() => toggleModalCollectionSelect(collection.id)}
-                      className="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer shrink-0"
-                    />
-                  </label>
-                ))
-              ) : (
-                <div className="py-8 text-center text-gray-400 text-sm">Không tìm thấy bộ từ nào.</div>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-gray-50/50 rounded-b-2xl">
-              <button onClick={() => setShowAddToCollectionModal(false)} className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-100 transition-colors">
-                Hủy
-              </button>
-              <button 
-                onClick={confirmAddWordToCollections}
-                disabled={selectedCollectionIds.length === 0}
-                className={`px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
-                  selectedCollectionIds.length > 0 ? 'bg-cyan-600 text-white hover:bg-cyan-700 cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                Thêm vào ({selectedCollectionIds.length})
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AddToCollectionModal 
+        isOpen={showAddToCollectionModal}
+        onClose={() => setShowAddToCollectionModal(false)}
+        isBulkMode={isBulkAddMode}
+        wordToAdd={wordToAdd}
+        selectedCount={selectedIds.length}
+        collections={MOCK_COLLECTIONS}
+        onConfirm={handleConfirmAddToCollections}
+      />
       
       {/* MODAL: THÊM TỪ VỰNG MỚI */}
       {showAddWordModal && (
@@ -709,19 +692,40 @@ function VocabularyPage({ initialFilter }) {
                           <td className="p-3"><input type="text" placeholder="Apple" value={word.word} onChange={(e) => handleDraftChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950"/></td>
                           <td className="p-3"><input type="text" placeholder="/ˈæp.əl/" value={word.pronunciation} onChange={(e) => handleDraftChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600"/></td>
                           <td className="p-3">
-                            <select value={word.type} onChange={(e) => handleDraftChange(word.id, 'type', e.target.value)} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white">
-                              <option value="">-- Chọn --</option>
-                              <option value="Danh từ">Danh từ</option>
-                              <option value="Động từ">Động từ</option>
-                              <option value="Tính từ">Tính từ</option>
-                              <option value="Trạng từ">Trạng từ</option>
-                            </select>
+                            <div className="relative">
+                              <select 
+                                value={word.word_type} 
+                                onChange={(e) => handleDraftChange(word.id, 'word_type', e.target.value)} 
+                                className="w-full pl-3 pr-9 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white appearance-none cursor-pointer"
+                              >
+                                <option value="Danh từ">Danh từ</option>
+                                <option value="Động từ">Động từ</option>
+                                <option value="Tính từ">Tính từ</option>
+                                <option value="Trạng từ">Trạng từ</option>
+                              </select>
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <ChevronDown size={14} />
+                              </div>
+                            </div>
                           </td>
                           <td className="p-3"><input type="text" placeholder="Quả táo" value={word.meaning} onChange={(e) => handleDraftChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium"/></td>
-                          <td className="p-3 text-center">
-                            <select value={word.level} onChange={(e) => handleDraftChange(word.id, 'level', e.target.value)} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white">
-                              {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => <option key={lvl} value={lvl}>{lvl}</option>)}
-                            </select>
+                          <td className="p-3">
+                            <div className="relative">
+                              <select 
+                                value={word.level} 
+                                onChange={(e) => handleDraftChange(word.id, 'level', parseInt(e.target.value))} 
+                                className="w-full pl-3 pr-8 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white appearance-none cursor-pointer text-center"
+                              >
+                                {[1, 2, 3, 4, 5, 6].map(lvl => (
+                                  <option key={lvl} value={lvl}>
+                                    {lvl === 1 ? 'A1' : lvl === 2 ? 'A2' : lvl === 3 ? 'B1' : lvl === 4 ? 'B2' : lvl === 5 ? 'C1' : 'C2'}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-blue-400">
+                                <ChevronDown size={14} />
+                              </div>
+                            </div>
                           </td>
                           <td className="p-3"><input type="text" placeholder="I eat an apple." value={word.example} onChange={(e) => handleDraftChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic"/></td>
                           <td className="p-3 text-center">
