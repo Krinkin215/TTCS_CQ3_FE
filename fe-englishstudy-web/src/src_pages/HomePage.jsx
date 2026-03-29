@@ -21,22 +21,34 @@ const MOCK_COLLECTIONS = [
 const MOCK_TOPICS_DATA = [
   { 
     id: 1, title: 'Animals (Động vật)', totalVocab: 45, masteredVocab: 45, color: 'bg-green-100 text-green-700', 
-    lessons: [{id: 11, name: 'Pets (Thú cưng)', wordCount: 20, difficulty: 1}, {id: 12, name: 'Wild Animals (Động vật hoang dã)', wordCount: 25, difficulty: 2}],
+    lessons: [
+      {id: 11, name: 'Pets (Thú cưng)', wordCount: 20, masteredCount: 20, difficulty: 1}, 
+      {id: 12, name: 'Wild Animals (Động vật hoang dã)', wordCount: 25, masteredCount: 25, difficulty: 2} 
+    ],
     imageUrl: 'https://cdn-icons-png.flaticon.com/512/616/616408.png' 
   },
   { 
     id: 2, title: 'Technology (Công nghệ)', totalVocab: 60, masteredVocab: 24, color: 'bg-blue-100 text-blue-700', 
-    lessons: [{id: 21, name: 'Hardware (Phần cứng)', wordCount: 30, difficulty: 3}, {id: 22, name: 'Software (Phần mềm)', wordCount: 30, difficulty: 4}],
+    lessons: [
+      {id: 21, name: 'Hardware (Phần cứng)', wordCount: 30, masteredCount: 15, difficulty: 3}, 
+      {id: 22, name: 'Software (Phần mềm)', wordCount: 30, masteredCount: 9, difficulty: 4}   
+    ],
     imageUrl: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png' 
   },
   { 
     id: 3, title: 'Travel (Du lịch)', totalVocab: 35, masteredVocab: 0, color: 'bg-yellow-100 text-yellow-700', 
-    lessons: [{id: 31, name: 'At the Airport (Tại sân bay)', wordCount: 15, difficulty: 2}, {id: 32, name: 'Hotel (Khách sạn)', wordCount: 20, difficulty: 3}],
+    lessons: [
+      {id: 31, name: 'At the Airport (Tại sân bay)', wordCount: 15, masteredCount: 0, difficulty: 2}, 
+      {id: 32, name: 'Hotel (Khách sạn)', wordCount: 20, masteredCount: 0, difficulty: 3}     
+    ],
     imageUrl: 'https://cdn-icons-png.flaticon.com/512/2060/2060284.png' 
   }, 
   { 
     id: 4, title: 'Business (Kinh doanh)', totalVocab: 80, masteredVocab: 15, color: 'bg-purple-100 text-purple-700', 
-    lessons: [{id: 41, name: 'Meetings (Hội họp)', wordCount: 40, difficulty: 4}, {id: 42, name: 'Negotiations (Đàm phán)', wordCount: 40, difficulty: 5}],
+    lessons: [
+      {id: 41, name: 'Meetings (Hội họp)', wordCount: 40, masteredCount: 10, difficulty: 4},
+      {id: 42, name: 'Negotiations (Đàm phán)', wordCount: 40, masteredCount: 5, difficulty: 5}
+    ],
     imageUrl: 'https://cdn-icons-png.flaticon.com/512/2933/2933116.png' 
   },
 ];
@@ -1130,30 +1142,46 @@ function HomePage({ onLogout }) {
                   const difficultyLabels = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
                   
                   return (
-                    <div key={lesson.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-cyan-400 hover:shadow-md transition-all group">
+                    <div key={lesson.id} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-4 hover:border-cyan-400 hover:shadow-md transition-all group">
                       
-                      {/* Cột trái: Thông tin bài học */}
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-full bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold border border-cyan-100 shrink-0">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-800 text-lg group-hover:text-cyan-700 transition-colors">{lesson.name}</h4>
-                          <div className="flex items-center gap-3 mt-1.5">
-                            <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md flex items-center gap-1">
-                               Số lượng: {lesson.wordCount} từ
-                            </span>
-                            <span className="text-[11px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
-                              Độ khó: {difficultyLabels[lesson.difficulty]}
-                            </span>
+                      {/* Thông tin bài học & Nút */}
+                      <div className="flex items-center justify-between gap-4">
+                        {/* Cột trái: Số thứ tự + Thông tin bài học */}
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className="w-10 h-10 rounded-full bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold border border-cyan-100 shrink-0">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-gray-800 text-lg group-hover:text-cyan-700 transition-colors">{lesson.name}</h4>
+                            <div className="flex items-center gap-3 mt-1.5 shrink-0">
+                               <span className="text-[11px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
+                                 Độ khó: {difficultyLabels[lesson.difficulty]}
+                               </span>
+                            </div>
                           </div>
                         </div>
+
+                        {/* Cột phải: Nút Học Bài */}
+                        <button className="px-6 py-2.5 bg-white border-2 border-cyan-500 text-cyan-600 font-bold rounded-xl group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-[#0e7490] group-hover:text-white group-hover:border-transparent group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-cyan-500/30 transition-all duration-300 shrink-0">
+                          Học bài
+                        </button>
                       </div>
 
-                      {/* Cột phải: Nút Học Bài */}
-                      <button className="px-6 py-2.5 bg-white border-2 border-cyan-500 text-cyan-600 font-bold rounded-xl group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-[#0e7490] group-hover:text-white group-hover:border-transparent group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-cyan-500/30 transition-all duration-300">
-                        Học bài
-                      </button>
+                      {/* THANH TIẾN ĐỘ */}
+                      <div className="mt-1 flex flex-col gap-1.5 w-full pr-1">
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                            <div 
+                              className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500" 
+                              style={{ width: `${(lesson.masteredCount / lesson.wordCount) * 100}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold">
+                             <span>Số lượng: {lesson.wordCount} từ</span>
+                             <span className={lesson.masteredCount === lesson.wordCount ? 'text-green-600' : ''}>
+                                {lesson.masteredCount}/{lesson.wordCount} đã thuộc
+                             </span>
+                          </div>
+                      </div>
 
                     </div>
                   );
