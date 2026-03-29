@@ -19,7 +19,7 @@ const generateMockUsers = () => {
 const MOCK_DATA = generateMockUsers();
 
 function LeaderboardPage() {
-  const [timeFilter, setTimeFilter] = useState('all'); 
+  const [timeFilter, setTimeFilter] = useState('day'); 
   const [sortBy, setSortBy] = useState('score'); 
 
   // SẮP XẾP VÀ XẾP HẠNG

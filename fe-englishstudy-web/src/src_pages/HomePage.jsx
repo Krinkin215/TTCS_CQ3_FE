@@ -2,17 +2,63 @@ import React, { useState, useRef } from 'react';
 import { 
   Home, Heart, Library, LayoutGrid, Gamepad2, Trophy, 
   ChevronLeft, ChevronRight, Zap, BookOpen, User, Flame, ChevronDown, ChevronsUpDown,
-  X, Mail, Calendar, Pencil, Download, LogOut, Cake, Camera, Save, ArrowLeft
+  X, Mail, Calendar, Pencil, Download, LogOut, Cake, Camera, Save, ArrowLeft,
+  Eye, MoreVertical, FolderPlus, Search 
 } from 'lucide-react';
 import FavoritePage from './FavoritePage';
 import CollectionPage from './CollectionPage';
 import VocabularyPage from './VocabularyPage';
 import LeaderboardPage from './LeaderboardPage';
+import VocabTable from '../src_components/VocabTable'; 
+import AddToCollectionModal from '../src_components/AddToCollectionModal';
+
+const MOCK_COLLECTIONS = [
+  { id: 1, name: 'Từ vựng luyện thi TOEIC' },
+  { id: 2, name: 'Communication English' },
+  { id: 3, name: 'Từ khó nhớ - A1/A2' }
+];
+
+const MOCK_TOPICS_DATA = [
+  { 
+    id: 1, title: 'Animals (Động vật)', totalVocab: 45, masteredVocab: 45, color: 'bg-green-100 text-green-700', 
+    lessons: [{id: 11, name: 'Pets (Thú cưng)', wordCount: 20, difficulty: 1}, {id: 12, name: 'Wild Animals (Động vật hoang dã)', wordCount: 25, difficulty: 2}],
+    imageUrl: 'https://cdn-icons-png.flaticon.com/512/616/616408.png' 
+  },
+  { 
+    id: 2, title: 'Technology (Công nghệ)', totalVocab: 60, masteredVocab: 24, color: 'bg-blue-100 text-blue-700', 
+    lessons: [{id: 21, name: 'Hardware (Phần cứng)', wordCount: 30, difficulty: 3}, {id: 22, name: 'Software (Phần mềm)', wordCount: 30, difficulty: 4}],
+    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png' 
+  },
+  { 
+    id: 3, title: 'Travel (Du lịch)', totalVocab: 35, masteredVocab: 0, color: 'bg-yellow-100 text-yellow-700', 
+    lessons: [{id: 31, name: 'At the Airport (Tại sân bay)', wordCount: 15, difficulty: 2}, {id: 32, name: 'Hotel (Khách sạn)', wordCount: 20, difficulty: 3}],
+    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2060/2060284.png' 
+  }, 
+  { 
+    id: 4, title: 'Business (Kinh doanh)', totalVocab: 80, masteredVocab: 15, color: 'bg-purple-100 text-purple-700', 
+    lessons: [{id: 41, name: 'Meetings (Hội họp)', wordCount: 40, difficulty: 4}, {id: 42, name: 'Negotiations (Đàm phán)', wordCount: 40, difficulty: 5}],
+    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2933/2933116.png' 
+  },
+];
 
 function HomePage({ onLogout }) {
-  // State quản lý việc thu gọn/mở rộng Sidebar
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const [topicWordSearchTerm, setTopicWordSearchTerm] = useState('');
+
+  // MODAL CHỌN BÀI HỌC
+  const [showLearningModal, setShowLearningModal] = useState(false);
+  const [activeLearningTopic, setActiveLearningTopic] = useState(null);
+  const [learningSearchTerm, setLearningSearchTerm] = useState('');
+  const [learningDifficultyFilter, setLearningDifficultyFilter] = useState('all');
+
+  const handleOpenLearning = (topic) => {
+    setActiveLearningTopic(topic);
+    setLearningSearchTerm('');
+    setLearningDifficultyFilter('all');
+    setShowLearningModal(true);
+  };
 
   // STREAK VÀ LỊCH
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
@@ -46,6 +92,93 @@ function HomePage({ onLogout }) {
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editFormData, setEditFormData] = useState(userData);
+
+  const [favoriteVocabDB, setFavoriteVocabDB] = useState([2000, 2002]); 
+  const [collectionVocabDB, setCollectionVocabDB] = useState([]); 
+  
+  const [showTopicWordListModal, setShowTopicWordListModal] = useState(false);
+  const [activeTopic, setActiveTopic] = useState(null);
+  const [topicWords, setTopicWords] = useState([]);
+  
+  const [isTopicWordSelectMode, setIsTopicWordSelectMode] = useState(false);
+  const [selectedTopicWordIds, setSelectedTopicWordIds] = useState([]);
+
+  const [showLessonFilter, setShowLessonFilter] = useState(false);
+  const [lessonSearchTerm, setLessonSearchTerm] = useState('');
+  const [selectedLessonIds, setSelectedLessonIds] = useState([]);
+
+  const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
+  const [wordToAdd, setWordToAdd] = useState(null);
+  const [isBulkAddMode, setIsBulkAddMode] = useState(false);
+
+  const openTopicWordList = (topic) => {
+    setActiveTopic(topic);
+    const allLessonIds = topic.lessons.map(l => l.id);
+    setSelectedLessonIds(allLessonIds); 
+    
+    const generatedWords = Array.from({ length: topic.totalVocab }).map((_, index) => {
+      const lesson = topic.lessons[index % topic.lessons.length];
+      return {
+        id: 2000 + index, word: `Vocab ${index + 1}`, pronunciation: '/vəʊˈkæb/', word_type: 'Danh từ', 
+        meaning: `Nghĩa của từ ${index + 1}`, level: (index % 6) + 1, example: 'This is an example.',
+        lessonId: lesson.id, lessonName: lesson.name
+      };
+    });
+
+    setTopicWords(generatedWords);
+    setShowTopicWordListModal(true);
+    setIsTopicWordSelectMode(false);
+    setSelectedTopicWordIds([]);
+    setShowLessonFilter(false);
+    setTopicWordSearchTerm('');
+  };
+
+  const closeTopicWordList = () => {
+    setShowTopicWordListModal(false);
+    setActiveTopic(null);
+  };
+
+  const unfavoritedTopicWordCount = selectedTopicWordIds.filter(id => !favoriteVocabDB.includes(id)).length;
+  const handleBulkFavoriteTopic = () => {
+    if (selectedTopicWordIds.length === 0) return;
+    const newFavorites = selectedTopicWordIds.filter(id => !favoriteVocabDB.includes(id));
+    const favoritedCount = selectedTopicWordIds.length - newFavorites.length;
+    setFavoriteVocabDB(prev => [...prev, ...newFavorites]);
+    
+    let alertMsg = `KẾT QUẢ:\n✅ Đã thêm ${newFavorites.length} từ vào Yêu thích.\n`;
+    if (favoritedCount > 0) alertMsg += `⚠️ Bỏ qua ${favoritedCount} từ đã có sẵn.`;
+    alert(alertMsg);
+    
+    setIsTopicWordSelectMode(false);
+    setSelectedTopicWordIds([]);
+  };
+
+  const handleOpenAddToCollection = (word = null) => {
+    setWordToAdd(word);
+    setIsBulkAddMode(!word);
+    setShowAddToCollectionModal(true);
+  };
+
+  const handleConfirmAddToCollections = (targetCollectionIds) => {
+    let added = 0, duplicate = 0;
+    const wordIdsToProcess = isBulkAddMode ? selectedTopicWordIds : [wordToAdd.id];
+    const newDB = [...collectionVocabDB];
+
+    wordIdsToProcess.forEach(wId => {
+      targetCollectionIds.forEach(cId => {
+        if (newDB.some(record => record.vocabId === wId && record.collectionId === cId)) {
+          duplicate++;
+        } else {
+          newDB.push({ vocabId: wId, collectionId: cId }); added++;
+        }
+      });
+    });
+    setCollectionVocabDB(newDB);
+    alert(`KẾT QUẢ:\n✅ Đã thêm ${added} lượt từ.\n⚠️ Bỏ qua ${duplicate} lượt trùng lặp.`);
+    setShowAddToCollectionModal(false);
+    if (isBulkAddMode) { setIsTopicWordSelectMode(false); setSelectedTopicWordIds([]); }
+  };
+
   const handleOpenEdit = () => {
     setEditFormData(userData);
     setIsEditingProfile(true); 
@@ -65,7 +198,6 @@ function HomePage({ onLogout }) {
     }
   };
   
-  // Ref dùng để cuộn trang chủ và chủ đề
   const topicsRef = useRef(null);
   const mainRef = useRef(null);
   const isScrollingRef = useRef(false); 
@@ -227,6 +359,30 @@ function HomePage({ onLogout }) {
       }
     }
     return streak;
+  };
+
+  // Cột Action cho bảng Danh sách từ của Chủ đề
+  const TopicWordActionColumn = ({ item }) => {
+    const [openMenuId, setOpenMenuId] = useState(null);
+    const isFav = favoriteVocabDB.includes(item.id);
+
+    return (
+      <div className="relative flex justify-center">
+        <button onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)} className="p-2 text-gray-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-full transition-colors">
+          <MoreVertical size={20} />
+        </button>
+        {openMenuId === item.id && (
+          <div className="absolute right-8 top-10 w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-50 text-left">
+            <button onClick={() => { setOpenMenuId(null); handleOpenAddToCollection(item); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
+              <FolderPlus size={16}/> Thêm vào bộ từ
+            </button>
+            <button onClick={() => { setOpenMenuId(null); setFavoriteVocabDB(prev => prev.includes(item.id) ? prev.filter(v => v !== item.id) : [...prev, item.id]); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex justify-between items-center">
+              Yêu thích <Heart size={16} fill={isFav ? "currentColor" : "none"} className={isFav ? "text-red-500" : "text-gray-400"}/>
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -452,25 +608,64 @@ function HomePage({ onLogout }) {
             <h2 className="text-2xl font-bold text-[#083344] mb-6 border-b-2 border-gray-200 pb-2 inline-block">Chủ đề từ vựng</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Card Chủ đề mẫu */}
-              {[
-                { title: 'Animals (Động vật)', vocab: 45, color: 'bg-green-100 text-green-700' },
-                { title: 'Technology (Công nghệ)', vocab: 60, color: 'bg-blue-100 text-blue-700' },
-                { title: 'Travel (Du lịch)', vocab: 35, color: 'bg-yellow-100 text-yellow-700' },
-                { title: 'Business (Kinh doanh)', vocab: 80, color: 'bg-purple-100 text-purple-700' },
-              ].map((topic, idx) => (
-                <div key={idx} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl mb-4 ${topic.color}`}>
-                    {topic.title.charAt(0)}
-                  </div>
-                  <h3 className="font-bold text-gray-800 mb-1">{topic.title}</h3>
-                  <p className="text-sm text-gray-500">{topic.vocab} từ vựng</p>
+              {MOCK_TOPICS_DATA.map((topic) => (
+                <div key={topic.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-between min-h-[14rem]">
                   
-                  <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                    <span className="text-xs font-semibold text-[#0e7490] bg-[#0e7490]/10 px-2 py-1 rounded">Chưa học</span>
-                    <button className="text-[#0e7490] hover:text-[#164e63]">
-                      <ChevronRight size={20} />
+                  {/* Icon, Tiêu đề, Số từ và Tiến độ */}
+                  <div>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${topic.color}`}>
+                      <img 
+                        src={topic.imageUrl} 
+                        alt={topic.title} 
+                        className="w-full h-full object-contain" 
+                      />
+                    </div>
+                    <h3 className="font-bold text-gray-800 mb-3 line-clamp-1" title={topic.title}>{topic.title}</h3>
+                    
+                    {/* Số từ & Tiến độ */}
+                    <div className="flex flex-col gap-2.5 mb-4">
+                      <span className="text-xs text-gray-600 font-medium bg-gray-100/80 px-3 py-1.5 rounded-lg w-fit">
+                        Số từ: {topic.totalVocab} từ
+                      </span>
+                      
+                      {/* Hoàn thành / Chưa học / Đang học */}
+                      {topic.masteredVocab === topic.totalVocab ? (
+                        <span className="text-[11px] font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg w-fit">
+                          Đã hoàn thành
+                        </span>
+                      ) : topic.masteredVocab === 0 ? (
+                        <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">
+                          Chưa học
+                        </span>
+                      ) : (
+                        <div className="flex flex-col gap-1.5 w-full pr-4 mt-1">
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                            <div className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${(topic.masteredVocab / topic.totalVocab) * 100}%` }}></div>
+                          </div>
+                          <span className="text-[10px] text-gray-500 font-bold">{topic.masteredVocab}/{topic.totalVocab} đã thuộc</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center gap-2">
+                    
+                    <button 
+                      onClick={() => openTopicWordList(topic)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm"
+                    >
+                      <Eye size={16} /> Xem từ
                     </button>
+
+                    {/* Nút Vào học */}
+                    <button 
+                      onClick={() => handleOpenLearning(topic)}
+                      className="flex items-center justify-end text-[#0e7490] hover:text-white bg-cyan-50 hover:bg-[#0e7490] p-1.5 rounded-full transition-all duration-300 w-9 hover:w-[100px] relative group overflow-hidden shrink-0 shadow-sm border border-cyan-100 hover:border-transparent"
+                    >
+                      <span className="opacity-0 whitespace-nowrap group-hover:opacity-100 transition-opacity duration-300 text-xs font-bold absolute right-8">Vào học</span>
+                      <ChevronRight size={18} className="shrink-0 relative z-10" />
+                    </button>
+                    
                   </div>
                 </div>
               ))}
@@ -770,6 +965,211 @@ function HomePage({ onLogout }) {
           </div>
         </div>
       )}
+
+      {/* DANH SÁCH TỪ CỦA CHỦ ĐỀ */}
+      {showTopicWordListModal && activeTopic && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-6xl w-full border border-gray-100 flex flex-col max-h-[90vh]">
+            
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100 shrink-0">
+              <div>
+                <h2 className="text-2xl font-bold text-cyan-950 flex items-center gap-2">
+                  <BookOpen className="text-cyan-600" /> Chủ đề: {activeTopic.title}
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-4">
+
+                {/* THANH TÌM KIẾM TRONG MODAL CHỦ ĐỀ */}
+                <div className="relative w-56">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder="Tìm từ vựng..." 
+                    value={topicWordSearchTerm}
+                    onChange={(e) => setTopicWordSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all outline-none"
+                  />
+                </div>
+
+                {/* LỌC BÀI HỌC */}
+                <div className="relative">
+                  <button onClick={() => setShowLessonFilter(!showLessonFilter)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 text-gray-700">
+                    Lọc bài học ({selectedLessonIds.length}/{activeTopic.lessons.length}) <ChevronDown size={16}/>
+                  </button>
+                  {showLessonFilter && (
+                    <div className="absolute top-full mt-2 right-0 w-64 bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden">
+                      <div className="p-2 border-b border-gray-100">
+                        <div className="relative">
+                          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
+                          <input type="text" placeholder="Tìm bài học..." value={lessonSearchTerm} onChange={e=>setLessonSearchTerm(e.target.value)} className="w-full pl-8 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-sm outline-none focus:ring-1 focus:ring-cyan-500"/>
+                        </div>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto p-2 scrollbar-thin">
+                        <label className="flex items-center gap-2 p-2 hover:bg-cyan-50 rounded cursor-pointer font-bold text-cyan-900 text-sm border-b border-gray-50">
+                          <input type="checkbox" checked={selectedLessonIds.length === activeTopic.lessons.length && activeTopic.lessons.length > 0} onChange={() => setSelectedLessonIds(selectedLessonIds.length === activeTopic.lessons.length ? [] : activeTopic.lessons.map(l=>l.id))} className="rounded text-cyan-600 w-4 h-4 cursor-pointer"/>
+                          Chọn tất cả bài học
+                        </label>
+                        {activeTopic.lessons.filter(l => l.name.toLowerCase().includes(lessonSearchTerm.toLowerCase())).map(lesson => (
+                          <label key={lesson.id} className="flex items-center gap-2 p-2 hover:bg-cyan-50 rounded cursor-pointer text-sm font-medium text-gray-700">
+                            <input type="checkbox" checked={selectedLessonIds.includes(lesson.id)} onChange={()=>setSelectedLessonIds(prev => prev.includes(lesson.id) ? prev.filter(id => id !== lesson.id) : [...prev, lesson.id])} className="rounded text-cyan-600 w-4 h-4 cursor-pointer"/>
+                            {lesson.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* CÁC NÚT THAO TÁC CHỌN NHIỀU */}
+                {isTopicWordSelectMode && selectedTopicWordIds.length > 0 && (
+                  <div className="flex gap-2">
+                    <button onClick={() => handleOpenAddToCollection(null)} className="flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 font-medium text-sm">
+                      <FolderPlus size={16} /> Thêm vào...
+                    </button>
+                    <button onClick={handleBulkFavoriteTopic} disabled={unfavoritedTopicWordCount === 0} className={`flex items-center gap-2 px-3 py-2 border rounded-lg shadow-sm font-medium text-sm ${unfavoritedTopicWordCount > 0 ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'}`}>
+                      <Heart size={16} fill={unfavoritedTopicWordCount > 0 ? "currentColor" : "none"} /> Yêu thích ({unfavoritedTopicWordCount})
+                    </button>
+                  </div>
+                )}
+                
+                <button onClick={() => { setIsTopicWordSelectMode(!isTopicWordSelectMode); if(isTopicWordSelectMode) setSelectedTopicWordIds([]); }} className={`px-4 py-2 font-bold rounded-lg shadow-sm border text-sm ${isTopicWordSelectMode ? 'bg-cyan-950 text-white border-cyan-950' : 'bg-white text-cyan-700 border-cyan-200 hover:bg-cyan-50'}`}>
+                  {isTopicWordSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
+                </button>
+
+                <div className="w-px h-8 bg-gray-200 mx-1"></div>
+                <button onClick={closeTopicWordList} className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-full"><X size={24} /></button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <VocabTable 
+                words={topicWords.filter(w => selectedLessonIds.includes(w.lessonId))}
+                searchTerm={topicWordSearchTerm}
+                isSelectMode={isTopicWordSelectMode}
+                selectedIds={selectedTopicWordIds}
+                onToggleSelect={(id) => setSelectedTopicWordIds(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id])}
+                onSelectAll={(currentWords) => {
+                  const isAllSelected = currentWords.every(v => selectedTopicWordIds.includes(v.id));
+                  if (isAllSelected) setSelectedTopicWordIds(prev => prev.filter(id => !currentWords.map(w=>w.id).includes(id)));
+                  else setSelectedTopicWordIds(prev => [...new Set([...prev, ...currentWords.map(w=>w.id)])]);
+                }}
+                ActionColumn={TopicWordActionColumn} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL THÊM BỘ TỪ */}
+      <AddToCollectionModal 
+        isOpen={showAddToCollectionModal}
+        onClose={() => setShowAddToCollectionModal(false)}
+        isBulkMode={isBulkAddMode}
+        wordToAdd={wordToAdd}
+        selectedCount={selectedTopicWordIds.length}
+        collections={MOCK_COLLECTIONS}  
+        onConfirm={handleConfirmAddToCollections}
+      />
+
+      {/* MODAL: CHỌN BÀI HỌC ĐỂ VÀO HỌC */}
+      {showLearningModal && activeLearningTopic && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-gray-100 flex flex-col max-h-[85vh] animate-in zoom-in duration-200">
+            
+            {/* Header: Tên Chủ đề */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 shrink-0 bg-cyan-50/50 rounded-t-2xl">
+              <div>
+                <h2 className="text-2xl font-black text-cyan-950 flex items-center gap-3">
+                  <Gamepad2 className="text-[#0e7490]" size={28} /> 
+                  Vào học: {activeLearningTopic.title}
+                </h2>
+                <p className="text-gray-500 mt-1 font-medium">Chọn một bài học dưới đây để bắt đầu quá trình luyện tập.</p>
+              </div>
+              <button onClick={() => setShowLearningModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors self-start">
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Toolbar: Tìm kiếm & Lọc Độ khó */}
+            <div className="p-4 border-b border-gray-100 flex gap-4 bg-white shrink-0">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Tìm kiếm bài học..." 
+                  value={learningSearchTerm}
+                  onChange={(e) => setLearningSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all outline-none"
+                />
+              </div>
+              <div className="relative w-48">
+                <select 
+                  value={learningDifficultyFilter}
+                  onChange={(e) => setLearningDifficultyFilter(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-cyan-900 focus:ring-2 focus:ring-cyan-500 transition-all outline-none appearance-none cursor-pointer"
+                >
+                  <option value="all">Tất cả độ khó</option>
+                  <option value="1">A1 - Cơ bản</option>
+                  <option value="2">A2 - Sơ cấp</option>
+                  <option value="3">B1 - Trung cấp</option>
+                  <option value="4">B2 - Thượng cấp</option>
+                  <option value="5">C1 - Nâng cao</option>
+                  <option value="6">C2 - Thành thạo</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-700 pointer-events-none" size={16} />
+              </div>
+            </div>
+
+            {/* Danh sách các Lesson */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 scrollbar-thin">
+              {activeLearningTopic.lessons
+                .filter(lesson => lesson.name.toLowerCase().includes(learningSearchTerm.toLowerCase()))
+                .filter(lesson => learningDifficultyFilter === 'all' || lesson.difficulty === parseInt(learningDifficultyFilter))
+                .map((lesson, index) => {
+                  const difficultyLabels = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
+                  
+                  return (
+                    <div key={lesson.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-cyan-400 hover:shadow-md transition-all group">
+                      
+                      {/* Cột trái: Thông tin bài học */}
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-full bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold border border-cyan-100 shrink-0">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-lg group-hover:text-cyan-700 transition-colors">{lesson.name}</h4>
+                          <div className="flex items-center gap-3 mt-1.5">
+                            <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                               Số lượng: {lesson.wordCount} từ
+                            </span>
+                            <span className="text-[11px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
+                              Độ khó: {difficultyLabels[lesson.difficulty]}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cột phải: Nút Học Bài */}
+                      <button className="px-6 py-2.5 bg-white border-2 border-cyan-500 text-cyan-600 font-bold rounded-xl group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-[#0e7490] group-hover:text-white group-hover:border-transparent group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-cyan-500/30 transition-all duration-300">
+                        Học bài
+                      </button>
+
+                    </div>
+                  );
+              })}
+              
+              {activeLearningTopic.lessons.filter(lesson => lesson.name.toLowerCase().includes(learningSearchTerm.toLowerCase())).length === 0 && (
+                <div className="text-center py-10 text-gray-400">
+                  <p>Không tìm thấy bài học nào phù hợp với bộ lọc.</p>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

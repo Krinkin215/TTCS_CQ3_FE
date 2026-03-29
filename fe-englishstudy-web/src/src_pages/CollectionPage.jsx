@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
-import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp, MoreVertical, Heart, FolderPlus } from 'lucide-react';
+import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp, MoreVertical, Heart, FolderPlus, ChevronRight } from 'lucide-react';
 
 const COLLECTION_NAME_LIMIT = 50;
 const MOCK_COLLECTIONS = [
-  { id: 0, name: 'Từ vựng của tôi', wordCount: 12 },
-  { id: 1, name: 'Từ vựng luyện thi TOEIC', wordCount: 150 }, 
-  { id: 2, name: 'Communication English (Part 1)', wordCount: 85 },
-  { id: 3, name: 'Từ khó nhớ - A1/A2', wordCount: 42 },
-  { id: 4, name: 'Chuyên ngành Công nghệ thông tin', wordCount: 210 },
-  { id: 5, name: 'Luyện nghe IELTS Listening', wordCount: 98 },
+  { id: 0, name: 'Từ vựng của tôi', wordCount: 12, masteredVocab: 4 },
+  { id: 1, name: 'Từ vựng luyện thi TOEIC', wordCount: 150, masteredVocab: 150 }, 
+  { id: 2, name: 'Communication English (Part 1)', wordCount: 85, masteredVocab: 30 }, 
+  { id: 3, name: 'Từ khó nhớ - A1/A2', wordCount: 42, masteredVocab: 0 }, 
+  { id: 4, name: 'Chuyên ngành Công nghệ thông tin', wordCount: 210, masteredVocab: 80 },
+  { id: 5, name: 'Luyện nghe IELTS Listening', wordCount: 98, masteredVocab: 98 },
 ];
 
 function CollectionPage() {
@@ -40,6 +40,7 @@ function CollectionPage() {
   const [activeCollection, setActiveCollection] = useState(null); 
   const [showWordListModal, setShowWordListModal] = useState(false);
   const [collectionWords, setCollectionWords] = useState([]); 
+  const [wordListSearchTerm, setWordListSearchTerm] = useState(''); 
   
   // Chọn nhiều & Xóa từ vựng
   const [isWordSelectMode, setIsWordSelectMode] = useState(false);
@@ -54,6 +55,68 @@ function CollectionPage() {
   const [addModalSearchTerm, setAddModalSearchTerm] = useState('');
   const [selectedTargetCollectionIds, setSelectedTargetCollectionIds] = useState([]);
   const [collectionVocabDB, setCollectionVocabDB] = useState([]);
+
+  // CHỈNH SỬA TỪ VỰNG (Chỉ dành cho "Từ vựng của tôi")
+  const [showEditWordModal, setShowEditWordModal] = useState(false);
+  const [editingWords, setEditingWords] = useState([]);
+
+  const handleOpenEditModal = (wordsToEdit) => {
+    setEditingWords(JSON.parse(JSON.stringify(wordsToEdit)));
+    setShowEditWordModal(true);
+  };
+
+  const handleEditWordChange = (id, field, value) => {
+    setEditingWords(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
+  };
+
+  const handleSaveEditedWords = () => {
+    const wordRegex = /^[a-zA-Z\s-]+$/;
+    const pronunRegex = /^\/.*\/$/;
+    let formatErrorCount = 0;
+    let duplicateCount = 0;
+    let emptyCount = 0;
+
+    // KIỂM TRA LOGIC NHƯ KHI THÊM MỚI
+    for (const word of editingWords) {
+      const wordTrimmed = word.word.trim();
+      
+      // 1. Kiểm tra rỗng
+      if (!wordTrimmed || !word.meaning.trim()) {
+        emptyCount++; continue;
+      }
+      
+      // 2. Kiểm tra định dạng từ và phiên âm
+      if (!wordRegex.test(wordTrimmed)) {
+        formatErrorCount++; continue;
+      }
+      if (word.pronunciation && word.pronunciation.trim() !== '' && !pronunRegex.test(word.pronunciation.trim())) {
+        formatErrorCount++; continue;
+      }
+      
+      // 3. Kiểm tra trùng lặp 
+      const exists = collectionWords.some(v => v.id !== word.id && v.word.toLowerCase() === wordTrimmed.toLowerCase());
+      if (exists) {
+        duplicateCount++; continue;
+      }
+    }
+
+    // NẾU CÓ LỖI -> CHẶN LẠI VÀ THÔNG BÁO
+    if (emptyCount > 0 || formatErrorCount > 0 || duplicateCount > 0) {
+      alert(`LỖI KIỂM TRA DỮ LIỆU:\n\n${emptyCount > 0 ? `- Có ${emptyCount} từ bị bỏ trống Từ tiếng Anh hoặc Nghĩa.\n` : ''}${formatErrorCount > 0 ? `- Có ${formatErrorCount} từ sai định dạng (Từ chỉ chứa chữ cái, Phiên âm phải bọc trong / /).\n` : ''}${duplicateCount > 0 ? `- Có ${duplicateCount} từ bị trùng lặp với từ khác trong hệ thống.\n` : ''}\nVui lòng kiểm tra và sửa lại!`);
+      return; 
+    }
+
+    // NẾU HỢP LỆ -> LƯU VÀO STATE
+    setCollectionWords(prev => prev.map(cw => {
+      const edited = editingWords.find(ew => ew.id === cw.id);
+      return edited ? edited : cw;
+    }));
+
+    alert("✅ Đã cập nhật thông tin từ vựng thành công!");
+    setShowEditWordModal(false);
+    setIsWordSelectMode(false);
+    setSelectedWordIds([]);
+  };
 
   const handleOpenAddToCollectionModal = (word = null) => {
     if (word) { setWordToAdd(word); setIsBulkAddMode(false); } 
@@ -243,6 +306,7 @@ function CollectionPage() {
     setShowWordListModal(true);
     setIsWordSelectMode(false);
     setSelectedWordIds([]);
+    setWordListSearchTerm('');
   };
 
   const closeWordList = () => {
@@ -304,52 +368,45 @@ function CollectionPage() {
   const CollectionWordActionColumn = ({ item }) => {
     const [openMenuId, setOpenMenuId] = useState(null);
 
-    // NẾU LÀ BỘ "TỪ VỰNG CỦA TÔI" 
-    if (activeCollection?.id === 0) {
-      return (
-        <div className="relative flex justify-center">
-          <button 
-            onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
-            className="p-2 text-gray-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-full transition-colors"
-          >
-            <MoreVertical size={20} />
-          </button>
-
-          {openMenuId === item.id && (
-            <div className="absolute right-8 top-10 w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-50 text-left">
-              <button 
-                onClick={() => { setOpenMenuId(null); handleOpenAddToCollectionModal(item); }}
-                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium"
-              >
-                Thêm vào bộ từ...
-              </button>
-              <button 
-                onClick={() => { setOpenMenuId(null); toggleFavorite(item.id); }}
-                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium flex justify-between items-center"
-              >
-                Yêu thích <Heart size={16} fill={item.isFavorite ? "currentColor" : "none"} className={item.isFavorite ? "text-red-500" : "text-gray-400"}/>
-              </button>
-              <button 
-                onClick={() => { setOpenMenuId(null); handleWordDeleteClick(item); }}
-                className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
-              >
-                Xóa khỏi hệ thống
-              </button>
-            </div>
-          )}
-        </div>
-      );
-    }
-    
-    // NẾU LÀ CÁC BỘ TỪ KHÁC 
     return (
-      <div className="flex justify-center">
+      <div className="relative flex justify-center">
         <button 
-          onClick={() => handleWordDeleteClick(item)}
-          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+          onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+          className="p-2 text-gray-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-full transition-colors"
         >
-          <Trash2 size={18} />
+          <MoreVertical size={20} />
         </button>
+
+        {openMenuId === item.id && (
+          <div className="absolute right-8 top-10 w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-50 text-left">
+            {activeCollection?.id === 0 && (
+              <button 
+                onClick={() => { setOpenMenuId(null); handleOpenEditModal([item]); }}
+                className="w-full px-4 py-2 text-sm text-cyan-700 hover:bg-cyan-50 text-left font-medium flex items-center gap-2 border-b border-gray-100"
+              >
+                <Edit2 size={16} /> Chỉnh sửa
+              </button>
+            )}
+            <button 
+              onClick={() => { setOpenMenuId(null); handleOpenAddToCollectionModal(item); }}
+              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium"
+            >
+              Thêm vào bộ từ...
+            </button>
+            <button 
+              onClick={() => { setOpenMenuId(null); toggleFavorite(item.id); }}
+              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium flex justify-between items-center"
+            >
+              Yêu thích <Heart size={16} fill={item.isFavorite ? "currentColor" : "none"} className={item.isFavorite ? "text-red-500" : "text-gray-400"}/>
+            </button>
+            <button 
+              onClick={() => { setOpenMenuId(null); handleWordDeleteClick(item); }}
+              className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
+            >
+              {activeCollection?.id === 0 ? 'Xóa khỏi hệ thống' : 'Xóa khỏi bộ từ này'}
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -434,54 +491,60 @@ function CollectionPage() {
         </div>
       </div>
 
-      {/*  LƯỚI HIỂN THỊ CÁC BỘ TỪ */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-5 gap-y-8 pb-10">
+      {/* LƯỚI HIỂN THỊ CÁC BỘ TỪ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-10">
         {filteredCollections.map(collection => (
           <div 
             key={collection.id} 
-            className={`relative bg-white rounded-2xl shadow-sm border border-cyan-100 p-5 flex flex-col justify-between min-h-[12rem] transition-all group ${
-              selectedIds.includes(collection.id) ? 'ring-4 ring-cyan-500 border-cyan-500 bg-cyan-50/20' : ''
+            className={`relative bg-white rounded-2xl shadow-sm border border-cyan-100 p-5 flex flex-col justify-between min-h-[14rem] transition-all group ${
+              selectedIds.includes(collection.id) ? 'ring-4 ring-cyan-500 border-cyan-500 bg-cyan-50/20' : 'hover:shadow-lg hover:-translate-y-1'
             }`}
           >
             
-            {/* CHECKBOX CHỌN NHIỀU */}
-            {isSelectMode && collection.id !== 0 && (
-              <div className="absolute top-4 right-4 z-10">
+            {/* CHECKBOX HOẶC THÙNG RÁC */}
+            <div className="absolute top-4 right-4 z-10 flex gap-2">
+              {isSelectMode && collection.id !== 0 ? (
                 <input 
                   type="checkbox" 
                   checked={selectedIds.includes(collection.id)}
                   onChange={() => toggleSelect(collection.id)}
                   className="w-6 h-6 text-cyan-600 rounded-md border-gray-300 focus:ring-cyan-500 cursor-pointer shadow-md"
                 />
-              </div>
-            )}
+              ) : !isSelectMode && collection.id !== 0 ? (
+                <button 
+                  onClick={() => openDeleteModal(collection)}
+                  className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                  title="Xóa bộ từ"
+                >
+                  <Trash2 size={18} />
+                </button>
+              ) : null}
+            </div>
 
-            {/*  PHẦN TRÊN CARD  */}
-            <div className="flex-1">
+            {/* Tiêu đề, Số từ và Tiến độ */}
+            <div>
+              {/* Icon Bộ từ */}
               <div className="flex items-center gap-3 mb-4">
                 {collection.id === 0 ? (
-                  <span className="flex items-center justify-center w-10 h-10 bg-orange-100 text-orange-500 rounded-full">
-                    <Bookmark size={20} fill="currentColor" />
+                  <span className="flex items-center justify-center w-12 h-12 bg-orange-100 text-orange-500 rounded-xl">
+                    <Bookmark size={24} fill="currentColor" />
                   </span>
                 ) : (
-                  <span className="flex items-center justify-center w-10 h-10 bg-cyan-100/50 text-cyan-600 font-bold text-xl rounded-full">
+                  <span className="flex items-center justify-center w-12 h-12 bg-cyan-100/50 text-cyan-600 font-bold text-xl rounded-xl">
                     {collection.id < 10 ? `0${collection.id}` : collection.id}
                   </span>
                 )}
               </div>
               
+              {/* Tiêu đề & Sửa tên */}
               {editingId === collection.id ? (
-                // Chế độ đang sửa tên
-                <div className="flex gap-2 items-center -ml-1">
+                <div className="flex gap-2 items-center -ml-1 mb-3">
                   <div className="relative flex-1">
                     <input 
                       type="text" 
                       value={tempName} 
                       onChange={(e) => {
-                        const newName = e.target.value;
-                        if (newName.length <= COLLECTION_NAME_LIMIT) {
-                          setTempName(newName);
-                        }
+                        if (e.target.value.length <= COLLECTION_NAME_LIMIT) setTempName(e.target.value);
                       }} 
                       className="w-full px-3 py-1.5 pr-16 border border-cyan-500 rounded-lg outline-none text-lg font-bold text-cyan-950 focus:ring-2 focus:ring-cyan-200 transition-all shadow-inner"
                       autoFocus
@@ -494,15 +557,15 @@ function CollectionPage() {
                   <button onClick={cancelRename} className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors"><X size={18} /></button>
                 </div>
               ) : (
-                // Chế độ hiển thị bình thường
-                <div className="flex gap-2 items-start group/title">
-                  <h3 title={collection.name} className="text-lg font-bold text-cyan-950 truncate flex-1 mt-1">
+                <div className="flex gap-2 items-start group/title mb-3 pr-8 relative">
+                  <h3 title={collection.name} className="text-lg font-bold text-cyan-950 line-clamp-2 flex-1 mt-1 leading-snug">
                     {collection.name}
                   </h3>
                   {collection.id !== 0 && (
                     <button 
                       onClick={() => startEditing(collection)}
-                      className="p-1.5 text-cyan-600 hover:bg-cyan-100 rounded-full opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0"
+                      className="p-1.5 text-cyan-600 hover:bg-cyan-100 rounded-full opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0 absolute right-0 top-1"
+                      title="Đổi tên"
                     >
                       <Edit2 size={16} />
                     </button>
@@ -510,28 +573,49 @@ function CollectionPage() {
                 </div>
               )}
               
-              <p className="text-xs text-gray-500 font-medium bg-gray-100/50 px-3 py-1 rounded-full w-fit mt-3">Số từ: {collection.wordCount} từ</p>
+              {/* Số từ & Tiến độ */}
+              <div className="flex flex-col gap-2.5 mb-4">
+                <span className="text-xs text-gray-600 font-medium bg-gray-100/80 px-3 py-1.5 rounded-lg w-fit">
+                  Số từ: {collection.wordCount} từ
+                </span>
+                
+                {collection.wordCount === 0 ? (
+                   <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">Trống</span>
+                ) : collection.masteredVocab === collection.wordCount ? (
+                  <span className="text-[11px] font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg w-fit">Đã hoàn thành</span>
+                ) : collection.masteredVocab === 0 ? (
+                  <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">Chưa học</span>
+                ) : (
+                  <div className="flex flex-col gap-1.5 w-full pr-4 mt-1">
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${(collection.masteredVocab / collection.wordCount) * 100}%` }}></div>
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-bold">{collection.masteredVocab}/{collection.wordCount} đã thuộc</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/*PHẦN DƯỚI CARD  */}
-            <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
+            {/* Footer chứa nút */}
+            <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center gap-2">
               <button 
                 onClick={() => openWordList(collection)} 
-                className="flex items-center gap-2 px-3.5 py-1.5 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm"
               >
-                <Eye size={17} /> Xem từ
+                <Eye size={16} /> Xem từ
               </button>
 
-              {collection.id !== 0 ? (
-                <button 
-                  onClick={() => openDeleteModal(collection)}
-                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 size={20} />
-                </button>
-              ) : (
-                <div className="w-9 h-9"></div> 
-              )}
+              <button 
+                 disabled={collection.wordCount === 0}
+                 className={`flex items-center justify-end p-1.5 rounded-full transition-all duration-300 w-9 relative group/btn overflow-hidden shrink-0 shadow-sm border ${
+                  collection.wordCount === 0 
+                    ? 'text-gray-300 bg-gray-50 border-gray-100 cursor-not-allowed'
+                    : 'text-[#0e7490] hover:text-white bg-cyan-50 hover:bg-[#0e7490] hover:w-[100px] border-cyan-100 hover:border-transparent'
+                 }`}
+              >
+                <span className="opacity-0 whitespace-nowrap group-hover/btn:opacity-100 transition-opacity duration-300 text-xs font-bold absolute right-8">Vào học</span>
+                <ChevronRight size={18} className="shrink-0 relative z-10" />
+              </button>
             </div>
 
           </div>
@@ -676,33 +760,50 @@ function CollectionPage() {
 
               {/* Các nút Góc phải  */}
               <div className="flex items-center gap-4">
+
+                {/* THANH TÌM KIẾM */}
+                <div className="relative w-56">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder="Tìm từ vựng..." 
+                    value={wordListSearchTerm}
+                    onChange={(e) => setWordListSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all outline-none"
+                  />
+                </div>
                 
                 {/* HIỂN THỊ CÁC NÚT THAO TÁC KHI ĐANG CHỌN NHIỀU */}
                 {isWordSelectMode && selectedWordIds.length > 0 && (
                   <>
                     {activeCollection?.id === 0 && (
-                      <>
-                        <button 
-                          onClick={() => handleOpenAddToCollectionModal(null)}
-                          className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 font-medium transition-colors"
-                        >
-                          <FolderPlus size={18} /> Thêm vào...
-                        </button>
-
-                        <button 
-                          onClick={handleBulkFavorite}
-                          disabled={unfavoritedSelectedCount === 0}
-                          className={`flex items-center gap-2 px-4 py-2 border rounded-lg shadow-sm font-medium transition-colors ${
-                            unfavoritedSelectedCount > 0 
-                              ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer' 
-                              : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                          }`}
-                        >
-                          <Heart size={18} fill={unfavoritedSelectedCount > 0 ? "currentColor" : "none"} /> 
-                          Yêu thích ({unfavoritedSelectedCount})
-                        </button>
-                      </>
+                      <button 
+                        onClick={() => handleOpenEditModal(collectionWords.filter(w => selectedWordIds.includes(w.id)))}
+                        className="flex items-center gap-2 px-4 py-2 bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-lg shadow-sm hover:bg-cyan-100 font-bold transition-colors"
+                      >
+                        <Edit2 size={18} /> Chỉnh sửa ({selectedWordIds.length})
+                      </button>
                     )}
+
+                    <button 
+                      onClick={() => handleOpenAddToCollectionModal(null)}
+                      className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 font-medium transition-colors"
+                    >
+                      <FolderPlus size={18} /> Thêm vào...
+                    </button>
+
+                    <button 
+                      onClick={handleBulkFavorite}
+                      disabled={unfavoritedSelectedCount === 0}
+                      className={`flex items-center gap-2 px-4 py-2 border rounded-lg shadow-sm font-medium transition-colors ${
+                        unfavoritedSelectedCount > 0 
+                          ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer' 
+                          : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
+                      }`}
+                    >
+                      <Heart size={18} fill={unfavoritedSelectedCount > 0 ? "currentColor" : "none"} /> 
+                      Yêu thích ({unfavoritedSelectedCount})
+                    </button>
 
                     {/* NÚT XÓA */}
                     <button 
@@ -744,7 +845,7 @@ function CollectionPage() {
               {collectionWords.length > 0 ? (
                 <VocabTable 
                   words={collectionWords}
-                  searchTerm=""
+                  searchTerm={wordListSearchTerm}
                   isSelectMode={isWordSelectMode}
                   selectedIds={selectedWordIds}
                   onToggleSelect={toggleWordSelect}
@@ -794,9 +895,76 @@ function CollectionPage() {
         isBulkMode={isBulkAddMode}
         wordToAdd={wordToAdd}
         selectedCount={selectedWordIds.length}
-        collections={collections}  
+        collections={collections.filter(c => c.id !== activeCollection?.id)}  
         onConfirm={handleConfirmAddToCollections}
       />
+      
+      {/* MODAL CHỈNH SỬA TỪ VỰNG (CHỈ DÀNH CHO "TỪ VỰNG CỦA TÔI") */}
+      {showEditWordModal && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] animate-in zoom-in duration-200 border border-gray-100 overflow-hidden">
+             
+             {/* Header */}
+             <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white z-10 shrink-0">
+                <h2 className="text-xl font-bold text-cyan-950 flex items-center gap-2">
+                  <Edit2 className="text-cyan-600"/> Chỉnh sửa {editingWords.length} từ vựng
+                </h2>
+                <button onClick={() => setShowEditWordModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><X size={24}/></button>
+             </div>
+             
+             {/* Body: Bảng nhập liệu tương tự màn hình Thêm mới */}
+             <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-cyan-50/50 border-b border-gray-200 text-cyan-900 text-xs uppercase tracking-wider">
+                        <th className="p-3 w-12 text-center">#</th>
+                        <th className="p-3 w-1/6">Từ vựng <span className="text-red-500">*</span></th>
+                        <th className="p-3 w-1/6">Phiên âm</th>
+                        <th className="p-3 w-32">Loại từ</th>
+                        <th className="p-3 w-1/6">Nghĩa <span className="text-red-500">*</span></th>
+                        <th className="p-3 w-28 text-center">Cấp độ</th>
+                        <th className="p-3">Ví dụ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {editingWords.map((word, index) => (
+                         <tr key={word.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                            <td className="p-3 text-center text-gray-400 font-bold">{index + 1}</td>
+                            <td className="p-3"><input type="text" value={word.word} onChange={(e) => handleEditWordChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950"/></td>
+                            <td className="p-3"><input type="text" value={word.pronunciation} onChange={(e) => handleEditWordChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600"/></td>
+                            <td className="p-3">
+                              <select value={word.word_type} onChange={(e) => handleEditWordChange(word.id, 'word_type', e.target.value)} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white cursor-pointer">
+                                <option value="Danh từ">Danh từ</option>
+                                <option value="Động từ">Động từ</option>
+                                <option value="Tính từ">Tính từ</option>
+                                <option value="Trạng từ">Trạng từ</option>
+                              </select>
+                            </td>
+                            <td className="p-3"><input type="text" value={word.meaning} onChange={(e) => handleEditWordChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium"/></td>
+                            <td className="p-3">
+                              <select value={word.level} onChange={(e) => handleEditWordChange(word.id, 'level', parseInt(e.target.value))} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white cursor-pointer text-center">
+                                {[1, 2, 3, 4, 5, 6].map(lvl => (
+                                  <option key={lvl} value={lvl}>{lvl === 1 ? 'A1' : lvl === 2 ? 'A2' : lvl === 3 ? 'B1' : lvl === 4 ? 'B2' : lvl === 5 ? 'C1' : 'C2'}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="p-3"><input type="text" value={word.example} onChange={(e) => handleEditWordChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic"/></td>
+                         </tr>
+                      ))}
+                    </tbody>
+                  </table>
+               </div>
+             </div>
+
+             {/* Footer */}
+             <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
+               <button onClick={() => setShowEditWordModal(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">Hủy</button>
+               <button onClick={handleSaveEditedWords} className="px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all bg-[#0e7490] hover:bg-[#164e63] text-white">Xác nhận Lưu</button>
+             </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
