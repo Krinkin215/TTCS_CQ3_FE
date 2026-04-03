@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import LoginPage from './src_pages/LoginPage';
 import RegisterPage from './src_pages/RegisterPage';
 import HomePage from './src_pages/HomePage';
+import PracticePage from './src_pages/PracticePage'; 
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login');
@@ -30,7 +31,7 @@ function App() {
           onLogout={() => setCurrentPage('login')} 
         />
       )}
-
+      
     </div>
   );
 }

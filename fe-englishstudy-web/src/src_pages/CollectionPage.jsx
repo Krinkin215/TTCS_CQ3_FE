@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
+import FlashcardLearning from '../src_components/FlashcardLearning';
 import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp, MoreVertical, Heart, FolderPlus, ChevronRight } from 'lucide-react';
 
 const COLLECTION_NAME_LIMIT = 50;
@@ -13,7 +14,7 @@ const MOCK_COLLECTIONS = [
   { id: 5, name: 'Luyện nghe IELTS Listening', wordCount: 98, masteredVocab: 98 },
 ];
 
-function CollectionPage() {
+function CollectionPage({ onNavigateToPractice }) {
   const [collections, setCollections] = useState(MOCK_COLLECTIONS);
   
   // Chọn nhiều
@@ -47,6 +48,9 @@ function CollectionPage() {
   const [selectedWordIds, setSelectedWordIds] = useState([]);
   const [showWordDeleteModal, setShowWordDeleteModal] = useState(false);
   const [wordToDelete, setWordToDelete] = useState(null); 
+
+  // HỌC FLASHCARD 
+  const [activeFlashcardSession, setActiveFlashcardSession] = useState(null);
 
   // MODAL THÊM VÀO BỘ TỪ ("Từ vựng của tôi")
   const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
@@ -607,6 +611,7 @@ function CollectionPage() {
 
               <button 
                  disabled={collection.wordCount === 0}
+                 onClick={() => setActiveFlashcardSession({ collection })}
                  className={`flex items-center justify-end p-1.5 rounded-full transition-all duration-300 w-9 relative group/btn overflow-hidden shrink-0 shadow-sm border ${
                   collection.wordCount === 0 
                     ? 'text-gray-300 bg-gray-50 border-gray-100 cursor-not-allowed'
@@ -964,6 +969,21 @@ function CollectionPage() {
              </div>
           </div>
         </div>
+      )}
+
+      {/* MÀN HÌNH HỌC FLASHCARD TOÀN MÀN HÌNH */}
+      {activeFlashcardSession && (
+        <FlashcardLearning 
+          collection={activeFlashcardSession.collection}
+          onExit={() => setActiveFlashcardSession(null)}
+          onPractice={() => {
+            const currentCollectionId = activeFlashcardSession.collection.id;
+            setActiveFlashcardSession(null);
+            if (onNavigateToPractice) { 
+               onNavigateToPractice({ mode: 'collection', collectionId: currentCollectionId }); 
+            }
+          }}
+        />
       )}
 
     </div>

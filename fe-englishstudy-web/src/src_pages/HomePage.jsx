@@ -9,8 +9,10 @@ import FavoritePage from './FavoritePage';
 import CollectionPage from './CollectionPage';
 import VocabularyPage from './VocabularyPage';
 import LeaderboardPage from './LeaderboardPage';
-import VocabTable from '../src_components/VocabTable'; 
+import PracticePage from './PracticePage'; 
+import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
+import FlashcardLearning from '../src_components/FlashcardLearning';
 
 const MOCK_COLLECTIONS = [
   { id: 1, name: 'Từ vựng luyện thi TOEIC' },
@@ -53,7 +55,7 @@ const MOCK_TOPICS_DATA = [
   },
 ];
 
-function HomePage({ onLogout }) {
+function HomePage({ onLogout, onNavigateToPractice }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
@@ -64,6 +66,9 @@ function HomePage({ onLogout }) {
   const [activeLearningTopic, setActiveLearningTopic] = useState(null);
   const [learningSearchTerm, setLearningSearchTerm] = useState('');
   const [learningDifficultyFilter, setLearningDifficultyFilter] = useState('all');
+
+  // QUẢN LÝ MÀN HÌNH HỌC FLASHCARD
+  const [activeFlashcardSession, setActiveFlashcardSession] = useState(null);
 
   const handleOpenLearning = (topic) => {
     setActiveLearningTopic(topic);
@@ -85,6 +90,7 @@ function HomePage({ onLogout }) {
   const [activeMenu, setActiveMenu] = useState('Trang chủ');
 
   const [vocabFilter, setVocabFilter] = useState(null);
+  const [practiceInitialFilters, setPracticeInitialFilters] = useState(null);
 
   const navigateToVocabWithFilter = (status) => {
     setVocabFilter(status);
@@ -272,7 +278,7 @@ function HomePage({ onLogout }) {
         }, 100); 
       } 
     },
-    { name: 'Luyện tập', icon: <Gamepad2 size={22} />, active: activeMenu === 'Luyện tập', onClick: () => setActiveMenu('Luyện tập') },
+    { name: 'Luyện tập', icon: <Gamepad2 size={22} />, active: activeMenu === 'Luyện tập', onClick: () => { setPracticeInitialFilters(null); setActiveMenu('Luyện tập'); } },
     { name: 'Bảng xếp hạng', icon: <Trophy size={22} />, active: activeMenu === 'Bảng xếp hạng', onClick: () => setActiveMenu('Bảng xếp hạng') },
   ];
 
@@ -489,7 +495,13 @@ function HomePage({ onLogout }) {
           {/* 3 KHUNG LỚN ĐẦU TRANG */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
             {/* Khung 1: Ôn tập thông minh */}
-            <div className="bg-gradient-to-br from-[#0e7490] to-[#164e63] rounded-2xl p-6 text-white shadow-lg flex flex-col justify-between relative overflow-hidden group cursor-pointer">
+            <div 
+              onClick={() => {
+                setPracticeInitialFilters({ mode: 'smart' });
+                setActiveMenu('Luyện tập');
+              }}
+              className="bg-gradient-to-br from-[#0e7490] to-[#164e63] rounded-2xl p-6 text-white shadow-lg flex flex-col justify-between relative overflow-hidden group cursor-pointer"
+            >
               <div className="relative z-10">
                 <h3 className="text-2xl font-bold mb-2">Ôn tập thông minh</h3>
                 <p className="text-[#bae6fd] text-sm leading-relaxed max-w-[80%]">AI đã chuẩn bị sẵn các từ vựng bạn sắp quên. Ôn tập ngay để nhớ lâu hơn!</p>
@@ -590,7 +602,10 @@ function HomePage({ onLogout }) {
                 </div>
               </button>
 
-              <button className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-purple-500 hover:shadow-md transition-all group min-w-[200px]">
+              <button 
+                onClick={() => { setPracticeInitialFilters(null); setActiveMenu('Luyện tập'); }}
+                className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-purple-500 hover:shadow-md transition-all group min-w-[200px]"
+              >
                 <div className="bg-purple-100 p-3 rounded-full text-purple-600 group-hover:scale-110 transition-transform">
                   <Gamepad2 size={24} />
                 </div>
@@ -691,9 +706,16 @@ function HomePage({ onLogout }) {
 
         {activeMenu === 'Yêu thích' && <FavoritePage />}
 
-        {activeMenu === 'Bộ từ vựng' && <CollectionPage />}
+        {activeMenu === 'Bộ từ vựng' && <CollectionPage onNavigateToPractice={(filters) => { setPracticeInitialFilters(filters); setActiveMenu('Luyện tập'); }} />}
 
         {activeMenu === 'Từ vựng' && <VocabularyPage initialFilter={vocabFilter} />}
+
+        {activeMenu === 'Luyện tập' && (
+          <PracticePage 
+            initialFilters={practiceInitialFilters} 
+            onBack={() => setActiveMenu('Trang chủ')} 
+          />
+        )}
 
         {activeMenu === 'Bảng xếp hạng' && <LeaderboardPage />}
         
@@ -1162,7 +1184,13 @@ function HomePage({ onLogout }) {
                         </div>
 
                         {/* Cột phải: Nút Học Bài */}
-                        <button className="px-6 py-2.5 bg-white border-2 border-cyan-500 text-cyan-600 font-bold rounded-xl group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-[#0e7490] group-hover:text-white group-hover:border-transparent group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-cyan-500/30 transition-all duration-300 shrink-0">
+                        <button 
+                          onClick={() => {
+                            setShowLearningModal(false); 
+                            setActiveFlashcardSession({ topic: activeLearningTopic, lesson }); 
+                          }}
+                          className="px-6 py-2.5 bg-white border-2 border-cyan-500 text-cyan-600 font-bold rounded-xl group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-[#0e7490] group-hover:text-white group-hover:border-transparent group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-cyan-500/30 transition-all duration-300 shrink-0"
+                        >
                           Học bài
                         </button>
                       </div>
@@ -1198,7 +1226,30 @@ function HomePage({ onLogout }) {
         </div>
       )}
 
-    </div>
+      {/* MÀN HÌNH HỌC FLASHCARD TOÀN MÀN HÌNH */}
+      {activeFlashcardSession && (
+        <FlashcardLearning 
+          topic={activeFlashcardSession.topic}
+          lesson={activeFlashcardSession.lesson}  
+          onExit={() => {
+            setActiveFlashcardSession(null);
+            setShowLearningModal(true); 
+          }}
+          onNextLesson={(nextLesson) => setActiveFlashcardSession({ topic: activeFlashcardSession.topic, lesson: nextLesson })}
+          onPrevLesson={(prevLesson) => setActiveFlashcardSession({ topic: activeFlashcardSession.topic, lesson: prevLesson })}
+          onPractice={() => {
+            setPracticeInitialFilters({
+              mode: 'topic',
+              topicId: activeFlashcardSession.topic.id,
+              lessonId: activeFlashcardSession.lesson.id
+            });
+            setActiveFlashcardSession(null);
+            setActiveMenu('Luyện tập');
+          }}
+        />
+      )}
+
+    </div> 
   );
 }
 export default HomePage;
