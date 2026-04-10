@@ -2,8 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Gamepad2, BookOpen, Brain, Settings, HelpCircle, 
   History, BarChart2, Search, CheckSquare, X, Play, Clock, 
-  RotateCcw, Target, Trophy, Flame, ChevronRight 
+  RotateCcw, Target, Trophy, Flame, ChevronRight, Volume2, Heart, ArrowLeft, CheckCircle2, XCircle, ArrowRight, Lightbulb
 } from 'lucide-react';
+import StatusBadge from '../src_components/StatusBadge';
+import FilterBox from '../src_components/FilterBox';
+import VocabResultList from '../src_components/VocabResultList';
 
 const MOCK_COLLECTIONS = [
   { id: 1, name: 'Từ vựng TOEIC' }, { id: 2, name: 'Giao tiếp hàng ngày' }, { id: 3, name: 'Từ vựng của tôi' }
@@ -13,7 +16,13 @@ const MOCK_TOPICS = [
   { id: 2, name: 'Technology (Công nghệ)', lessons: [{id: 21, name: 'Hardware', wordCount: 30, difficulty: 3}, {id: 22, name: 'Software', wordCount: 30, difficulty: 4}] }
 ];
 const STATUS_OPTIONS = [
-  { id: 'LEARNING', name: 'Đang học (Cam)' }, { id: 'MASTERED', name: 'Đã thuộc (Xanh)' }, { id: 'NEW', name: 'Chưa học' }
+  { id: 'NEW', name: 'Chưa học' }, { id: 'LEARNING', name: 'Đang học' }, { id: 'MASTERED', name: 'Đã thuộc' }, 
+];
+const MOCK_QUIZ_DATA = [
+  { id: 1, word: 'Sightseeing', pronunciation: '/ˈsaɪtˌsiː.ɪŋ/', type: 'Danh từ', meaning: 'Sự tham quan', example: 'We did a bit of sightseeing in London.', options: ['Sự tham quan', 'Sự mệt mỏi', 'Mua sắm', 'Nấu ăn'], correct: 0, isFavorite: false, status: 'NEW' },
+  { id: 2, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', options: ['Lười biếng', 'Nhiệt tình, hăng hái', 'Tức giận', 'Buồn bã'], correct: 1, isFavorite: true, status: 'MASTERED' },
+  { id: 3, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', options: ['Che giấu', 'Phá hủy', 'Bỏ qua', 'Xác định, quyết định'], correct: 3, isFavorite: false, status: 'LEARNING' },
+  { id: 4, word: 'Fascinating', pronunciation: '/ˈfæs.ən.eɪ.tɪŋ/', type: 'Tính từ', meaning: 'Hấp dẫn, lôi cuốn', example: 'I found the whole movie fascinating.', options: ['Tẻ nhạt', 'Hấp dẫn, lôi cuốn', 'Đáng sợ', 'Kinh tởm'], correct: 1, isFavorite: false, status: 'NEW' },
 ];
 
 export default function PracticePage({ onBack, initialFilters }) {
@@ -22,27 +31,49 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [showSettings, setShowSettings] = useState(false);
   const [instructionGame, setInstructionGame] = useState(null); 
 
-  // Filter States
-
-  // Filter States
   const [selectedCollections, setSelectedCollections] = useState([]);
   const [selectedTopics, setSelectedTopics] = useState([]);
   const [selectedLessons, setSelectedLessons] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [wordCount, setWordCount] = useState(20);
 
-  // Settings State
   const [gameSettings, setGameSettings] = useState({
     timePerQuestion: 15,
     autoNext: true,
     autoNextDelay: 2
   });
 
-  // Tự động tick chọn bộ lọc 
+  const [activeGame, setActiveGame] = useState(null); 
+  const [quizState, setQuizState] = useState('playing'); 
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(15);
+  const [selectedAns, setSelectedAns] = useState(null);
+  const [quizLog, setQuizLog] = useState([]); 
+
+  const [matchLives, setMatchLives] = useState(5);
+  const [matchItems, setMatchItems] = useState([]);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [matchedIds, setMatchedIds] = useState([]);
+  const [matchFeedback, setMatchFeedback] = useState(null);
+
+  const [listenInput, setListenInput] = useState('');
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [revealedIndices, setRevealedIndices] = useState([]);
+
+  const [favoriteIds, setFavoriteIds] = useState(
+    MOCK_QUIZ_DATA.filter(q => q.isFavorite).map(q => q.id)
+  );
+  const [historyLogView, setHistoryLogView] = useState(null); 
+
+  const toggleFavorite = (id) => {
+    setFavoriteIds(prev => 
+      prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]
+    );
+  };
+
   useEffect(() => {
     if (initialFilters) {
       setActiveMode(initialFilters.mode);
-      
       if (initialFilters.mode === 'collection') {
         setSelectedCollections([initialFilters.collectionId]);
         setSelectedTopics([]); setSelectedLessons([]);
@@ -57,57 +88,10 @@ export default function PracticePage({ onBack, initialFilters }) {
     }
   }, [initialFilters]);
 
-  // Hộp chọn 
-  const FilterBox = ({ title, options, selectedIds, onChange, placeholder }) => {
-    const [search, setSearch] = useState('');
-    const filtered = options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()));
-    const isAllSelected = filtered.length > 0 && filtered.every(o => selectedIds.includes(o.id));
-
-    const toggleAll = () => {
-      if (isAllSelected) {
-        onChange(selectedIds.filter(id => !filtered.find(o => o.id === id)));
-      } else {
-        const newIds = [...new Set([...selectedIds, ...filtered.map(o => o.id)])];
-        onChange(newIds);
-      }
-    };
-
-    const toggleOne = (id) => {
-      onChange(selectedIds.includes(id) ? selectedIds.filter(i => i !== id) : [...selectedIds, id]);
-    };
-
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-64">
-        <div className="p-3 bg-gray-50 border-b border-gray-100 font-bold text-cyan-900 shrink-0">{title}</div>
-        <div className="p-2 shrink-0 border-b border-gray-100 relative">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input 
-            type="text" placeholder={placeholder} value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-cyan-500"
-          />
-        </div>
-        <div className="flex-1 overflow-y-auto p-2">
-          <label className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-            <input type="checkbox" checked={isAllSelected} onChange={toggleAll} className="w-4 h-4 text-cyan-600 rounded" />
-            <span className="text-sm font-bold text-gray-700">Chọn tất cả</span>
-          </label>
-          {filtered.map(opt => (
-            <label key={opt.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-              <input type="checkbox" checked={selectedIds.includes(opt.id)} onChange={() => toggleOne(opt.id)} className="w-4 h-4 text-cyan-600 rounded" />
-              <span className="text-sm text-gray-600">{opt.name}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  // Tính toán Lesson khả dụng dựa trên Topic đã chọn
   const availableLessons = useMemo(() => {
     return MOCK_TOPICS.filter(t => selectedTopics.includes(t.id)).flatMap(t => t.lessons);
   }, [selectedTopics]);
 
-  // Tính toán số lượng từ sẵn sàng dựa trên bộ lọc
   const availableCount = useMemo(() => {
     let total = 0;
     if (activeMode === 'collection') {
@@ -125,7 +109,6 @@ export default function PracticePage({ onBack, initialFilters }) {
     return total;
   }, [activeMode, selectedCollections, selectedLessons, selectedStatuses, availableLessons]);
 
-  // 👋 THÊM MỚI: Tính độ khó trung bình của các từ đang chọn (Mặc định là 3 nếu không rõ)
   const avgDifficulty = useMemo(() => {
     if (activeMode === 'topic' && selectedLessons.length > 0) {
       const selectedL = availableLessons.filter(l => selectedLessons.includes(l.id));
@@ -141,9 +124,25 @@ export default function PracticePage({ onBack, initialFilters }) {
     } else if (wordCount > availableCount && availableCount >= 20) {
       setWordCount(availableCount);
     }
-  }, [availableCount, activeMode, selectedLessons.length]);
+  }, [availableCount, activeMode, selectedLessons.length, wordCount]);
 
-  // Thuật toán tính Điểm Động
+  useEffect(() => {
+    let timer;
+    const isPlayingMatch = activeGame === 'match' && quizState === 'playing' && matchFeedback === null;
+    const isPlayingQuiz = activeGame === 'quiz' && quizState === 'playing' && selectedAns === null;
+    const isPlayingListen = activeGame === 'listen' && quizState === 'playing' && selectedAns === null;
+
+    if ((isPlayingQuiz || isPlayingMatch || isPlayingListen) && timeLeft > 0) {
+      timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    } else if (timeLeft === 0 && (isPlayingQuiz || isPlayingMatch || isPlayingListen)) {
+      if (activeGame === 'quiz') handleAnswer(-1); 
+      else if (activeGame === 'match') setMatchLives(0); 
+      else if (activeGame === 'listen') handleListenSubmit(true); 
+    }
+    return () => clearInterval(timer);
+  }, [activeGame, quizState, selectedAns, matchFeedback, timeLeft]);
+
+
   const getDynamicPoints = (baseModifier) => {
     const timeBonus = (30 - gameSettings.timePerQuestion) * 0.5;
     const diffBonus = avgDifficulty * 2;
@@ -151,6 +150,604 @@ export default function PracticePage({ onBack, initialFilters }) {
     return Math.round(rawScore);
   };
 
+  const handleAnswer = (index) => {
+    if (selectedAns !== null) return; 
+    setSelectedAns(index);
+    const currentQ = MOCK_QUIZ_DATA[currentQIndex];
+    const isCorrect = index === currentQ.correct;
+    
+    let points = 0;
+    if (isCorrect) {
+      let basePoints = getDynamicPoints(1); 
+      let statusMultiplier = 1;
+      if (currentQ.status === 'NEW') statusMultiplier = 1.2; 
+      else if (currentQ.status === 'LEARNING') statusMultiplier = 1.0; 
+      else if (currentQ.status === 'MASTERED') statusMultiplier = 0.5; 
+      
+      points = Math.round(basePoints * statusMultiplier);
+    }
+    
+    setQuizLog(prev => [...prev, { q: currentQ, isCorrect, pointsEarned: points }]);
+  };
+
+  const handleNextQuestion = () => {
+    if (currentQIndex < MOCK_QUIZ_DATA.length - 1) { 
+      setCurrentQIndex(prev => prev + 1); setSelectedAns(null); 
+      setListenInput(''); setHintsUsed(0); setRevealedIndices([]); 
+      setTimeLeft(gameSettings.timePerQuestion || 15); 
+    } 
+    else { setQuizState('result'); }
+  };
+
+  const handleRetryGame = (gameId) => {
+    setQuizState('playing'); setCurrentQIndex(0); setSelectedAns(null); setQuizLog([]);
+    if (gameId === 'match') {
+      setMatchLives(5); setMatchedIds([]); setSelectedMatch(null); setMatchFeedback(null);
+      setTimeLeft((gameSettings.timePerQuestion || 15) * MOCK_QUIZ_DATA.length); 
+      const items = [];
+      MOCK_QUIZ_DATA.forEach(q => {
+        items.push({ id: q.id, text: q.word, type: 'word' });
+        items.push({ id: q.id, text: q.meaning, type: 'meaning' });
+      });
+      setMatchItems(items.sort(() => Math.random() - 0.5));
+    } else if (gameId === 'listen') {
+      setListenInput(''); setHintsUsed(0); setRevealedIndices([]);
+      setTimeLeft(gameSettings.timePerQuestion || 15);
+    } else {
+      setTimeLeft(gameSettings.timePerQuestion || 15);
+    }
+  };
+
+  // KIỂM TRA ĐIỀU KIỆN TRƯỚC KHI VÀO GAME 
+  const handleStartGame = (gameId) => {
+    // Kiểm tra bộ lọc cho chế độ "Bộ từ vựng"
+    if (activeMode === 'collection' && selectedCollections.length === 0) {
+      alert("Vui lòng chọn ít nhất một Bộ từ vựng để bắt đầu ôn tập!");
+      return;
+    }
+    // Kiểm tra bộ lọc cho chế độ "Chủ đề"
+    if (activeMode === 'topic' && (selectedTopics.length === 0 || selectedLessons.length === 0)) {
+      alert("Vui lòng chọn ít nhất một Chủ đề và một Bài học để bắt đầu ôn tập!");
+      return;
+    }
+    // Kiểm tra số lượng từ vựng sẵn sàng
+    if (availableCount === 0) {
+      alert("Không có từ vựng nào thỏa mãn điều kiện lọc. Vui lòng chọn lại!");
+      return;
+    }
+
+    if (gameId === 'quiz' || gameId === 'match' || gameId === 'listen') {
+      setActiveGame(gameId); handleRetryGame(gameId);
+    } else {
+      alert("Tính năng này đang được phát triển!");
+    }
+  };
+
+  // GAME NỐI TỪ 
+  const handleMatchClick = (item) => {
+    if (selectedMatch === null) {
+      setSelectedMatch(item); 
+    } else {
+      if (selectedMatch.id === item.id && selectedMatch.type !== item.type) {
+        // NỐI ĐÚNG
+        setMatchedIds(prev => [...prev, item.id]);
+        const currentQ = MOCK_QUIZ_DATA.find(q => q.id === item.id);
+        setMatchFeedback(currentQ);
+        
+        let basePoints = getDynamicPoints(1.2); 
+        let statusMultiplier = currentQ.status === 'NEW' ? 1.2 : currentQ.status === 'MASTERED' ? 0.5 : 1.0;
+        setQuizLog(prev => [...prev, { q: currentQ, isCorrect: true, pointsEarned: Math.round(basePoints * statusMultiplier) }]);
+        setSelectedMatch(null);
+      } else if (selectedMatch.id === item.id && selectedMatch.type === item.type) {
+        setSelectedMatch(null); 
+      } else {
+        // NỐI SAI
+        setMatchLives(prev => prev - 1);
+        setSelectedMatch(null);
+        
+        const errorWordId = selectedMatch.type === 'word' ? selectedMatch.id : (item.type === 'word' ? item.id : null);
+        if (errorWordId) {
+           const errorQ = MOCK_QUIZ_DATA.find(q => q.id === errorWordId);
+           setQuizLog(prev => prev.find(l => l.q.id === errorWordId && !l.isCorrect) ? prev : [...prev, { q: errorQ, isCorrect: false, pointsEarned: 0 }]);
+        }
+      }
+    }
+  };
+
+  const handleMatchNext = () => {
+    setMatchFeedback(null);
+    if (matchedIds.length === MOCK_QUIZ_DATA.length) {
+      setQuizState('result'); 
+    }
+  };
+
+  // GAME NGHE - VIẾT 
+  const handleListenSubmit = (isTimeout = false) => {
+    if (selectedAns !== null) return;
+    const currentQ = MOCK_QUIZ_DATA[currentQIndex];
+    const isCorrect = !isTimeout && listenInput.trim().toLowerCase() === currentQ.word.toLowerCase();
+    
+    setSelectedAns(isCorrect ? 1 : 0); 
+    let points = isCorrect ? Math.round(getDynamicPoints(1.5) * (currentQ.status === 'NEW' ? 1.2 : currentQ.status === 'MASTERED' ? 0.5 : 1.0)) : 0;
+    setQuizLog(prev => [...prev, { q: currentQ, isCorrect, pointsEarned: points }]);
+  };
+
+  const handleUseHint = () => {
+    const word = MOCK_QUIZ_DATA[currentQIndex].word;
+    if (hintsUsed >= 3 || revealedIndices.length >= word.length) return;
+    
+    let unrevealed = [];
+    for(let i=0; i<word.length; i++) {
+        if(word[i] !== ' ' && word[i] !== '-' && !revealedIndices.includes(i)) unrevealed.push(i);
+    }
+    if(unrevealed.length > 0) {
+        const randomIdx = unrevealed[Math.floor(Math.random() * unrevealed.length)];
+        setRevealedIndices(prev => [...prev, randomIdx]);
+        setHintsUsed(prev => prev + 1);
+    }
+  };
+
+  const getMaskedWord = (word) => {
+    if (hintsUsed === 0) return "";
+    let masked = "";
+    for(let i=0; i<word.length; i++) {
+        if (word[i] === ' ' || word[i] === '-') masked += word[i] + " ";
+        else if (revealedIndices.includes(i)) masked += word[i] + " ";
+        else masked += "_ ";
+    }
+    return masked.trim();
+  };
+
+  const getMaskedExample = (example, word) => {
+    if (!example) return "";
+    const regex = new RegExp(word, 'gi');
+    return example.replace(regex, "______");
+  };
+
+  useEffect(() => {
+    // Xử lý khi Hết Mạng 
+    if (activeGame === 'match' && matchLives === 0 && quizState === 'playing') {
+      const remaining = MOCK_QUIZ_DATA.filter(q => !matchedIds.includes(q.id));
+      const newLogs = remaining.map(q => ({ q, isCorrect: false, pointsEarned: 0 }));
+      setQuizLog(prev => {
+         const existingIds = prev.map(l => l.q.id);
+         const filteredNew = newLogs.filter(l => !existingIds.includes(l.q.id));
+         return [...prev, ...filteredNew];
+      });
+      setQuizState('result');
+    }
+  }, [matchLives, activeGame, quizState, matchedIds]);
+
+
+  // GIAO DIỆN GAME TRẮC NGHIỆM
+  if (activeGame === 'quiz') {
+    const currentQ = MOCK_QUIZ_DATA[currentQIndex];
+    const correctAnswers = quizLog.filter(log => log.isCorrect).length;
+    const totalScore = quizLog.reduce((sum, log) => sum + (log.pointsEarned || 0), 0); 
+    
+    let resultMessage = "";
+    if (correctAnswers === MOCK_QUIZ_DATA.length) resultMessage = "Hoàn hảo! Bạn thật xuất sắc! 🎉";
+    else if (correctAnswers >= MOCK_QUIZ_DATA.length / 2) resultMessage = "Khá lắm! Hãy tiếp tục phát huy nhé! 💪";
+    else resultMessage = "Đừng nản chí! Hãy ôn tập lại và thử sức lần nữa! 📚";
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20 p-6 animate-in fade-in duration-300">
+        <div className="max-w-3xl mx-auto space-y-6">
+          
+          {quizState === 'playing' && (
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-6">
+                <span className="text-gray-500 font-bold">Câu {currentQIndex + 1} / {MOCK_QUIZ_DATA.length}</span>
+                <button onClick={() => setActiveGame(null)} className="text-gray-400 hover:text-red-500 font-bold flex items-center gap-1">
+                  <X size={20}/> Thoát
+                </button>
+              </div>
+              <div className="w-full bg-gray-100 h-3 rounded-full mb-8 overflow-hidden">
+                <div className="bg-cyan-500 h-full transition-all duration-300" style={{ width: `${((currentQIndex) / MOCK_QUIZ_DATA.length) * 100}%` }}></div>
+              </div>
+
+              <div className="flex flex-col items-center mb-8">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-black mb-4 border-4 transition-colors ${timeLeft <= 5 ? 'border-red-500 text-red-500' : 'border-cyan-500 text-cyan-600'}`}>
+                  {timeLeft}
+                </div>
+                <h2 className="text-3xl font-extrabold text-gray-800 text-center">
+                  Nghĩa của từ <span className="text-cyan-600">"{currentQ.word}"</span> là gì?
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {currentQ.options.map((opt, idx) => {
+                  let btnStyle = "bg-white border-2 border-gray-200 text-gray-700 hover:border-cyan-500 hover:bg-cyan-50";
+                  if (selectedAns !== null) {
+                    if (idx === currentQ.correct) btnStyle = "bg-green-100 border-2 border-green-500 text-green-800"; 
+                    else if (idx === selectedAns) btnStyle = "bg-red-100 border-2 border-red-500 text-red-800"; 
+                    else btnStyle = "bg-gray-50 border-2 border-gray-200 text-gray-400 opacity-50"; 
+                  }
+                  return (
+                    <button 
+                      key={idx} 
+                      onClick={() => handleAnswer(idx)}
+                      disabled={selectedAns !== null}
+                      className={`p-5 rounded-2xl text-lg font-bold transition-all text-left ${btnStyle}`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedAns !== null && (
+                <div className={`mt-8 p-6 rounded-2xl border-2 ${selectedAns === currentQ.correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} animate-in fade-in zoom-in-95`}>
+                  <h3 className={`text-3xl font-black mb-4 ${selectedAns === currentQ.correct ? 'text-green-600' : 'text-red-600'}`}>
+                    {selectedAns === currentQ.correct ? 'Tuyệt vời!' : 'Sai rồi!'}
+                  </h3>
+                  
+                  <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
+                    <div>
+                      <h4 className="text-2xl font-bold text-gray-900">{currentQ.word}</h4>
+                      <div className="flex items-center gap-3 text-gray-500 mt-1 mb-3">
+                        <span>{currentQ.pronunciation}</span>
+                        <span className="px-2 py-0.5 bg-gray-100 rounded text-sm font-semibold">{currentQ.type}</span>
+                        <StatusBadge status={currentQ.status} />
+                      </div>
+                      <p className="text-cyan-800 font-medium text-lg mb-2">{currentQ.meaning}</p>
+                      {currentQ.example && (
+                        <p className="text-gray-600 italic text-sm">VD: "{currentQ.example}"</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="p-2 bg-gray-100 rounded-full hover:bg-cyan-100 text-cyan-700 transition-colors">
+                        <Volume2 size={24} />
+                      </button>
+                      <button 
+                        onClick={() => toggleFavorite(currentQ.id)}
+                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors"
+                      >
+                        <Heart size={24} className={favoriteIds.includes(currentQ.id) ? "fill-red-500 text-red-500" : "text-gray-400"} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button onClick={handleNextQuestion} className="px-8 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center gap-2">
+                      Tiếp tục <ArrowRight size={20}/>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {quizState === 'result' && (
+            <div className="bg-white rounded-3xl p-10 shadow-sm border border-gray-100 text-center animate-in zoom-in-95">
+              <div className="w-24 h-24 bg-yellow-100 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trophy size={48} />
+              </div>
+              <h2 className="text-3xl font-black text-gray-800 mb-2">Hoàn thành bài tập!</h2>
+              <p className="text-gray-500 mb-8">{resultMessage}</p>
+              
+              <div className="flex justify-center gap-8 mb-10">
+                <div className="bg-gray-50 p-6 rounded-2xl min-w-[150px]">
+                  <p className="text-gray-500 font-bold mb-1">Số câu đúng</p>
+                  <p className="text-4xl font-black text-green-600">{correctAnswers}<span className="text-2xl text-gray-400">/{MOCK_QUIZ_DATA.length}</span></p>
+                </div>
+                <div className="bg-cyan-50 p-6 rounded-2xl min-w-[150px]">
+                  <p className="text-cyan-700 font-bold mb-1">Tổng điểm</p>
+                  <p className="text-4xl font-black text-cyan-600">+{totalScore}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 max-w-sm mx-auto">
+                <button onClick={() => setQuizState('detail')} className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-colors">
+                  Xem chi tiết lượt chơi
+                </button>
+                <div className="flex gap-3">
+                  <button onClick={handleRetryGame} className="flex-1 py-4 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 font-bold rounded-2xl transition-colors flex justify-center items-center gap-2">
+                    <RotateCcw size={20}/> Chơi lại
+                  </button>
+                  <button onClick={() => setActiveGame(null)} className="flex-1 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-2xl shadow-lg transition-colors">
+                    Thoát
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {quizState === 'detail' && (
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 animate-in slide-in-from-right">
+              <div className="flex items-center mb-8">
+                <button onClick={() => setQuizState('result')} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 mr-4"><ArrowLeft size={24}/></button>
+                <h2 className="text-2xl font-black text-gray-800">Chi tiết lượt chơi</h2>
+              </div>
+              <div className="mt-8">
+                <VocabResultList logs={quizLog} favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // GIAO DIỆN GAME NỐI TỪ 
+  if (activeGame === 'match') {
+    const correctAnswers = quizLog.filter(log => log.isCorrect).length;
+    const totalScore = quizLog.reduce((sum, log) => sum + (log.pointsEarned || 0), 0); 
+    
+    let resultMessage = "";
+    if (correctAnswers === MOCK_QUIZ_DATA.length) resultMessage = "Hoàn hảo! Bạn tinh mắt quá! 🎉";
+    else if (matchLives === 0) resultMessage = "Rất tiếc! Bạn đã hết mạng. Hãy thử lại nhé! 💔";
+    else resultMessage = "Khá lắm! Hãy tiếp tục luyện tập nhé! 💪";
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20 p-6 animate-in fade-in duration-300">
+        <div className="max-w-3xl mx-auto space-y-6">
+          
+          {quizState === 'playing' && (
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-6">
+                <span className="text-gray-500 font-bold">Tiến độ: {matchedIds.length} / {MOCK_QUIZ_DATA.length}</span>
+                <button onClick={() => setActiveGame(null)} className="text-gray-400 hover:text-red-500 font-bold flex items-center gap-1">
+                  <X size={20}/> Thoát
+                </button>
+              </div>
+              <div className="w-full bg-gray-100 h-3 rounded-full mb-8 overflow-hidden">
+                <div className="bg-purple-500 h-full transition-all duration-300" style={{ width: `${(matchedIds.length / MOCK_QUIZ_DATA.length) * 100}%` }}></div>
+              </div>
+
+              <div className="flex justify-between items-end mb-8 border-b border-gray-100 pb-6">
+                <div className="flex flex-col items-center">
+                  <span className="text-gray-400 font-bold text-sm mb-2">Thời gian</span>
+                  <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-black border-4 transition-colors ${timeLeft <= 10 ? 'border-red-500 text-red-500' : 'border-purple-500 text-purple-600'}`}>
+                    {timeLeft}
+                  </div>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-gray-400 font-bold text-sm mb-2">Mạng ({matchLives}/5)</span>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(heart => (
+                      <Heart key={heart} size={28} className={heart <= matchLives ? "fill-red-500 text-red-500" : "text-gray-200"} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {!matchFeedback ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {matchItems.map((item, idx) => {
+                    if (matchedIds.includes(item.id)) {
+                       return <div key={idx} className="p-5 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 opacity-0 transition-all duration-500 pointer-events-none"></div>; 
+                    }
+                    const isSelected = selectedMatch && selectedMatch.id === item.id && selectedMatch.type === item.type;
+                    
+                    return (
+                      <button 
+                        key={idx} 
+                        onClick={() => handleMatchClick(item)}
+                        className={`p-5 rounded-2xl text-lg font-bold transition-all text-center border-2 ${
+                          isSelected 
+                            ? 'bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105' 
+                            : 'bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm'
+                        }`}
+                      >
+                        {item.text}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className={`mt-4 p-6 rounded-2xl border-2 bg-green-50 border-green-200 animate-in zoom-in-95`}>
+                  <h3 className={`text-3xl font-black mb-4 text-green-600`}>Chính xác!</h3>
+                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
+                    <div>
+                      <h4 className="text-2xl font-bold text-gray-900">{matchFeedback.word}</h4>
+                      <div className="flex items-center gap-3 text-gray-500 mt-1 mb-2 text-sm">
+                        <span>{matchFeedback.pronunciation}</span>
+                        <span className="px-2 py-0.5 bg-white border border-green-200 rounded text-xs font-semibold">{matchFeedback.type}</span>
+                        <StatusBadge status={matchFeedback.status} />
+                      </div>
+                      <p className="text-base text-green-800 font-medium">{matchFeedback.meaning}</p>
+                      {matchFeedback.example && <p className="text-gray-600 italic text-sm mt-1">VD: "{matchFeedback.example}"</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="p-2 bg-white rounded-full hover:bg-green-100 text-green-700 transition-colors shadow-sm"><Volume2 size={18}/></button>
+                      <button onClick={() => toggleFavorite(matchFeedback.id)} className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm">
+                        <Heart size={18} className={favoriteIds.includes(matchFeedback.id) ? "fill-red-500 text-red-500" : "text-gray-400"}/>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <button onClick={handleMatchNext} className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center gap-2">
+                      Tiếp tục <ArrowRight size={20}/>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {quizState === 'result' && (
+            <div className="bg-white rounded-3xl p-10 shadow-sm border border-gray-100 text-center animate-in zoom-in-95">
+              <div className="w-24 h-24 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trophy size={48} />
+              </div>
+              <h2 className="text-3xl font-black text-gray-800 mb-2">Hoàn thành bài tập!</h2>
+              <p className="text-gray-500 mb-8">{resultMessage}</p>
+              
+              <div className="flex justify-center gap-8 mb-10">
+                <div className="bg-gray-50 p-6 rounded-2xl min-w-[150px]">
+                  <p className="text-gray-500 font-bold mb-1">Số câu đúng</p>
+                  <p className="text-4xl font-black text-green-600">{correctAnswers}<span className="text-2xl text-gray-400">/{MOCK_QUIZ_DATA.length}</span></p>
+                </div>
+                <div className="bg-purple-50 p-6 rounded-2xl min-w-[150px]">
+                  <p className="text-purple-700 font-bold mb-1">Tổng điểm</p>
+                  <p className="text-4xl font-black text-purple-600">+{totalScore}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 max-w-sm mx-auto">
+                <button onClick={() => setQuizState('detail')} className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-colors">
+                  Xem chi tiết lượt chơi
+                </button>
+                <div className="flex gap-3">
+                  <button onClick={() => handleRetryGame('match')} className="flex-1 py-4 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-2xl transition-colors flex justify-center items-center gap-2">
+                    <RotateCcw size={20}/> Chơi lại
+                  </button>
+                  <button onClick={() => setActiveGame(null)} className="flex-1 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl shadow-lg transition-colors">
+                    Thoát
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {quizState === 'detail' && (
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 animate-in slide-in-from-right">
+              <div className="flex items-center mb-8">
+                <button onClick={() => setQuizState('result')} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 mr-4"><ArrowLeft size={24}/></button>
+                <h2 className="text-2xl font-black text-gray-800">Chi tiết lượt chơi</h2>
+              </div>
+              <div className="mt-8">
+                <VocabResultList logs={quizLog} favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // GIAO DIỆN GAME NGHE - VIẾT 
+  if (activeGame === 'listen') {
+    const currentQ = MOCK_QUIZ_DATA[currentQIndex];
+    const correctAnswers = quizLog.filter(log => log.isCorrect).length;
+    const totalScore = quizLog.reduce((sum, log) => sum + (log.pointsEarned || 0), 0); 
+    
+    let resultMessage = correctAnswers === MOCK_QUIZ_DATA.length ? "Tuyệt đỉnh! Đôi tai của bạn quá nhạy bén! 🎧" : correctAnswers >= MOCK_QUIZ_DATA.length / 2 ? "Làm tốt lắm! Hãy tiếp tục luyện nghe nhé! 💪" : "Đừng nản chí! Nghe nhiều sẽ quen thôi! 📚";
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20 p-6 animate-in fade-in duration-300">
+        <div className="max-w-3xl mx-auto space-y-6">
+          
+          {quizState === 'playing' && (
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+              {/* Header */}
+              <div className="flex justify-between items-center mb-6">
+                <span className="text-gray-500 font-bold">Câu {currentQIndex + 1} / {MOCK_QUIZ_DATA.length}</span>
+                <button onClick={() => setActiveGame(null)} className="text-gray-400 hover:text-red-500 font-bold flex items-center gap-1"><X size={20}/> Thoát</button>
+              </div>
+              <div className="w-full bg-gray-100 h-3 rounded-full mb-8 overflow-hidden">
+                <div className="bg-orange-500 h-full transition-all duration-300" style={{ width: `${((currentQIndex) / MOCK_QUIZ_DATA.length) * 100}%` }}></div>
+              </div>
+
+              {/* Box câu hỏi */}
+              <div className="flex flex-col items-center mb-8 border-b border-gray-100 pb-8">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-black mb-6 border-4 transition-colors ${timeLeft <= 5 ? 'border-red-500 text-red-500' : 'border-orange-500 text-orange-600'}`}>{timeLeft}</div>
+                
+                <button className="w-24 h-24 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shadow-sm hover:scale-105 hover:bg-orange-200 transition-all mb-6">
+                  <Volume2 size={48} />
+                </button>
+                
+                <span className="px-3 py-1 bg-gray-100 rounded-lg text-sm font-bold text-gray-500 mb-4">{currentQ.type}</span>
+                {currentQ.example && (
+                  <p className="text-xl text-gray-700 font-medium text-center italic max-w-lg">"{getMaskedExample(currentQ.example, currentQ.word)}"</p>
+                )}
+                
+                <div className="mt-4 h-8 text-2xl font-black tracking-widest text-orange-600 uppercase">
+                  {getMaskedWord(currentQ.word)}
+                </div>
+              </div>
+
+              {/* Box nhập liệu */}
+              <div className="flex flex-col gap-4">
+                <input 
+                  type="text" 
+                  autoFocus
+                  disabled={selectedAns !== null}
+                  value={listenInput}
+                  onChange={(e) => setListenInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleListenSubmit(false)}
+                  placeholder="Nhập từ bạn nghe được..."
+                  className="w-full p-5 text-center text-2xl font-bold bg-gray-50 border-2 border-gray-200 rounded-2xl focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 outline-none transition-all disabled:opacity-50"
+                />
+                <div className="flex justify-between">
+                  <button 
+                    onClick={handleUseHint}
+                    disabled={hintsUsed >= 3 || selectedAns !== null}
+                    className="px-6 py-3 bg-yellow-50 text-yellow-600 font-bold rounded-xl hover:bg-yellow-100 border border-yellow-200 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Lightbulb size={20} /> Gợi ý ({3 - hintsUsed})
+                  </button>
+                  <button 
+                    onClick={() => handleListenSubmit(false)}
+                    disabled={listenInput.trim().length === 0 || selectedAns !== null}
+                    className="px-10 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Kiểm tra
+                  </button>
+                </div>
+              </div>
+
+              {/* Feedback */}
+              {selectedAns !== null && (
+                <div className={`mt-8 p-6 rounded-2xl border-2 ${selectedAns === 1 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} animate-in fade-in zoom-in-95`}>
+                  <h3 className={`text-3xl font-black mb-4 ${selectedAns === 1 ? 'text-green-600' : 'text-red-600'}`}>{selectedAns === 1 ? 'Tuyệt vời!' : `Sai rồi! Đáp án là: ${currentQ.word}`}</h3>
+                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
+                    <div>
+                      <h4 className="text-2xl font-bold text-gray-900">{currentQ.word}</h4>
+                      <div className="flex items-center gap-3 text-gray-500 mt-1 mb-3">
+                        <span>{currentQ.pronunciation}</span><span className="px-2 py-0.5 bg-gray-100 rounded text-sm font-semibold">{currentQ.type}</span>
+                        <StatusBadge status={currentQ.status} />
+                      </div>
+                      <p className="text-orange-800 font-medium text-lg mb-2">{currentQ.meaning}</p>
+                      {currentQ.example && <p className="text-gray-600 italic text-sm">VD: "{currentQ.example}"</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="p-2 bg-gray-100 rounded-full hover:bg-orange-100 text-orange-700 transition-colors"><Volume2 size={24} /></button>
+                      <button onClick={() => toggleFavorite(currentQ.id)} className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors">
+                        <Heart size={24} className={favoriteIds.includes(currentQ.id) ? "fill-red-500 text-red-500" : "text-gray-400"} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <button onClick={handleNextQuestion} className="px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center gap-2">Tiếp tục <ArrowRight size={20}/></button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Result & Detail Screens */}
+          {quizState === 'result' && (
+            <div className="bg-white rounded-3xl p-10 shadow-sm border border-gray-100 text-center animate-in zoom-in-95">
+              <div className="w-24 h-24 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-6"><Trophy size={48} /></div>
+              <h2 className="text-3xl font-black text-gray-800 mb-2">Hoàn thành bài tập!</h2><p className="text-gray-500 mb-8">{resultMessage}</p>
+              <div className="flex justify-center gap-8 mb-10">
+                <div className="bg-gray-50 p-6 rounded-2xl min-w-[150px]"><p className="text-gray-500 font-bold mb-1">Số câu đúng</p><p className="text-4xl font-black text-green-600">{correctAnswers}<span className="text-2xl text-gray-400">/{MOCK_QUIZ_DATA.length}</span></p></div>
+                <div className="bg-orange-50 p-6 rounded-2xl min-w-[150px]"><p className="text-orange-700 font-bold mb-1">Tổng điểm</p><p className="text-4xl font-black text-orange-600">+{totalScore}</p></div>
+              </div>
+              <div className="flex flex-col gap-3 max-w-sm mx-auto">
+                <button onClick={() => setQuizState('detail')} className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-colors">Xem chi tiết lượt chơi</button>
+                <div className="flex gap-3">
+                  <button onClick={() => handleRetryGame('listen')} className="flex-1 py-4 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold rounded-2xl transition-colors flex justify-center items-center gap-2"><RotateCcw size={20}/> Chơi lại</button>
+                  <button onClick={() => setActiveGame(null)} className="flex-1 py-4 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl shadow-lg transition-colors">Thoát</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {quizState === 'detail' && (
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 animate-in slide-in-from-right">
+              <div className="flex items-center mb-8"><button onClick={() => setQuizState('result')} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 mr-4"><ArrowLeft size={24}/></button><h2 className="text-2xl font-black text-gray-800">Chi tiết lượt chơi</h2></div>
+              <div className="mt-8"><VocabResultList logs={quizLog} favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} /></div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // GIAO DIỆN CHÍNH 
   return (
     <div className="min-h-screen bg-slate-50 p-8 pb-20">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -163,14 +760,9 @@ export default function PracticePage({ onBack, initialFilters }) {
             </h1>
             <p className="text-gray-500 mt-2 font-medium">Tùy chỉnh bộ lọc và chọn game để bắt đầu ôn tập.</p>
           </div>
-          {onBack && (
-            <button onClick={onBack} className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg font-bold hover:bg-gray-50 transition-colors">
-              Trở về
-            </button>
-          )}
         </div>
 
-        {/* 1. CHỌN CHẾ ĐỘ */}
+        {/* CHỌN CHẾ ĐỘ */}
         <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex gap-2">
           {[
             { id: 'collection', icon: BookOpen, label: 'Bộ từ vựng' },
@@ -189,7 +781,7 @@ export default function PracticePage({ onBack, initialFilters }) {
           ))}
         </div>
 
-        {/* 2. KHUNG BỘ LỌC */}
+        {/* KHUNG BỘ LỌC */}
         {activeMode !== 'smart' && (
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h2 className="text-lg font-bold text-cyan-950 mb-4">Thiết lập dữ liệu học</h2>
@@ -249,7 +841,7 @@ export default function PracticePage({ onBack, initialFilters }) {
           </div>
         )}
 
-        {/* 3. CHỌN GAME */}
+        {/* CHỌN GAME */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
             <div className="flex items-center gap-4">
@@ -264,7 +856,6 @@ export default function PracticePage({ onBack, initialFilters }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Game Cards */}
             {[
               { id: 'quiz', name: 'Trắc nghiệm', icon: CheckSquare, color: 'bg-blue-50 text-blue-600 border-blue-200 hover:border-blue-500', baseModifier: 1 },
               { id: 'match', name: 'Nối từ', icon: Gamepad2, color: 'bg-purple-50 text-purple-600 border-purple-200 hover:border-purple-500', baseModifier: 1.2 },
@@ -281,8 +872,18 @@ export default function PracticePage({ onBack, initialFilters }) {
                 <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
                   {typeof game.icon === 'function' ? <game.icon /> : <game.icon size={40} />}
                 </div>
-                <h3 className="text-xl font-black mb-6">{game.name}</h3>
-                
+                <h3 className="text-xl font-black mb-4">{game.name}</h3>
+
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartGame(game.id); 
+                  }}
+                  className="mb-6 px-6 py-2 bg-white text-cyan-700 font-bold rounded-xl shadow-sm border border-gray-100 hover:bg-cyan-600 hover:text-white hover:shadow-md hover:scale-105 hover:border-cyan-600 transition-all duration-200 flex items-center gap-2"
+                >
+                  <Play size={18} /> Chơi ngay
+                </button>
+
                 <span className="mt-auto px-4 py-1.5 bg-white/60 rounded-lg text-sm font-bold backdrop-blur-sm border border-white transition-all">
                   +{getDynamicPoints(game.baseModifier)} điểm / câu
                 </span>
@@ -291,7 +892,7 @@ export default function PracticePage({ onBack, initialFilters }) {
           </div>
         </div>
 
-        {/* 4. LỊCH SỬ & THỐNG KÊ */}
+        {/* LỊCH SỬ & THỐNG KÊ */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="flex border-b border-gray-100">
             <button onClick={() => setActiveTab('history')} className={`flex-1 flex items-center justify-center gap-2 py-4 font-bold text-lg transition-colors ${activeTab === 'history' ? 'border-b-2 border-cyan-600 text-cyan-700 bg-cyan-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>
@@ -305,7 +906,6 @@ export default function PracticePage({ onBack, initialFilters }) {
           <div className="p-6">
             {activeTab === 'history' ? (
               <div className="space-y-4">
-                {/* Lịch sử List */}
                 {[1, 2, 3].map(i => (
                   <div key={i} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-4">
@@ -327,7 +927,10 @@ export default function PracticePage({ onBack, initialFilters }) {
                          <div className="text-xs text-gray-500 uppercase font-bold">Điểm</div>
                          <div className="text-lg font-black text-yellow-600">+180</div>
                        </div>
-                       <button className="px-4 py-2 bg-white border border-gray-200 text-cyan-700 font-bold rounded-lg hover:bg-cyan-50 transition-colors text-sm">
+                       <button 
+                         onClick={() => setHistoryLogView(quizLog.length > 0 ? quizLog : MOCK_QUIZ_DATA.map((q, idx) => ({ q, isCorrect: idx % 2 === 0, pointsEarned: idx % 2 === 0 ? 15 : 0 })))} 
+                         className="px-4 py-2 bg-white border border-gray-200 text-cyan-700 font-bold rounded-lg hover:bg-cyan-50 transition-colors text-sm"
+                       >
                          Chi tiết
                        </button>
                     </div>
@@ -336,7 +939,6 @@ export default function PracticePage({ onBack, initialFilters }) {
               </div>
             ) : (
               <div className="space-y-8">
-                {/* Thống kê Tổng quan */}
                 <div className="grid grid-cols-4 gap-6">
                   {[
                     { label: 'Số lượt chơi', value: '42', icon: Play, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -356,7 +958,6 @@ export default function PracticePage({ onBack, initialFilters }) {
                   ))}
                 </div>
                 
-                {/* Thống kê theo Game */}
                 <div>
                   <h3 className="font-bold text-lg text-cyan-900 mb-4">Chi tiết theo Trò chơi</h3>
                   <table className="w-full text-left border-collapse">
@@ -387,7 +988,7 @@ export default function PracticePage({ onBack, initialFilters }) {
 
       </div>
 
-      {/* MODAL CÀI ĐẶT GAME */}
+      {/* CÀI ĐẶT GAME */}
       {showSettings && (
         <div className="fixed inset-0 bg-cyan-950/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -427,7 +1028,7 @@ export default function PracticePage({ onBack, initialFilters }) {
         </div>
       )}
 
-      {/* MODAL HƯỚNG DẪN TRÒ CHƠI */}
+      {/* HƯỚNG DẪN TRÒ CHƠI */}
       {instructionGame && (
         <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -461,13 +1062,33 @@ export default function PracticePage({ onBack, initialFilters }) {
               </div>
             </div>
             <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center">
-              <button onClick={() => setInstructionGame(null)} className="px-10 py-3 bg-cyan-600 text-white font-bold rounded-2xl hover:bg-cyan-700 shadow-lg transition-all">
+              <button 
+                onClick={() => setInstructionGame(null)} 
+                className="px-10 py-3 bg-cyan-600 text-white font-bold rounded-2xl hover:bg-cyan-700 shadow-lg transition-all"
+              >
                 Đã rõ!
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* LỊCH SỬ CHI TIẾT */}
+      {historyLogView && (
+        <div className="fixed inset-0 bg-cyan-950/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-2xl font-black text-cyan-950 flex items-center gap-2"><History size={24}/> Chi tiết lượt chơi trước</h3>
+              <button onClick={() => setHistoryLogView(null)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><X size={24}/></button>
+            </div>
+            <div className="p-8 overflow-y-auto">
+              <VocabResultList logs={historyLogView} favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} />
+            </div>
+          </div>
+        </div>
+      )}
+
+        
 
     </div>
   );

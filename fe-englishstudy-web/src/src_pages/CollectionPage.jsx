@@ -971,7 +971,7 @@ function CollectionPage({ onNavigateToPractice }) {
         </div>
       )}
 
-      {/* MÀN HÌNH HỌC FLASHCARD TOÀN MÀN HÌNH */}
+      {/* MÀN HÌNH HỌC FLASHCARD */}
       {activeFlashcardSession && (
         <FlashcardLearning 
           collection={activeFlashcardSession.collection}

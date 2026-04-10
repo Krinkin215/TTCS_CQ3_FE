@@ -33,13 +33,11 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
 
   const currentWord = localWords[currentIndex] || localWords[0] || {};
 
-  // đồng bộ Yêu thích và Trạng thái với hệ thống
   const toggleLocalFavorite = (id) => {
     setLocalWords(prev => prev.map(w => w.id === id ? { ...w, isFavorite: !w.isFavorite } : w));
     console.log(`Đã đồng bộ Yêu thích cho từ ID: ${id} với cơ sở dữ liệu`);
   };
 
-  // ĐIỀU KHIỂN BẰNG BÀN PHÍM (Space để lật, Mũi tên để chuyển)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (isFinished) return;
@@ -56,7 +54,6 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, isFinished]);
 
-  // CÁC HÀM XỬ LÝ SỰ KIỆN
   const handleNext = () => {
     if (currentIndex < localWords.length - 1) {
       setIsFlipped(false);
@@ -78,7 +75,6 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
     console.log(`Đang phát âm thanh từ: ${currentWord?.word}`);
   };
 
-  // Chỉ tính toán Lesson kế tiếp nếu đang học theo Topic (không phải Collection)
   const currentLessonIndex = (topic && lesson) ? topic.lessons.findIndex(l => l.id === lesson.id) : -1;
   const hasNextLesson = topic && currentLessonIndex < topic.lessons.length - 1;
   const hasPrevLesson = topic && currentLessonIndex > 0;
@@ -143,7 +139,7 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
                 className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-white"
                 style={{ backfaceVisibility: 'hidden' }}
               >
-                {/* Trạng thái (Trái) & Yêu thích (Phải) */}
+                {/* Trạng thái & Yêu thích */}
                 <div className="absolute top-8 left-8 right-8 flex justify-between items-center z-10 pointer-events-none">
                   <div 
                     onClick={(e) => e.stopPropagation()}
@@ -187,7 +183,7 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
                 className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-white"
                 style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
               >
-                {/*  Trạng thái & Yêu thích đồng bộ ở mặt sau */}
+                {/*  Trạng thái & Yêu thích ở mặt sau */}
                 <div className="absolute top-8 left-8 right-8 flex justify-between items-center z-10 pointer-events-none" style={{ transform: 'rotateY(0deg)' }}>
                   <div 
                     onClick={(e) => e.stopPropagation()}
