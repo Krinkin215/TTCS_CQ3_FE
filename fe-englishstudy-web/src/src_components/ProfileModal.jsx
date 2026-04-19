@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { X, ArrowLeft, Camera, Flame, Trophy, Mail, Cake, Calendar, LogOut, Settings, Save } from 'lucide-react';
 
 export default function ProfileModal({
@@ -36,7 +36,7 @@ export default function ProfileModal({
     <div className="fixed inset-0 bg-slate-900/40 z-[999] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-[2rem] w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 text-gray-800">
         
-        {/* Nút X đóng Modal */}
+        
         {!isEditing && (
           <button onClick={onClose} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 transition-colors">
             <X size={24} />
@@ -128,7 +128,7 @@ export default function ProfileModal({
               <p className="text-sm font-medium text-gray-500 mt-1">{user.fullName || user.username}</p>
             </div>
 
-            {/* Streak & XP */}
+            
             <div className="grid grid-cols-2 gap-3 mb-5">
               <div className="bg-orange-50 border border-orange-100 rounded-2xl p-3 flex flex-col items-center justify-center shadow-sm">
                 <div className="flex items-center text-orange-500 mb-1">
@@ -146,7 +146,7 @@ export default function ProfileModal({
               </div>
             </div>
 
-            {/* Thông tin chi tiết */}
+            
             <div className="bg-slate-50 border border-gray-100 rounded-2xl p-4 mb-5 space-y-3 shadow-sm">
               <div className="flex items-center text-gray-700">
                 <Mail size={16} className="text-cyan-600 w-6" />
@@ -162,7 +162,7 @@ export default function ProfileModal({
               </div>
             </div>
 
-            {/* Nút hành động */}
+            
             {isEditable && (
               <div className="space-y-3">
                 <button 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { 
   Home, Heart, Library, LayoutGrid, Gamepad2, Trophy, 
   ChevronLeft, ChevronRight, Zap, BookOpen, User, Flame, ChevronDown, ChevronsUpDown,
@@ -62,13 +62,13 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
   const [topicWordSearchTerm, setTopicWordSearchTerm] = useState('');
 
-  // MODAL CHỌN BÀI HỌC
+  // modal chọn bài học
   const [showLearningModal, setShowLearningModal] = useState(false);
   const [activeLearningTopic, setActiveLearningTopic] = useState(null);
   const [learningSearchTerm, setLearningSearchTerm] = useState('');
   const [learningDifficultyFilter, setLearningDifficultyFilter] = useState('all');
 
-  // QUẢN LÝ MÀN HÌNH HỌC FLASHCARD
+
   const [activeFlashcardSession, setActiveFlashcardSession] = useState(null);
 
   const handleOpenLearning = (topic) => {
@@ -78,7 +78,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     setShowLearningModal(true);
   };
 
-  // STREAK VÀ LỊCH
+  // streak và lịch
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date()); 
   
@@ -98,7 +98,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     setActiveMenu('Từ vựng');
   };
 
-  // QUẢN LÝ DỮ LIỆU NGƯỜI DÙNG & CHẾ ĐỘ SỬA
+
   const [userData, setUserData] = useState({
     username: 'pmd1506',
     fullName: 'Phạm Minh Đức',
@@ -108,9 +108,6 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     avatarChar: 'P',
     avatarUrl: null
   });
-
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [editFormData, setEditFormData] = useState(userData);
 
   const [favoriteVocabDB, setFavoriteVocabDB] = useState([2000, 2002]); 
   const [collectionVocabDB, setCollectionVocabDB] = useState([]); 
@@ -198,25 +195,6 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     if (isBulkAddMode) { setIsTopicWordSelectMode(false); setSelectedTopicWordIds([]); }
   };
 
-  const handleOpenEdit = () => {
-    setEditFormData(userData);
-    setIsEditingProfile(true); 
-  };
-
-  const handleSaveProfile = () => {
-    const firstChar = editFormData.fullName ? editFormData.fullName.charAt(0).toUpperCase() : 'U';
-    setUserData({ ...editFormData, avatarChar: firstChar }); 
-    setIsEditingProfile(false); 
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0]; 
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setEditFormData({ ...editFormData, avatarUrl: imageUrl });
-    }
-  };
-  
   const topicsRef = useRef(null);
   const mainRef = useRef(null);
   const isScrollingRef = useRef(false); 
@@ -283,10 +261,10 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     { name: 'Bảng xếp hạng', icon: <Trophy size={22} />, active: activeMenu === 'Bảng xếp hạng', onClick: () => setActiveMenu('Bảng xếp hạng') },
   ];
 
-  // TÍNH TOÁN TUẦN VÀ CHUỖI HIỆN TẠI
+
   const today = new Date();
   
-  // Lấy danh sách 7 ngày của tuần hiện tại
+
   const currentWeekStart = new Date(today);
   const dayOfWeek = currentWeekStart.getDay(); 
   const diffToMonday = currentWeekStart.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
@@ -380,7 +358,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     return streak;
   };
 
-  // Cột Action cho bảng Danh sách từ của Chủ đề
+  // cột action cho bảng từ vựng trong modal chủ đề
   const TopicWordActionColumn = ({ item }) => {
     const [openMenuId, setOpenMenuId] = useState(null);
     const isFav = favoriteVocabDB.includes(item.id);
@@ -407,11 +385,11 @@ function HomePage({ onLogout, onNavigateToPractice }) {
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-gray-800">
       
-      {/* SIDEBAR */}
+      {/* sidebar */}
       <aside 
         className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-[#083344] text-white transition-all duration-300 flex flex-col relative shadow-xl z-20`}
       >
-        {/* Nút thu gọn / mở rộng */}
+        
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="absolute -right-3 top-6 bg-[#0e7490] rounded-full p-1 text-white hover:bg-[#164e63] shadow-md"
@@ -419,12 +397,12 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           {isSidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
         </button>
 
-        {/* Logo */}
+        
         <div className="h-20 flex items-center justify-center font-extrabold text-2xl tracking-wide border-b border-[#164e63]">
           {isSidebarOpen ? <span className="text-white">Eng<span className="text-[#38bdf8]">Learn</span></span> : 'E'}
         </div>
 
-        {/* Menu Items */}
+        
         <div className="flex-1 py-6 flex flex-col gap-2 px-3 overflow-y-auto">
           {menuItems.map((item, index) => (
             <button 
@@ -443,7 +421,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           ))}
         </div>
 
-        {/* User Profile */}
+        
         <div className="p-4 border-t border-[#164e63]">
           <div 
             className={`flex items-center cursor-pointer hover:bg-[#164e63] p-2 rounded-xl transition-colors ${!isSidebarOpen && 'justify-center'}`}
@@ -466,12 +444,12 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         </div>
       </aside>
 
-      {/* NỘI DUNG CHÍNH */}
+      {/* nội dung chính */}
       <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto h-screen scroll-smooth">
         {(activeMenu === 'Trang chủ' || activeMenu === 'Chủ đề') && (
         <div className="max-w-7xl mx-auto p-8">
           
-          {/* Top Header (Số từ vựng & Lửa) */}
+          
           <div className="flex justify-end items-center mb-8 gap-4">
             <div 
               onClick={() => setIsStreakModalOpen(true)} 
@@ -493,9 +471,9 @@ function HomePage({ onLogout, onNavigateToPractice }) {
             </div>
           </div>
 
-          {/* 3 KHUNG LỚN ĐẦU TRANG */}
+          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-            {/* Khung 1: Ôn tập thông minh */}
+            
             <div 
               onClick={() => {
                 setPracticeInitialFilters({ mode: 'smart' });
@@ -513,7 +491,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               <Zap className="absolute -bottom-6 -right-6 text-white opacity-10 group-hover:scale-110 transition-transform duration-500" size={120} />
             </div>
 
-            {/* Khung 2: Tổng hợp từ vựng */}
+            
             <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 flex flex-col">
               <h3 className="text-lg font-bold text-[#083344] mb-4">Thống kê từ vựng</h3>
               <div className="grid grid-cols-2 gap-3 flex-1">
@@ -541,7 +519,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               </div>
             </div>
 
-            {/* Khung 3: ngày học trong tuần */}
+            
             <div className="bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-center items-center relative overflow-hidden">
               <h3 className="text-sm font-bold mb-3 opacity-90 uppercase tracking-wider z-10 text-center">Tuần này bạn đã học được</h3>
               
@@ -583,7 +561,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
           </div>
 
-          {/* TRUY CẬP NHANH */}
+          {/* truy cập nhanh */}
           <div className="mb-10">
             <h2 className="text-xl font-bold text-[#083344] mb-4 text-center">Truy cập nhanh</h2>
             <div className="flex justify-center gap-4 flex-wrap">
@@ -631,7 +609,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
             </div>
           </div>
 
-          {/* CHỦ ĐỀ HỌC (Topics) */}
+          {/* danh sách chủ đề */}
           <div ref={topicsRef} className="pt-8">
             <h2 className="text-2xl font-bold text-[#083344] mb-6 border-b-2 border-gray-200 pb-2 inline-block">Chủ đề từ vựng</h2>
             
@@ -639,7 +617,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               {MOCK_TOPICS_DATA.map((topic) => (
                 <div key={topic.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-between min-h-[14rem]">
                   
-                  {/* Icon, Tiêu đề, Số từ và Tiến độ */}
+                  
                   <div>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${topic.color}`}>
                       <img 
@@ -650,13 +628,13 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                     </div>
                     <h3 className="font-bold text-gray-800 mb-3 line-clamp-1" title={topic.title}>{topic.title}</h3>
                     
-                    {/* Số từ & Tiến độ */}
+                    
                     <div className="flex flex-col gap-2.5 mb-4">
                       <span className="text-xs text-gray-600 font-medium bg-gray-100/80 px-3 py-1.5 rounded-lg w-fit">
                         Số từ: {topic.totalVocab} từ
                       </span>
                       
-                      {/* Hoàn thành / Chưa học / Đang học */}
+                      
                       {topic.masteredVocab === topic.totalVocab ? (
                         <span className="text-[11px] font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg w-fit">
                           Đã hoàn thành
@@ -685,7 +663,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                       <Eye size={16} /> Xem từ
                     </button>
 
-                    {/* Nút Vào học */}
+                    
                     <button 
                       onClick={() => handleOpenLearning(topic)}
                       className="flex items-center justify-end text-[#0e7490] hover:text-white bg-cyan-50 hover:bg-[#0e7490] p-1.5 rounded-full transition-all duration-300 w-9 hover:w-[100px] relative group overflow-hidden shrink-0 shadow-sm border border-cyan-100 hover:border-transparent"
@@ -721,11 +699,11 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         {activeMenu === 'Bảng xếp hạng' && <LeaderboardPage />}
         
       </main>
-      {/* HỒ SƠ NGƯỜI DÙNG */}
+      {/* hồ sơ người dùng */}
       <ProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        user={{...userData, streak: 2, xp: '1,250', joinDate: '01/01/2026'}}
+        user={{...userData, streak: 2, xp: '1,250', join_date: '01/01/2026'}}
         isEditable={true}
         onSave={(updatedData) => {
           setUserData(updatedData);
@@ -734,7 +712,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         onLogout={onLogout}
       />
 
-      {/* LỊCH STREAK */}
+      {/* lịch streak */}
       {isStreakModalOpen && (
         <div className="fixed inset-0 bg-cyan-950/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative animate-in zoom-in duration-200">
@@ -757,7 +735,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               </p>
             </div>
 
-            {/* Điều hướng tháng/năm (Có Dropdown) */}
+            
             <div className="flex justify-between items-center mb-6 bg-cyan-50 p-2 rounded-xl border border-cyan-100">
               <button 
                 onClick={prevMonth} 
@@ -767,7 +745,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                 <ChevronLeft size={20} />
               </button>
               
-              {/* Dropdown Chọn tự do Tháng & Năm */}
+              
               <div className="flex gap-2">
               <div className="relative">
                 <select 
@@ -809,7 +787,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               </button>
             </div>
 
-            {/* Khung Lịch */}
+            
             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(day => (
@@ -859,7 +837,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         </div>
       )}
 
-      {/* DANH SÁCH TỪ CỦA CHỦ ĐỀ */}
+      {/* modal danh sách từ của chủ đề */}
       {showTopicWordListModal && activeTopic && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-6xl w-full border border-gray-100 flex flex-col max-h-[90vh]">
@@ -873,7 +851,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
               <div className="flex items-center gap-4">
 
-                {/* THANH TÌM KIẾM TRONG MODAL CHỦ ĐỀ */}
+                
                 <div className="relative w-56">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input 
@@ -885,7 +863,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                   />
                 </div>
 
-                {/* LỌC BÀI HỌC */}
+                {/* lọc bài học */}
                 <div className="relative">
                   <button onClick={() => setShowLessonFilter(!showLessonFilter)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 text-gray-700">
                     Lọc bài học ({selectedLessonIds.length}/{activeTopic.lessons.length}) <ChevronDown size={16}/>
@@ -914,7 +892,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                   )}
                 </div>
 
-                {/* CÁC NÚT THAO TÁC CHỌN NHIỀU */}
+                
                 {isTopicWordSelectMode && selectedTopicWordIds.length > 0 && (
                   <div className="flex gap-2">
                     <button onClick={() => handleOpenAddToCollection(null)} className="flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 font-medium text-sm">
@@ -954,7 +932,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         </div>
       )}
 
-      {/* MODAL THÊM BỘ TỪ */}
+      {/* modal thêm vào bộ từ */}
       <AddToCollectionModal 
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}
@@ -965,12 +943,12 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         onConfirm={handleConfirmAddToCollections}
       />
 
-      {/* MODAL: CHỌN BÀI HỌC ĐỂ VÀO HỌC */}
+      {/* modal chọn bài học */}
       {showLearningModal && activeLearningTopic && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-gray-100 flex flex-col max-h-[85vh] animate-in zoom-in duration-200">
             
-            {/* Header: Tên Chủ đề */}
+            
             <div className="flex justify-between items-center p-6 border-b border-gray-100 shrink-0 bg-cyan-50/50 rounded-t-2xl">
               <div>
                 <h2 className="text-2xl font-black text-cyan-950 flex items-center gap-3">
@@ -984,7 +962,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               </button>
             </div>
 
-            {/* Toolbar: Tìm kiếm & Lọc Độ khó */}
+            
             <div className="p-4 border-b border-gray-100 flex gap-4 bg-white shrink-0">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -1014,7 +992,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               </div>
             </div>
 
-            {/* Danh sách các Lesson */}
+            
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 scrollbar-thin">
               {activeLearningTopic.lessons
                 .filter(lesson => lesson.name.toLowerCase().includes(learningSearchTerm.toLowerCase()))
@@ -1025,9 +1003,9 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                   return (
                     <div key={lesson.id} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-4 hover:border-cyan-400 hover:shadow-md transition-all group">
                       
-                      {/* Thông tin bài học & Nút */}
+                      
                       <div className="flex items-center justify-between gap-4">
-                        {/* Cột trái: Số thứ tự + Thông tin bài học */}
+                        
                         <div className="flex items-start gap-4 flex-1">
                           <div className="w-10 h-10 rounded-full bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold border border-cyan-100 shrink-0">
                             {index + 1}
@@ -1042,7 +1020,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                           </div>
                         </div>
 
-                        {/* Cột phải: Nút Học Bài */}
+                        
                         <button 
                           onClick={() => {
                             setShowLearningModal(false); 
@@ -1054,7 +1032,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                         </button>
                       </div>
 
-                      {/* THANH TIẾN ĐỘ */}
+                      
                       <div className="mt-1 flex flex-col gap-1.5 w-full pr-1">
                           <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                             <div 
@@ -1085,7 +1063,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         </div>
       )}
 
-      {/* MÀN HÌNH HỌC FLASHCARD */}
+      {/* flashcard */}
       {activeFlashcardSession && (
         <FlashcardLearning 
           topic={activeFlashcardSession.topic}

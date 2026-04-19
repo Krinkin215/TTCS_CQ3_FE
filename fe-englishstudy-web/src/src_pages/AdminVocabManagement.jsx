@@ -34,14 +34,13 @@ const FILTER_OPTIONS = {
 
 export default function AdminVocabManagement() {
   
-  // TƯƠNG TÁC UI 
-  const [isSelectMode, setIsSelectMode] = useState(false); 
-  const [selectedIds, setSelectedIds] = useState([]); 
-  const [searchTerm, setSearchTerm] = useState(''); 
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [vocabularies, setVocabularies] = useState(MOCK_VOCABULARIES);
   
-  // MODAL THÊM TỪ VỰNG MỚI
+  // modal thêm từ mới
   const [showAddWordModal, setShowAddWordModal] = useState(false);
   const [showImportDropdown, setShowImportDropdown] = useState(false);
   const [showExitWarning, setShowExitWarning] = useState(false);
@@ -52,22 +51,25 @@ export default function AdminVocabManagement() {
   const [draftWords, setDraftWords] = useState([{ ...defaultDraftRow }]);
   const [isSaving, setIsSaving] = useState(false); 
 
-  // MODAL CHỈNH SỬA
+  // modal chỉnh sửa
   const [showEditWordModal, setShowEditWordModal] = useState(false);
   const [editingWords, setEditingWords] = useState([]);
 
-  // MODAL XÓA
+  // modal xóa
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [wordToDelete, setWordToDelete] = useState(null);
 
-  // BỘ LỌC TỪ VỰNG
+  // bộ lọc
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [openFilterDropdown, setOpenFilterDropdown] = useState(null); 
   const [filterSearch, setFilterSearch] = useState({ topics: '', lessons: '' });
 
   const initialFilters = { topics: [], lessons: [], types: [], levels: [] };
   const [activeFilters, setActiveFilters] = useState(initialFilters); 
-  const [draftFilters, setDraftFilters] = useState(initialFilters);  
+  const [draftFilters, setDraftFilters] = useState(initialFilters);
+
+  // menu hành động dùng chung, tránh nhiều menu mở cùng lúc
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   const toggleDraftFilter = (category, value) => {
     setDraftFilters(prev => ({
@@ -93,9 +95,15 @@ export default function AdminVocabManagement() {
     setDraftFilters(initialFilters);
   };
 
+  const LEVEL_STR_TO_INT = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
+
   const filteredVocabularies = vocabularies.filter(word => {
     if (activeFilters.types.length > 0 && !activeFilters.types.includes(word.word_type)) return false;
-    if (activeFilters.levels.length > 0 && !activeFilters.levels.includes(word.level)) return false;
+    // cấp độ lưu dạng chuỗi ('A1'...) nhưng word.level là số nguyên, cần chuyển đổi
+    if (activeFilters.levels.length > 0) {
+      const levelInts = activeFilters.levels.map(l => LEVEL_STR_TO_INT[l]).filter(Boolean);
+      if (!levelInts.includes(word.level)) return false;
+    }
     
     if (activeFilters.topics.length > 0) {
       const topicObj = MOCK_TOPICS.find(t => t.name === word.topic);
@@ -110,7 +118,7 @@ export default function AdminVocabManagement() {
     return true;
   });
 
-  // Bảng Thêm mới (Draft)
+
   const handleAddDraftRow = () => setDraftWords([...draftWords, { ...defaultDraftRow, id: Date.now() }]);
   const handleRemoveDraftRow = (id) => setDraftWords(draftWords.filter(w => w.id !== id));
   const handleDraftChange = (id, field, value) => {
@@ -206,7 +214,7 @@ export default function AdminVocabManagement() {
     }
   };
 
-  // ACTIONS (Edit & Delete)
+
   const handleOpenEditModal = (wordsToEdit) => {
     setEditingWords(JSON.parse(JSON.stringify(wordsToEdit)));
     setShowEditWordModal(true);
@@ -269,8 +277,6 @@ export default function AdminVocabManagement() {
   };
 
   const AdminActionColumn = ({ item }) => {
-    const [openMenuId, setOpenMenuId] = useState(null); 
-    
     return (
       <div className="relative flex justify-center">
         <button 
@@ -369,7 +375,7 @@ export default function AdminVocabManagement() {
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
       
-      {/* KHỐI 1: THANH CÔNG CỤ */}
+      {/* thanh công cụ */}
       <div className="bg-white rounded-[1.25rem] shadow-sm border border-gray-200 p-4 mb-6 flex justify-between items-center transition-all">
         
         <div className="flex gap-4 items-center w-full max-w-xl">
@@ -444,7 +450,7 @@ export default function AdminVocabManagement() {
         </div>
       </div>
 
-      {/* KHỐI 2: BẢNG DANH SÁCH TỪ VỰNG */}
+
       <VocabTable 
         words={filteredVocabularies}
         searchTerm={searchTerm}
@@ -457,7 +463,7 @@ export default function AdminVocabManagement() {
         showLessonColumn={true}
       />
       
-      {/* MODAL: THÊM TỪ VỰNG MỚI */}
+      {/* modal thêm từ vựng */}
       {showAddWordModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh] animate-in zoom-in duration-200 border border-gray-100 relative overflow-hidden">
@@ -578,7 +584,7 @@ export default function AdminVocabManagement() {
         </div>
       )}
 
-      {/* Cảnh báo đóng Add Modal khi có dữ liệu */}
+
       <ConfirmModal 
         isOpen={showExitWarning}
         onClose={() => setShowExitWarning(false)}
@@ -590,7 +596,7 @@ export default function AdminVocabManagement() {
         isDanger={true}
       />
 
-      {/* MODAL: CHỈNH SỬA TỪ VỰNG */}
+      {/* modal chỉnh sửa từ vựng */}
       {showEditWordModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh] animate-in zoom-in duration-200 border border-gray-100 overflow-hidden">
@@ -608,8 +614,6 @@ export default function AdminVocabManagement() {
                     <thead>
                       <tr className="bg-cyan-50/50 border-b border-gray-200 text-cyan-900 text-xs uppercase tracking-wider">
                         <th className="p-3 w-12 text-center">#</th>
-                        <th className="p-3 w-32">Chủ đề</th>
-                        <th className="p-3 w-32">Bài học</th>
                         <th className="p-3 w-32">Từ vựng <span className="text-red-500">*</span></th>
                         <th className="p-3 w-32">Phiên âm</th>
                         <th className="p-3 w-32">Loại từ</th>
@@ -622,8 +626,6 @@ export default function AdminVocabManagement() {
                       {editingWords.map((word, index) => (
                          <tr key={word.id} className="border-b border-gray-100 hover:bg-gray-50/50">
                             <td className="p-3 text-center text-gray-400 font-bold">{index + 1}</td>
-                            <td className="p-3"><input type="text" value={word.topic || ''} onChange={(e) => handleEditWordChange(word.id, 'topic', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-700"/></td>
-                            <td className="p-3"><input type="text" value={word.lesson || ''} onChange={(e) => handleEditWordChange(word.id, 'lesson', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-700"/></td>
                             <td className="p-3"><input type="text" value={word.word} onChange={(e) => handleEditWordChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950"/></td>
                             <td className="p-3"><input type="text" value={word.pronunciation} onChange={(e) => handleEditWordChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600"/></td>
                             <td className="p-3">
@@ -658,7 +660,7 @@ export default function AdminVocabManagement() {
         </div>
       )}
 
-      {/* Xác nhận Xóa */}
+      {/* xác nhận xóa */}
       <ConfirmModal 
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
@@ -676,7 +678,7 @@ export default function AdminVocabManagement() {
         isDanger={true}
       />
 
-      {/* MODAL BỘ LỌC */}
+      {/* modal bộ lọc */}
       {showFilterModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[150] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-2xl flex flex-col animate-in zoom-in duration-200 border border-gray-100">
@@ -686,7 +688,7 @@ export default function AdminVocabManagement() {
                 <div className="bg-cyan-100 p-2 rounded-lg text-cyan-600"><Filter size={20} /></div>
                 <h2 className="text-xl font-black text-cyan-950">Bộ lọc từ vựng</h2>
               </div>
-              <button onClick={() => setShowFilterModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+              <button onClick={() => { setShowFilterModal(false); setOpenFilterDropdown(null); }} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
                 <X size={24} />
               </button>
             </div>
@@ -707,7 +709,7 @@ export default function AdminVocabManagement() {
                   Hủy
                 </button>
                 <button onClick={applyFilters} className="px-8 py-2.5 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
-                  Duyệt thao tác
+                  Áp dụng bộ lọc
                 </button>
               </div>
             </div>

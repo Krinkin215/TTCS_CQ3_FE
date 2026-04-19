@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { LayoutGrid, Users, BookOpen, BarChart3, LogOut, ShieldCheck, Bell, Library, Trophy } from 'lucide-react';
 import LeaderboardPage from './LeaderboardPage';
 import UserManagement from './UserManagement';
@@ -59,7 +59,7 @@ export default function AdminHomePage({ onLogout }) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* SIDEBAR */}
+      {/* sidebar */}
       <aside className="w-64 bg-cyan-950 text-white flex flex-col h-screen sticky top-0">
         <div className="p-6 border-b border-cyan-900">
           <h1 className="text-2xl font-black">EngLearn <span className="text-xs bg-cyan-600 px-2 py-1 rounded ml-1">ADMIN</span></h1>
@@ -76,7 +76,7 @@ export default function AdminHomePage({ onLogout }) {
         </button>
       </aside>
 
-      {/* KHU VỰC NỘI DUNG CHÍNH */}
+      {/* khu vực nội dung chính */}
       <main className="flex-1 overflow-y-auto">
 
         {/* 1. HIỂN THỊ DASHBOARD */}

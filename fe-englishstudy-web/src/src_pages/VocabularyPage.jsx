@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { FolderPlus, Search, X, Filter, Heart, Plus, Upload, FileText, Zap, ChevronDown, Trash2, HelpCircle, Download, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import VocabTable from '../src_components/VocabTable'; 
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
@@ -10,7 +10,7 @@ const ADMIN_USER_ID = 1;
 const MOCK_VOCABULARIES = [
   { id: 1, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', word_type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', level: 4, created_by: ADMIN_USER_ID },
   { id: 2, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', word_type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', level: 3, created_by: ADMIN_USER_ID },
-  { id: 3, word: 'Apple', pronunciation: '/ˈæp.əl/', word_type: 'Danh từ', meaning: 'Quả táo', example: 'I eat an apple every day.', level: 1, created_by: CURRENT_USER_ID }, // Từ này do chính User tạo
+  { id: 3, word: 'Apple', pronunciation: '/ˈæp.əl/', word_type: 'Danh từ', meaning: 'Quả táo', example: 'I eat an apple every day.', level: 1, created_by: CURRENT_USER_ID },
   { id: 4, word: 'Fascinating', pronunciation: '/ˈfæs.ən.eɪ.tɪŋ/', word_type: 'Tính từ', meaning: 'Hấp dẫn, lôi cuốn', example: 'I found the whole movie fascinating.', level: 4, created_by: ADMIN_USER_ID },
   { id: 5, word: 'Accomplish', pronunciation: '/əˈkʌm.plɪʃ/', word_type: 'Động từ', meaning: 'Hoàn thành, đạt được', example: 'The students accomplished the task in less than ten minutes.', level: 5, created_by: ADMIN_USER_ID },
   { id: 6, word: 'Benevolent', pronunciation: '/bəˈnev.əl.ənt/', word_type: 'Tính từ', meaning: 'Nhân từ, rộng lượng', example: 'He was a benevolent old man.', level: 5, created_by: ADMIN_USER_ID },
@@ -20,7 +20,7 @@ const MOCK_VOCABULARIES = [
   { id: 10, word: 'Genuine', pronunciation: '/ˈdʒen.ju.ɪn/', word_type: 'Tính từ', meaning: 'Thành thật, chân chính', example: 'He is a very genuine person.', level: 4, created_by: ADMIN_USER_ID },
   { id: 11, word: 'Harmony', pronunciation: '/ˈhɑː.mə.ni/', word_type: 'Danh từ', meaning: 'Sự hài hòa, hòa thuận', example: 'We must ensure that tourism develops in harmony with the environment.', level: 4, created_by: ADMIN_USER_ID },
   { id: 12, word: 'Inevitable', pronunciation: '/ɪˈnev.ɪ.tə.bəl/', word_type: 'Tính từ', meaning: 'Không thể tránh khỏi', example: 'The accident was the inevitable consequence of carelessness.', level: 5, created_by: ADMIN_USER_ID },
-  { id: 13, word: 'Joyful', pronunciation: '/ˈdʒɔɪ.fəl/', word_type: 'Tính từ', meaning: 'Vui vẻ, hân hoan', example: 'Christmas is a joyful occasion for children.', level: 2, created_by: CURRENT_USER_ID }, // Từ này do chính User tạo
+  { id: 13, word: 'Joyful', pronunciation: '/ˈdʒɔɪ.fəl/', word_type: 'Tính từ', meaning: 'Vui vẻ, hân hoan', example: 'Christmas is a joyful occasion for children.', level: 2, created_by: CURRENT_USER_ID },
   { id: 14, word: 'Keen', pronunciation: '/kiːn/', word_type: 'Tính từ', meaning: 'Say mê, nhiệt tình', example: 'They were very keen to start work.', level: 3, created_by: ADMIN_USER_ID },
   { id: 15, word: 'Lucid', pronunciation: '/ˈluː.sɪd/', word_type: 'Tính từ', meaning: 'Rõ ràng, dễ hiểu', example: 'She gave a clear and lucid account of her plans.', level: 6, created_by: ADMIN_USER_ID },
 ];
@@ -49,10 +49,10 @@ const ITEMS_PER_PAGE = 10;
 
 function VocabularyPage({ initialFilter }) {
   
-  //  TƯƠNG TÁC UI 
-  const [isSelectMode, setIsSelectMode] = useState(false); 
-  const [selectedIds, setSelectedIds] = useState([]); 
-  const [searchTerm, setSearchTerm] = useState(''); 
+
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
   const [wordToAdd, setWordToAdd] = useState(null); 
@@ -65,7 +65,7 @@ function VocabularyPage({ initialFilter }) {
   const [favoriteVocabDB, setFavoriteVocabDB] = useState([1, 3]);
 
   
-  // MODAL THÊM TỪ VỰNG MỚI
+  // modal thêm từ mới
   const [showAddWordModal, setShowAddWordModal] = useState(false);
   const [addWordTab, setAddWordTab] = useState('manual'); 
   const [showImportDropdown, setShowImportDropdown] = useState(false);
@@ -80,7 +80,7 @@ function VocabularyPage({ initialFilter }) {
   const [pasteText, setPasteText] = useState('');
   const [isSaving, setIsSaving] = useState(false); 
 
-  // BỘ LỌC TỪ VỰNG
+  // bộ lọc
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [openFilterDropdown, setOpenFilterDropdown] = useState(null); 
   const [filterSearch, setFilterSearch] = useState({ collections: '', topics: '' });
@@ -155,9 +155,15 @@ function VocabularyPage({ initialFilter }) {
     setDraftFilters(initialFilters);
   };
 
+  const LEVEL_STR_TO_INT = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
+
   const filteredVocabularies = vocabularies.filter(word => {
     if (activeFilters.types.length > 0 && !activeFilters.types.includes(word.word_type)) return false;
-    if (activeFilters.levels.length > 0 && !activeFilters.levels.includes(word.level)) return false;
+    // Chuyển cấp độ chuỗi sang số để so sánh đúng với word.level (số nguyên)
+    if (activeFilters.levels.length > 0) {
+      const levelInts = activeFilters.levels.map(l => LEVEL_STR_TO_INT[l]).filter(Boolean);
+      if (!levelInts.includes(word.level)) return false;
+    }
     
     let mockStatus = 'Chưa học';
     if (word.isFavorite) {
@@ -187,7 +193,7 @@ function VocabularyPage({ initialFilter }) {
     return true;
   });
 
-  // 1. bảng Nhập thủ công
+
   const handleAddDraftRow = () => setDraftWords([...draftWords, { ...defaultDraftRow, id: Date.now() }]);
   const handleRemoveDraftRow = (id) => setDraftWords(draftWords.filter(w => w.id !== id));
   const handleDraftChange = (id, field, value) => {
@@ -288,6 +294,7 @@ function VocabularyPage({ initialFilter }) {
         id: Date.now() + Math.random(), 
         created_by: CURRENT_USER_ID 
       });
+      addedCount++;
     }
 
     setVocabularies(currentVocabs);
@@ -521,7 +528,7 @@ function VocabularyPage({ initialFilter }) {
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
       
-      {/* KHỐI 1: THANH CÔNG CỤ */}
+      {/* thanh công cụ */}
       <div className="bg-white rounded-[1.25rem] shadow-sm border border-gray-200 p-4 mb-6 flex justify-between items-center transition-all">
         
         <div className="flex gap-4 items-center w-full max-w-xl">
@@ -597,7 +604,7 @@ function VocabularyPage({ initialFilter }) {
         </div>
       </div>
 
-      {/* KHỐI 2: BẢNG DANH SÁCH TỪ VỰNG */}
+      
       <VocabTable 
         words={filteredVocabularies}
         searchTerm={searchTerm}
@@ -608,7 +615,7 @@ function VocabularyPage({ initialFilter }) {
         ActionColumn={VocabularyActionColumn} 
       />
 
-      {/* THÊM TỪ VÀO BỘ TỪ VỰNG */}
+      {/* modal thêm vào bộ từ */}
       <AddToCollectionModal 
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}
@@ -619,12 +626,12 @@ function VocabularyPage({ initialFilter }) {
         onConfirm={handleConfirmAddToCollections}
       />
       
-      {/* MODAL: THÊM TỪ VỰNG MỚI */}
+      {/* modal thêm từ vựng */}
       {showAddWordModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] animate-in zoom-in duration-200 border border-gray-100 relative overflow-hidden">
             
-            {/* 1. HEADER & TOOLBAR */}
+            
             <div className="p-5 border-b border-gray-100 shrink-0 bg-white z-20">
               <div className="flex justify-between items-center mb-5">
                 <h2 className="text-2xl font-black text-cyan-950">Thêm từ vựng mới</h2>
@@ -665,10 +672,10 @@ function VocabularyPage({ initialFilter }) {
               </div>
             </div>
 
-            {/* 2. KHU VỰC NHẬP DỮ LIỆU */}
+            
             <div className="flex-1 overflow-y-auto bg-gray-50/50 p-6">
               
-              {/* TAB 1: NHẬP THỦ CÔNG */}
+              {/* tab nhập thủ công */}
               {addWordTab === 'manual' && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   <table className="w-full text-left border-collapse">
@@ -742,7 +749,7 @@ function VocabularyPage({ initialFilter }) {
                 </div>
               )}
 
-              {/* TAB 2: PASTE NHANH TỪ AI */}
+              {/* tab paste nhanh */}
               {addWordTab === 'paste' && (
                 <div className="flex flex-col h-full animate-in fade-in duration-300">
                   <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4 flex gap-3">
@@ -769,7 +776,7 @@ function VocabularyPage({ initialFilter }) {
               )}
             </div>
 
-            {/* 3. FOOTER */}
+            
             <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
               <button onClick={handleCloseAddModal} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">
                 Hủy
@@ -794,7 +801,7 @@ function VocabularyPage({ initialFilter }) {
         </div>
       )}
 
-      {/* HƯỚNG DẪN NHẬP FILE */}
+      {/* hướng dẫn nhập file */}
       {showGuideModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-in zoom-in duration-200 overflow-hidden">
@@ -829,7 +836,7 @@ function VocabularyPage({ initialFilter }) {
         </div>
       )}
 
-      {/* CẢNH BÁO: CHƯA LƯU DỮ LIỆU KHI THOÁT */}
+      
       {showExitWarning && (
         <div className="fixed inset-0 bg-cyan-950/80 z-[120] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in duration-200">
@@ -847,7 +854,7 @@ function VocabularyPage({ initialFilter }) {
         </div>
       )}
 
-      {/* BỘ LỌC */}
+      {/* modal bộ lọc */}
       {showFilterModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[150] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-2xl flex flex-col animate-in zoom-in duration-200 border border-gray-100">
@@ -857,7 +864,7 @@ function VocabularyPage({ initialFilter }) {
                 <div className="bg-cyan-100 p-2 rounded-lg text-cyan-600"><Filter size={20} /></div>
                 <h2 className="text-xl font-black text-cyan-950">Bộ lọc từ vựng</h2>
               </div>
-              <button onClick={() => setShowFilterModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+              <button onClick={() => { setShowFilterModal(false); setOpenFilterDropdown(null); }} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
                 <X size={24} />
               </button>
             </div>
@@ -879,7 +886,7 @@ function VocabularyPage({ initialFilter }) {
                   Hủy
                 </button>
                 <button onClick={applyFilters} className="px-8 py-2.5 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
-                  Duyệt thao tác
+                  Áp dụng bộ lọc
                 </button>
               </div>
             </div>

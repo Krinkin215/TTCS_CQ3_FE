@@ -26,12 +26,12 @@ function VocabTable({
     setCurrentPage(1);
   }, [searchTerm, sortConfig]);
 
-  // LỌC TỪ VỰNG
+  // lọc và sắp xếp từ vựng
   let processedWords = words.filter(item => 
     item.word.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // SẮP XẾP TỪ VỰNG  
+
   processedWords.sort((a, b) => {
     if (sortConfig.key === 'word') {
       return sortConfig.direction === 'asc' 
@@ -45,7 +45,7 @@ function VocabTable({
     return 0;
   });
 
-  //  PHÂN TRANG  
+  // phân trang
   const totalPages = Math.ceil(processedWords.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const currentWords = processedWords.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -207,7 +207,7 @@ function VocabTable({
         )}
       </div>
 
-      {/* THANH PHÂN TRANG */}
+      {/* phân trang */}
       <Pagination 
         currentPage={currentPage}
         totalPages={totalPages}

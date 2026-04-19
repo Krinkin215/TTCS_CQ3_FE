@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 
 export default function AddToCollectionModal({ 
@@ -48,7 +48,7 @@ export default function AddToCollectionModal({
     <div className="fixed inset-0 bg-cyan-950/70 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-gray-100 flex flex-col max-h-[85vh] animate-in zoom-in duration-200">
         
-        {/* HEADER */}
+        
         <div className="flex justify-between items-center p-5 pb-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-xl font-bold text-cyan-950">Lưu vào bộ từ</h2>
@@ -65,7 +65,7 @@ export default function AddToCollectionModal({
           </button>
         </div>
 
-        {/* TOOLBAR TÌM KIẾM */}
+        
         <div className="p-4 border-b border-gray-50 shrink-0 bg-gray-50/50">
           <div className="flex items-center justify-between gap-4">
             <div className="relative flex-1">
@@ -90,7 +90,7 @@ export default function AddToCollectionModal({
           </div>
         </div>
 
-        {/* DANH SÁCH BỘ TỪ */}
+        
         <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
           {filteredCollections.length > 0 ? (
             filteredCollections.map(collection => (
@@ -109,7 +109,7 @@ export default function AddToCollectionModal({
           )}
         </div>
 
-        {/* FOOTER NÚT BẤM */}
+        
         <div className="p-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-gray-50/50 rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-100 transition-colors">
             Hủy

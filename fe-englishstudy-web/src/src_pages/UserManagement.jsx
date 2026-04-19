@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { Search, Menu, Trash2, CheckSquare, Square, X, Mail, Cake, Calendar, Trophy, Flame, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import SearchBar from '../src_components/SearchBar';
 import Pagination from '../src_components/Pagination';
@@ -375,7 +375,7 @@ export default function UserManagement() {
         />
       </div>
 
-      {/* MODAL HỒ SƠ NGƯỜI DÙNG */}
+      {/* modal hồ sơ người dùng */}
       <ProfileModal 
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
@@ -388,7 +388,7 @@ export default function UserManagement() {
         isEditable={false}
       />
 
-      {/* XÁC NHẬN XÓA MODAL */}
+      {/* xác nhận xóa modal */}
       <ConfirmModal 
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Volume2, MoreVertical, FolderPlus, Trash2, Search, X } from 'lucide-react';
 import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
@@ -24,14 +24,14 @@ const MOCK_COLLECTIONS = [
 function FavoritePage() {
   const [favorites, setFavorites] = useState(MOCK_FAVORITES);
   
-  // Các state quản lý tương tác UI
+
   const [isSelectMode, setIsSelectMode] = useState(false); 
   const [selectedIds, setSelectedIds] = useState([]); 
   const [openExampleId, setOpenExampleId] = useState(null); 
 
   const [searchTerm, setSearchTerm] = useState(''); 
   
-  // MODAL THÊM VÀO BỘ TỪ
+  // modal thêm vào bộ từ
   const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
   const [wordToAdd, setWordToAdd] = useState(null); 
   const [isBulkAddMode, setIsBulkAddMode] = useState(false); 
@@ -102,25 +102,25 @@ function FavoritePage() {
     }
   };
 
-  // Xử lý tick chọn 1 ô checkbox
+
   const toggleSelect = (id) => {
     setSelectedIds(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
 
-  // Phát âm thanh (mô phỏng)
+
   const playAudio = (word) => {
     console.log(`Đang phát âm thanh từ: ${word}`);
-    // Thực tế sẽ dùng: new Audio('link_audio').play();
+
   };
 
-  // xóa 1 từ vựng 
+
   const handleRemoveSingle = (id) => {
     setFavorites(favorites.filter(item => item.id !== id));
   };
 
-  //  xóa nhiều từ vựng 
+
   const handleRemoveBulk = () => {
     if (selectedIds.length === 0) return;
     setFavorites(favorites.filter(item => !selectedIds.includes(item.id)));
@@ -128,12 +128,12 @@ function FavoritePage() {
     setIsSelectMode(false); 
   };
 
-  // Lọc từ vựng theo ô tìm kiếm
+
   const filteredFavorites = favorites.filter(item => 
     item.word.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Chọn tất cả / Bỏ chọn tất cả
+
   const handleSelectAllCurrentPage = (currentWords) => {
     const isAllCurrentSelected = currentWords.every(v => selectedIds.includes(v.id));
     if (isAllCurrentSelected && currentWords.length > 0) {
@@ -180,17 +180,17 @@ function FavoritePage() {
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
       
-      {/* HEADER TRANG */}
+      
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-extrabold text-cyan-950">Từ vựng yêu thích</h1>
           <p className="text-gray-500 mt-1">Quản lý và ôn tập các từ vựng bạn đã đánh dấu</p>
         </div>
 
-        {/* CÁC NÚT HÀNH ĐỘNG GÓC PHẢI */}
+        
         <div className="flex gap-4 items-center">
           
-          {/*Ô TÌM KIẾM TỪ VỰNG */}
+          
           <SearchBar 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -200,7 +200,7 @@ function FavoritePage() {
 
           {isSelectMode && (
             <>
-              {/*NÚT THÊM VÀO BỘ TỪ */}
+              
               <button 
                 onClick={() => handleOpenAddToCollectionModal(null)}
                 disabled={selectedIds.length === 0}
@@ -213,7 +213,7 @@ function FavoritePage() {
                 <FolderPlus size={18} /> Thêm vào...
               </button>
 
-              {/* NÚT BỎ YÊU THÍCH  */}
+              
               <button 
                 onClick={handleRemoveBulk}
                 disabled={selectedIds.length === 0}
@@ -254,7 +254,7 @@ function FavoritePage() {
         ActionColumn={FavoriteActionColumn} 
       />
 
-      {/*THÊM TỪ VÀO BỘ TỪ VỰNG */}\
+      {/* modal thêm vào bộ từ */}
       <AddToCollectionModal 
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
 import FlashcardLearning from '../src_components/FlashcardLearning';
@@ -21,27 +21,27 @@ const MOCK_COLLECTIONS = [
 function CollectionPage({ onNavigateToPractice }) {
   const [collections, setCollections] = useState(MOCK_COLLECTIONS);
 
-  // Chọn nhiều
+  // chọn nhiều
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
-  //Đổi tên
+  // đổi tên
   const [editingId, setEditingId] = useState(null);
   const [tempName, setTempName] = useState('');
 
-  //  xác nhận xóa
+  // xác nhận xóa
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [collectionToDelete, setCollectionToDelete] = useState(null);
   const [openWordListId, setOpenWordListId] = useState(null);
 
-  // tạo bồ tự mới
+  // tạo bộ từ mới
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
 
-  // tìm kiếm nhanh
+
   const [searchTerm, setSearchTerm] = useState('');
 
-  //  DANH SÁCH TỪ VỰNG BÊN TRONG BỘ TỪ
+  // danh sách từ trong bộ từ
   const [activeCollection, setActiveCollection] = useState(null);
   const [showWordListModal, setShowWordListModal] = useState(false);
   const [collectionWords, setCollectionWords] = useState([]);
@@ -50,16 +50,16 @@ function CollectionPage({ onNavigateToPractice }) {
   const [selectedWordTypes, setSelectedWordTypes] = useState([]);
   const [showWordFilterDropdown, setShowWordFilterDropdown] = useState(false);
 
-  // Chọn nhiều & Xóa từ vựng
+  // chọn nhiều và xóa từ
   const [isWordSelectMode, setIsWordSelectMode] = useState(false);
   const [selectedWordIds, setSelectedWordIds] = useState([]);
   const [showWordDeleteModal, setShowWordDeleteModal] = useState(false);
   const [wordToDelete, setWordToDelete] = useState(null);
 
-  // HỌC FLASHCARD 
+
   const [activeFlashcardSession, setActiveFlashcardSession] = useState(null);
 
-  // MODAL THÊM VÀO BỘ TỪ ("Từ vựng của tôi")
+  // modal thêm vào bộ từ
   const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
   const [wordToAdd, setWordToAdd] = useState(null);
   const [isBulkAddMode, setIsBulkAddMode] = useState(false);
@@ -67,7 +67,7 @@ function CollectionPage({ onNavigateToPractice }) {
   const [selectedTargetCollectionIds, setSelectedTargetCollectionIds] = useState([]);
   const [collectionVocabDB, setCollectionVocabDB] = useState([]);
 
-  // CHỈNH SỬA TỪ VỰNG (Chỉ dành cho "Từ vựng của tôi")
+  // chỉnh sửa từ của tôi
   const [showEditWordModal, setShowEditWordModal] = useState(false);
   const [editingWords, setEditingWords] = useState([]);
 
@@ -87,16 +87,16 @@ function CollectionPage({ onNavigateToPractice }) {
     let duplicateCount = 0;
     let emptyCount = 0;
 
-    // KIỂM TRA LOGIC NHƯ KHI THÊM MỚI
+  
     for (const word of editingWords) {
       const wordTrimmed = word.word.trim();
 
-      // 1. Kiểm tra rỗng
+
       if (!wordTrimmed || !word.meaning.trim()) {
         emptyCount++; continue;
       }
 
-      // 2. Kiểm tra định dạng từ và phiên âm
+
       if (!wordRegex.test(wordTrimmed)) {
         formatErrorCount++; continue;
       }
@@ -104,20 +104,20 @@ function CollectionPage({ onNavigateToPractice }) {
         formatErrorCount++; continue;
       }
 
-      // 3. Kiểm tra trùng lặp 
+
       const exists = collectionWords.some(v => v.id !== word.id && v.word.toLowerCase() === wordTrimmed.toLowerCase());
       if (exists) {
         duplicateCount++; continue;
       }
     }
 
-    // NẾU CÓ LỖI -> CHẶN LẠI VÀ THÔNG BÁO
+
     if (emptyCount > 0 || formatErrorCount > 0 || duplicateCount > 0) {
       alert(`LỖI KIỂM TRA DỮ LIỆU:\n\n${emptyCount > 0 ? `- Có ${emptyCount} từ bị bỏ trống Từ tiếng Anh hoặc Nghĩa.\n` : ''}${formatErrorCount > 0 ? `- Có ${formatErrorCount} từ sai định dạng (Từ chỉ chứa chữ cái, Phiên âm phải bọc trong / /).\n` : ''}${duplicateCount > 0 ? `- Có ${duplicateCount} từ bị trùng lặp với từ khác trong hệ thống.\n` : ''}\nVui lòng kiểm tra và sửa lại!`);
       return;
     }
 
-    // NẾU HỢP LỆ -> LƯU VÀO STATE
+
     setCollectionWords(prev => prev.map(cw => {
       const edited = editingWords.find(ew => ew.id === cw.id);
       return edited ? edited : cw;
@@ -175,7 +175,7 @@ function CollectionPage({ onNavigateToPractice }) {
     }
   };
 
-  // XỬ LÝ CHỌN NHIỀU: YÊU THÍCH HÀNG LOẠT
+
   const unfavoritedSelectedCount = selectedWordIds.filter(id => {
     const word = collectionWords.find(w => w.id === id);
     return word && !word.isFavorite;
@@ -203,7 +203,7 @@ function CollectionPage({ onNavigateToPractice }) {
     setCollectionWords(collectionWords.map(w => w.id === id ? { ...w, isFavorite: !w.isFavorite } : w));
   };
 
-  // Tạo bộ từ mới  
+
   const handleCreateCollection = (e) => {
     e.preventDefault();
     if (!newCollectionName.trim()) return;
@@ -227,14 +227,14 @@ function CollectionPage({ onNavigateToPractice }) {
     setNewCollectionName('');
   };
 
-  //Xử lý Chọn nhiều 
+
   const toggleSelect = (id) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
     );
   };
 
-  // CHỌN TẤT CẢ BỘ TỪ VỰNG
+
   const handleSelectAllCollections = () => {
     const deletableCollections = filteredCollections.filter(c => c.id !== 0);
 
@@ -245,7 +245,7 @@ function CollectionPage({ onNavigateToPractice }) {
     }
   };
 
-  // xóa hàng loạt
+
   const handleBulkDeleteClick = () => {
     if (selectedIds.length === 0) return;
     setCollectionToDelete(null);
@@ -259,10 +259,9 @@ function CollectionPage({ onNavigateToPractice }) {
     setShowDeleteModal(false);
   };
 
-  // Logic Xử lý Đổi tên 
+
   const handleWordListClick = (id) => {
     setOpenWordListId(openWordListId === id ? null : id);
-    setOpenMenuId(null);
   };
 
   const startEditing = (collection) => {
@@ -284,7 +283,7 @@ function CollectionPage({ onNavigateToPractice }) {
     setEditingId(null);
   };
 
-  // Xử lý Xóa 1 bộ từ 
+
   const openDeleteModal = (collection) => {
     setCollectionToDelete(collection);
     setShowDeleteModal(true);
@@ -296,7 +295,7 @@ function CollectionPage({ onNavigateToPractice }) {
     setCollectionToDelete(null);
   };
 
-  // DANH SÁCH TỪ VỰNG TRONG BỘ TỪ 
+
   const openWordList = (collection) => {
     setActiveCollection(collection);
     const baseMockWords = [
@@ -373,19 +372,19 @@ function CollectionPage({ onNavigateToPractice }) {
     if (updatedWords.length === 0) setIsWordSelectMode(false);
   };
 
-  // Lọc bộ từ theo tìm kiếm
+
   const filteredCollections = collections.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Lọc từ vựng trong bộ từ
+
   const filteredCollectionWords = collectionWords.filter(w => {
     if (selectedWordLevels.length > 0 && !selectedWordLevels.includes(w.level)) return false;
     if (selectedWordTypes.length > 0 && !selectedWordTypes.includes(w.word_type)) return false;
     return true;
   });
 
-  // Cột Hành động 
+  // cột hành động
   const CollectionWordActionColumn = ({ item }) => {
     const [openMenuId, setOpenMenuId] = useState(null);
 
@@ -435,7 +434,7 @@ function CollectionPage({ onNavigateToPractice }) {
   return (
     <div className="p-8 bg-slate-50 min-h-screen relative">
 
-      {/* HEADER TRANG */}
+      {/* header */}
       <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200">
         <div className="flex items-center gap-6">
           <div>
@@ -443,7 +442,7 @@ function CollectionPage({ onNavigateToPractice }) {
             <p className="text-gray-500 mt-1">Quản lý và ôn tập từ vựng theo chủ đề cá nhân</p>
           </div>
 
-          {/* NÚT TẠO BỘ TỪ MỚI (CHỈ HIỆN KHI CHƯA BẬT CHỌN NHIỀU) */}
+          {/* nút tạo bộ từ */}
           {!isSelectMode ? (
             <button
               onClick={() => setShowCreateModal(true)}
@@ -454,7 +453,7 @@ function CollectionPage({ onNavigateToPractice }) {
           ) : (
             // CHỌN TẤT CẢ & XÓA HÀNG LOẠT
             <div className="flex items-center gap-4 bg-gray-50 border border-gray-200 px-4 py-1.5 rounded-lg">
-              {/* CHECKBOX CHỌN TẤT CẢ */}
+              {/* checkbox chọn tất cả */}
               <label className="flex items-center gap-2 cursor-pointer text-cyan-950 font-bold">
                 <input
                   type="checkbox"
@@ -467,7 +466,7 @@ function CollectionPage({ onNavigateToPractice }) {
 
               <div className="w-px h-6 bg-gray-300"></div>
 
-              {/* NÚT XÓA HÀNG LOẠT */}
+              {/* nút xóa hàng loạt */}
               <button
                 onClick={handleBulkDeleteClick}
                 disabled={selectedIds.length === 0}
@@ -482,9 +481,9 @@ function CollectionPage({ onNavigateToPractice }) {
           )}
         </div>
 
-        {/* NÚT CHỌN NHIỀU  */}
+        
         <div className="flex gap-4 items-center">
-          {/* Ô TÌM KIẾM NHANH */}
+          
           <SearchBar
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -506,7 +505,7 @@ function CollectionPage({ onNavigateToPractice }) {
         </div>
       </div>
 
-      {/* LƯỚI HIỂN THỊ CÁC BỘ TỪ */}
+      {/* danh sách bộ từ */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-10">
         {filteredCollections.map(collection => (
           <div
@@ -515,7 +514,7 @@ function CollectionPage({ onNavigateToPractice }) {
               }`}
           >
 
-            {/* CHECKBOX HOẶC THÙNG RÁC */}
+            {/* checkbox chọn hoặc nút xóa */}
             <div className="absolute top-4 right-4 z-10 flex gap-2">
               {isSelectMode && collection.id !== 0 ? (
                 <input
@@ -535,9 +534,9 @@ function CollectionPage({ onNavigateToPractice }) {
               ) : null}
             </div>
 
-            {/* Tiêu đề, Số từ và Tiến độ */}
+            
             <div>
-              {/* Icon Bộ từ */}
+              
               <div className="flex items-center gap-3 mb-4">
                 {collection.id === 0 ? (
                   <span className="flex items-center justify-center w-12 h-12 bg-orange-100 text-orange-500 rounded-xl">
@@ -550,7 +549,7 @@ function CollectionPage({ onNavigateToPractice }) {
                 )}
               </div>
 
-              {/* Tiêu đề & Sửa tên */}
+              {/* tiêu đề và sửa tên */}
               {editingId === collection.id ? (
                 <div className="flex gap-2 items-center -ml-1 mb-3">
                   <div className="relative flex-1">
@@ -587,7 +586,7 @@ function CollectionPage({ onNavigateToPractice }) {
                 </div>
               )}
 
-              {/* Số từ & Tiến độ */}
+              
               <div className="flex flex-col gap-2.5 mb-4">
                 <span className="text-xs text-gray-600 font-medium bg-gray-100/80 px-3 py-1.5 rounded-lg w-fit">
                   Số từ: {collection.wordCount} từ
@@ -610,7 +609,7 @@ function CollectionPage({ onNavigateToPractice }) {
               </div>
             </div>
 
-            {/* Footer chứa nút */}
+            
             <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center gap-2">
               <button
                 onClick={() => openWordList(collection)}
@@ -636,7 +635,7 @@ function CollectionPage({ onNavigateToPractice }) {
         ))}
       </div>
 
-      {/* THÔNG BÁO KHI TRỐNG */}
+      
       {filteredCollections.length === 0 && (
         <div className="text-center p-16 mt-16 bg-white rounded-2xl border border-dashed border-cyan-200">
           <FolderClosed className="mx-auto text-cyan-200" size={64} />
@@ -650,7 +649,7 @@ function CollectionPage({ onNavigateToPractice }) {
         </div>
       )}
 
-      {/*  XÁC NHẬN XÓA TỔNG HỢP */}
+      {/* xác nhận xóa */}
       <ConfirmModal
         isOpen={showDeleteModal}
         onClose={() => {
@@ -681,7 +680,7 @@ function CollectionPage({ onNavigateToPractice }) {
         cancelText="Hủy không xóa"
         isDanger={true}
       />
-      {/*TẠO BỘ TỪ MỚI*/}
+      {/* modal tạo bộ từ */}
       <ModalWrapper isOpen={showCreateModal} zIndex="z-[100]">
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
           <h2 className="text-2xl font-bold text-cyan-950">Tạo bộ từ mới</h2>
@@ -731,10 +730,10 @@ function CollectionPage({ onNavigateToPractice }) {
           </div>
         </form>
       </ModalWrapper>
-      {/* HIỂN THỊ DANH SÁCH TỪ VỰNG TRONG BỘ  */}
+      {/* modal danh sách từ trong bộ */}
       <ModalWrapper isOpen={showWordListModal && activeCollection} zIndex="z-[100]" className="rounded-2xl p-6 w-full max-w-6xl flex flex-col max-h-[90vh]">
 
-        {/* Header của Bảng */}
+        
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-cyan-950 flex items-center gap-2">
@@ -744,10 +743,10 @@ function CollectionPage({ onNavigateToPractice }) {
             <p className="text-gray-500 mt-1 text-sm">Đang quản lý {collectionWords.length} từ vựng trong bộ này</p>
           </div>
 
-          {/* Các nút Góc phải  */}
+          
           <div className="flex items-center gap-4">
 
-            {/* THANH TÌM KIẾM */}
+            
             <SearchBar
               value={wordListSearchTerm}
               onChange={(e) => setWordListSearchTerm(e.target.value)}
@@ -755,7 +754,7 @@ function CollectionPage({ onNavigateToPractice }) {
               className="w-56"
             />
 
-            {/* BỘ LỌC TỪ VỰNG */}
+            {/* bộ lọc */}
             <FilterDropdown
               label={(count) => count > 0 ? `${count} bộ lọc` : 'Bộ lọc'}
               activeCount={selectedWordLevels.length + selectedWordTypes.length}
@@ -808,7 +807,7 @@ function CollectionPage({ onNavigateToPractice }) {
               ))}
             </FilterDropdown>
 
-            {/* HIỂN THỊ CÁC NÚT THAO TÁC KHI ĐANG CHỌN NHIỀU */}
+            {/* thao tác chọn nhiều */}
             {isWordSelectMode && selectedWordIds.length > 0 && (
               <>
                 {activeCollection?.id === 0 && (
@@ -839,7 +838,7 @@ function CollectionPage({ onNavigateToPractice }) {
                   Yêu thích ({unfavoritedSelectedCount})
                 </button>
 
-                {/* NÚT XÓA */}
+                
                 <button
                   onClick={() => handleWordDeleteClick(null)}
                   className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg shadow-sm hover:bg-red-100 font-medium transition-colors"
@@ -849,7 +848,7 @@ function CollectionPage({ onNavigateToPractice }) {
               </>
             )}
 
-            {/* NÚT CHỌN NHIỀU */}
+            
             {collectionWords.length > 0 && (
               <button
                 onClick={() => {
@@ -873,7 +872,7 @@ function CollectionPage({ onNavigateToPractice }) {
           </div>
         </div>
 
-        {/* Bảng Danh sách từ */}
+        
         <div className="flex-1 overflow-y-auto mt-2">
           {collectionWords.length > 0 ? (
             filteredCollectionWords.length > 0 ? (
@@ -900,7 +899,7 @@ function CollectionPage({ onNavigateToPractice }) {
         </div>
       </ModalWrapper>
 
-      {/* Cảnh báo Xóa với Từ vựng của tôi */}
+      
       <ConfirmModal
         isOpen={showWordDeleteModal}
         onClose={() => setShowWordDeleteModal(false)}
@@ -920,7 +919,7 @@ function CollectionPage({ onNavigateToPractice }) {
         isDanger={true}
       />
 
-      {/* THÊM TỪ VÀO BỘ TỪ KHÁC */}
+      {/* modal thêm vào bộ từ */}
       <AddToCollectionModal
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}
@@ -931,10 +930,10 @@ function CollectionPage({ onNavigateToPractice }) {
         onConfirm={handleConfirmAddToCollections}
       />
 
-      {/* MODAL CHỈNH SỬA TỪ VỰNG (CHỈ DÀNH CHO "TỪ VỰNG CỦA TÔI") */}
+      {/* modal chỉnh sửa từ */}
       <ModalWrapper isOpen={showEditWordModal} zIndex="z-[200]" className="rounded-[1.5rem] w-full max-w-6xl flex flex-col max-h-[90vh] overflow-hidden">
 
-        {/* Header */}
+        
         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white z-10 shrink-0">
           <h2 className="text-xl font-bold text-cyan-950 flex items-center gap-2">
             <Edit2 className="text-cyan-600" /> Chỉnh sửa {editingWords.length} từ vựng
@@ -942,7 +941,7 @@ function CollectionPage({ onNavigateToPractice }) {
           <button onClick={() => setShowEditWordModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><X size={24} /></button>
         </div>
 
-        {/* Body: Bảng nhập liệu tương tự màn hình Thêm mới */}
+        
         <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <table className="w-full text-left border-collapse">
@@ -987,14 +986,14 @@ function CollectionPage({ onNavigateToPractice }) {
           </div>
         </div>
 
-        {/* Footer */}
+        
         <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
           <button onClick={() => setShowEditWordModal(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">Hủy</button>
           <button onClick={handleSaveEditedWords} className="px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all bg-[#0e7490] hover:bg-[#164e63] text-white">Xác nhận Lưu</button>
         </div>
       </ModalWrapper>
 
-      {/* MÀN HÌNH HỌC FLASHCARD */}
+      {/* flashcard */}
       {activeFlashcardSession && (
         <FlashcardLearning
           collection={activeFlashcardSession.collection}
