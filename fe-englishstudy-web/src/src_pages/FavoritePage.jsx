@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Volume2, MoreVertical, FolderPlus, Trash2, Search, X } from 'lucide-react';
 import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
+import SearchBar from '../src_components/SearchBar';
 
 const CURRENT_USER_ID = 5; 
 const ADMIN_USER_ID = 1;
@@ -190,16 +191,12 @@ function FavoritePage() {
         <div className="flex gap-4 items-center">
           
           {/*Ô TÌM KIẾM TỪ VỰNG */}
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm từ vựng..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 bg-white rounded-lg focus:ring-2 focus:ring-[#0e7490] transition-all outline-none"
-            />
-          </div>
+          <SearchBar 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm kiếm từ vựng..."
+            className="w-64"
+          />
 
           {isSelectMode && (
             <>

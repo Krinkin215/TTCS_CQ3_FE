@@ -18,7 +18,7 @@ const generateMockUsers = () => {
 
 const MOCK_DATA = generateMockUsers();
 
-function LeaderboardPage() {
+function LeaderboardPage({ isAdmin = false }) {
   const [timeFilter, setTimeFilter] = useState('day'); 
   const [sortBy, setSortBy] = useState('score'); 
 
@@ -192,13 +192,13 @@ function LeaderboardPage() {
             <div 
               key={user.id} 
               className={`flex items-center px-6 py-3 transition-colors ${
-                user.isCurrentUser 
+                (!isAdmin && user.isCurrentUser) 
                   ? 'bg-white sticky top-0 bottom-0 z-20 border-y-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]'
                   : 'bg-white hover:bg-gray-50 border-b border-gray-50'
               }`}
             >
               <div className="w-16 flex justify-center">
-                <span className={`font-black text-lg ${user.isCurrentUser ? 'text-cyan-700' : 'text-gray-400'}`}>
+                <span className={`font-black text-lg ${(!isAdmin && user.isCurrentUser) ? 'text-cyan-700' : 'text-gray-400'}`}>
                   {user.rank}
                 </span>
               </div>
@@ -206,7 +206,7 @@ function LeaderboardPage() {
               <div className="flex-1 flex items-center gap-4 pl-4">
                 <img src={user.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full object-cover border border-gray-200" />
                 <div className="flex flex-col">
-                  <span className={`font-bold ${user.isCurrentUser ? 'text-cyan-900' : 'text-gray-800'}`}>
+                  <span className={`font-bold ${(!isAdmin && user.isCurrentUser) ? 'text-cyan-900' : 'text-gray-800'}`}>
                     {user.username}
                   </span>
                   <span className="text-xs text-gray-500 font-medium">{user.email}</span>

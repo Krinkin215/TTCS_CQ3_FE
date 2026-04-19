@@ -5,6 +5,7 @@ import {
   X, Mail, Calendar, Pencil, Download, LogOut, Cake, Camera, Save, ArrowLeft,
   Eye, MoreVertical, FolderPlus, Search 
 } from 'lucide-react';
+import ProfileModal from '../src_components/ProfileModal';
 import FavoritePage from './FavoritePage';
 import CollectionPage from './CollectionPage';
 import VocabularyPage from './VocabularyPage';
@@ -721,159 +722,17 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         
       </main>
       {/* HỒ SƠ NGƯỜI DÙNG */}
-      {isProfileModalOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[2rem] w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200 text-gray-800">
-            
-            {/* Nút X đóng Modal */}
-            {!isEditingProfile && (
-              <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 transition-colors">
-                <X size={24} />
-              </button>
-            )}
-
-            {/* CHẾ ĐỘ SỬA HỒ SƠ */}
-            {isEditingProfile ? (
-              <div className="animate-in slide-in-from-right-4 duration-300">
-                <div className="flex items-center mb-6">
-                  <button onClick={() => setIsEditingProfile(false)} className="text-gray-500 hover:text-gray-800 mr-3">
-                    <ArrowLeft size={24} />
-                  </button>
-                  <h2 className="text-xl font-bold text-gray-900">Chỉnh sửa hồ sơ</h2>
-                </div>
-
-                {/* Chỉnh sửa Avatar */}
-                <div className="flex justify-center mb-6">
-                  <div className="relative cursor-pointer group">
-                    <div className="w-24 h-24 rounded-full bg-[#0e7490] text-white flex items-center justify-center text-4xl font-bold shadow-md border-4 border-white outline outline-2 outline-gray-100 group-hover:opacity-80 transition-opacity overflow-hidden">
-                     
-                      {editFormData.avatarUrl ? (
-                        <img src={editFormData.avatarUrl} alt="Avatar preview" className="w-full h-full object-cover" />
-                      ) : (
-                        editFormData.avatarChar
-                      )}
-                    </div>
-                    <div className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-600 group-hover:text-[#0e7490] transition-colors">
-                      <Camera size={18} />
-                    </div>
-                    <input type="file" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
-                  </div>
-                </div>
-
-                {/* Các trường nhập liệu */}
-                <div className="space-y-4 mb-6">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tên người dùng</label>
-                    <input 
-                      type="text" 
-                      value={editFormData.username}
-                      onChange={(e) => setEditFormData({...editFormData, username: e.target.value})}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-[#0e7490] focus:ring-1 focus:ring-[#0e7490] transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Họ và tên</label>
-                    <input 
-                      type="text" 
-                      value={editFormData.fullName}
-                      onChange={(e) => setEditFormData({...editFormData, fullName: e.target.value})}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-[#0e7490] focus:ring-1 focus:ring-[#0e7490] transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Email</label>
-                    <input 
-                      type="email" 
-                      value={editFormData.email}
-                      onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-[#0e7490] focus:ring-1 focus:ring-[#0e7490] transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ngày sinh</label>
-                    <input 
-                      type="date" 
-                      value={editFormData.date_of_birth}
-                      onChange={(e) => setEditFormData({...editFormData, date_of_birth: e.target.value})}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-[#0e7490] focus:ring-1 focus:ring-[#0e7490] transition-all cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleSaveProfile}
-                  className="w-full bg-[#0e7490] hover:bg-[#164e63] text-white rounded-full py-3.5 font-bold flex items-center justify-center gap-2 transition-colors shadow-md"
-                >
-                  <Save size={20} /> Cập nhật hồ sơ
-                </button>
-              </div>
-            ) : (
-
-            /* CHẾ ĐỘ XEM HỒ SƠ */
-              <div className="animate-in fade-in duration-300">
-                <div className="flex flex-col items-center mt-2 mb-6">
-                  <div className="w-24 h-24 rounded-full bg-[#0e7490] text-white flex items-center justify-center text-4xl font-bold mb-3 shadow-md border-4 border-white outline outline-2 outline-gray-100 overflow-hidden">
-                    
-                     {userData.avatarUrl ? (
-                        <img src={userData.avatarUrl} alt="User Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        userData.avatarChar
-                      )}
-                  </div>
-                  <h2 className="text-2xl font-black text-[#083344] tracking-tight">{userData.username}</h2>
-                  <p className="text-sm font-medium text-gray-500 mt-1">{userData.fullName}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-5">
-                  <div className="bg-orange-50 border border-orange-100 rounded-2xl p-3 flex flex-col items-center justify-center shadow-sm">
-                    <div className="flex items-center text-orange-500 mb-1">
-                      <Flame size={18} className="mr-1" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Chuỗi học</span>
-                    </div>
-                    <span className="text-xl font-black text-orange-600">2 ngày</span>
-                  </div>
-                  <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-3 flex flex-col items-center justify-center shadow-sm">
-                    <div className="flex items-center text-yellow-600 mb-1">
-                      <Trophy size={18} className="mr-1" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Tổng điểm</span>
-                    </div>
-                    <span className="text-xl font-black text-yellow-700">1,250 XP</span>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 border border-gray-100 rounded-2xl p-4 mb-5 space-y-3 shadow-sm">
-                  <div className="flex items-center text-gray-700">
-                    <Mail size={16} className="text-[#0e7490] w-6" />
-                    <span className="text-sm">Email: <span className="font-semibold text-gray-900 ml-1">{userData.email}</span></span>
-                  </div>
-                  <div className="flex items-center text-gray-700">
-                    <Cake size={16} className="text-[#0e7490] w-6" />
-                    <span className="text-sm">Ngày sinh: <span className="font-semibold text-gray-900 ml-1">{userData.date_of_birth.split('-').reverse().join('/')}</span></span>
-                  </div>
-                  <div className="flex items-center text-gray-700">
-                    <Calendar size={16} className="text-[#0e7490] w-6" />
-                    <span className="text-sm">Ngày tham gia: <span className="font-semibold text-gray-900 ml-1">{userData.joinDate}</span></span>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleOpenEdit} 
-                  className="w-full border border-gray-200 rounded-full py-3 mb-6 flex items-center justify-center gap-2 hover:bg-slate-50 font-semibold text-gray-700 transition-colors"
-                >
-                  <Pencil size={18} /> Chỉnh sửa hồ sơ
-                </button>
-
-                <div className="border-t border-gray-100 -mx-6 mb-4"></div>
-
-                <button onClick={onLogout} className="w-full flex justify-end items-center gap-2 text-[#0ea5e9] hover:text-[#0284c7] font-bold">
-                  <LogOut size={18} /> Đăng xuất
-                </button>
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        user={{...userData, streak: 2, xp: '1,250', joinDate: '01/01/2026'}}
+        isEditable={true}
+        onSave={(updatedData) => {
+          setUserData(updatedData);
+          setIsProfileModalOpen(false);
+        }}
+        onLogout={onLogout}
+      />
 
       {/* LỊCH STREAK */}
       {isStreakModalOpen && (

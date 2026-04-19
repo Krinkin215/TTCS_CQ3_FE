@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Volume2, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import Pagination from './Pagination';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -12,7 +13,9 @@ function VocabTable({
   selectedIds, 
   onToggleSelect, 
   onSelectAll, 
-  ActionColumn 
+  ActionColumn,
+  showTopicColumn = false,
+  showLessonColumn = false
 }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [openExampleId, setOpenExampleId] = useState(null);
@@ -107,6 +110,9 @@ function VocabTable({
                 </div>
               </th>
               
+              {showTopicColumn && <th className="p-4 font-semibold">Chủ đề</th>}
+              {showLessonColumn && <th className="p-4 font-semibold">Bài học</th>}
+
               <th className="p-4 font-semibold text-center">Audio</th>
               
               {!isSelectMode ? (
@@ -145,6 +151,17 @@ function VocabTable({
                   <td className="p-4 font-medium max-w-[200px] truncate" title={item.meaning}>{item.meaning}</td>
                   <td className="p-4 text-center"><span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{LEVEL_LABEL[item.level]}</span></td>
                   
+                  {showTopicColumn && (
+                    <td className="p-4 text-gray-600 font-medium whitespace-nowrap">
+                      {item.topic || <span className="text-gray-300">Chưa có</span>}
+                    </td>
+                  )}
+                  {showLessonColumn && (
+                    <td className="p-4 text-gray-600 font-medium whitespace-nowrap">
+                      {item.lesson || item.lessonName || <span className="text-gray-300">Chưa phân</span>}
+                    </td>
+                  )}
+
                   <td className="p-4 text-center">
                     <button onClick={() => playAudio(item.word)} className="p-2 text-cyan-600 hover:bg-cyan-100 rounded-full transition-colors">
                       <Volume2 size={20} />
@@ -169,7 +186,7 @@ function VocabTable({
 
                 {openExampleId === item.id && (
                   <tr className="bg-slate-50/50 border-b border-gray-100">
-                    <td colSpan={8} className="p-4 px-12">
+                    <td colSpan={8 + (showTopicColumn ? 1 : 0) + (showLessonColumn ? 1 : 0)} className="p-4 px-12">
                       <div className="border-l-4 border-cyan-400 pl-4 py-2">
                         <p className="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Ví dụ sử dụng:</p>
                         <p className="text-gray-800 italic font-medium">"{item.example}"</p>
@@ -191,47 +208,15 @@ function VocabTable({
       </div>
 
       {/* THANH PHÂN TRANG */}
-      {processedWords.length > 0 && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white rounded-b-[1.25rem]">
-          <div className="text-sm font-medium text-gray-500">
-            Hiển thị <span className="font-bold text-cyan-900">{startIndex + 1}</span> đến <span className="font-bold text-cyan-900">{Math.min(startIndex + ITEMS_PER_PAGE, processedWords.length)}</span> trong tổng số <span className="font-bold text-cyan-900">{processedWords.length}</span> từ vựng
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg border transition-all ${currentPage === 1 ? 'border-gray-100 text-gray-300 cursor-not-allowed' : 'border-gray-200 text-cyan-700 hover:bg-cyan-50 hover:border-cyan-300'}`}
-            >
-              <ChevronLeft size={18} />
-            </button>
-            
-            <div className="flex gap-1">
-              {Array.from({ length: totalPages }).map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentPage(idx + 1)}
-                  className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${
-                    currentPage === idx + 1 
-                      ? 'bg-[#0e7490] text-white shadow-md' 
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  {idx + 1}
-                </button>
-              ))}
-            </div>
-
-            <button 
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg border transition-all ${currentPage === totalPages ? 'border-gray-100 text-gray-300 cursor-not-allowed' : 'border-gray-200 text-cyan-700 hover:bg-cyan-50 hover:border-cyan-300'}`}
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={processedWords.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={setCurrentPage}
+        itemName="từ vựng"
+        showPageNumbers={true}
+      />
     </div>
   );
 }

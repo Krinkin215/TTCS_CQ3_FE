@@ -18,7 +18,9 @@ function LoginPage({ onNavigateToRegister, onLoginSuccess }) {
           className="space-y-6" 
           onSubmit={(e) => {
             e.preventDefault();
-            onLoginSuccess(); 
+            const email = e.target[0].value; 
+            const role = email === 'admin@gmail.com' ? 'admin' : 'user';
+            onLoginSuccess(role);
           }}
         >
           <div>

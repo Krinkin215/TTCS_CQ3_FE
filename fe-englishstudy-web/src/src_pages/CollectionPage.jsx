@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
 import FlashcardLearning from '../src_components/FlashcardLearning';
+import SearchBar from '../src_components/SearchBar';
+import ConfirmModal from '../src_components/ConfirmModal';
 import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp, MoreVertical, Heart, FolderPlus, ChevronRight } from 'lucide-react';
 
 const COLLECTION_NAME_LIMIT = 50;
@@ -469,16 +471,12 @@ function CollectionPage({ onNavigateToPractice }) {
         {/* NÚT CHỌN NHIỀU  */}
         <div className="flex gap-4 items-center">
           {/* Ô TÌM KIẾM NHANH */}
-          <div className="relative w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm bộ từ..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-cyan-100 bg-white rounded-lg focus:ring-2 focus:ring-cyan-500 transition-all outline-none"
-            />
-          </div>
+          <SearchBar 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm kiếm bộ từ..."
+            className="w-72"
+          />
           <button 
             onClick={() => {
               setIsSelectMode(!isSelectMode);
@@ -642,55 +640,36 @@ function CollectionPage({ onNavigateToPractice }) {
       )}
 
       {/*  XÁC NHẬN XÓA TỔNG HỢP */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
-          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-lg w-full border border-gray-100 transition-all scale-100">
-            <div className="flex items-center gap-4 text-red-600 mb-6 pb-4 border-b border-gray-100">
-              <AlertTriangle size={32} />
-              <h2 className="text-2xl font-bold">
-                {collectionToDelete ? 'Xác nhận xóa bộ từ vựng?' : 'Xác nhận xóa hàng loạt?'}
-              </h2>
-            </div>
-            
-            <p className="text-gray-700 text-lg leading-relaxed flex flex-wrap items-center gap-1.5">
-              Bạn có chắc chắn muốn xóa 
-              {collectionToDelete ? (
-                // Nếu xóa 1 bộ
-                <>
-                  bộ từ vựng
-                  <span title={collectionToDelete.name} className="inline-block px-2 py-0.5 bg-gray-100 rounded text-cyan-950 font-bold max-w-[200px] truncate">
-                    "{collectionToDelete.name}"
-                  </span>
-                </>
-              ) : (
-                // Nếu xóa nhiều bộ
-                <span className="font-bold text-red-600 px-1">
-                  {selectedIds.length} bộ từ vựng đã chọn
+      <ConfirmModal 
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setCollectionToDelete(null); 
+        }}
+        onConfirm={collectionToDelete ? confirmSingleDelete : confirmBulkDelete}
+        title={collectionToDelete ? 'Xác nhận xóa bộ từ vựng?' : 'Xác nhận xóa hàng loạt?'}
+        message={
+          <span className="flex flex-wrap items-center gap-1.5">
+            Bạn có chắc chắn muốn xóa 
+            {collectionToDelete ? (
+              <>
+                bộ từ vựng
+                <span title={collectionToDelete.name} className="inline-block px-2 py-0.5 bg-gray-100 rounded text-cyan-950 font-bold max-w-[200px] truncate">
+                  "{collectionToDelete.name}"
                 </span>
-              )}
-               không? Hành động này không thể hoàn tác.
-            </p>
-            
-            <div className="flex justify-end gap-4 mt-8 pt-4 border-t border-gray-100">
-              <button 
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setCollectionToDelete(null); 
-                }}
-                className="px-6 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg font-bold hover:bg-gray-50 transition-colors"
-              >
-                Hủy không xóa
-              </button>
-              <button 
-                onClick={collectionToDelete ? confirmSingleDelete : confirmBulkDelete}
-                className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg hover:shadow-red-500/50"
-              >
-                Xác nhận, xóa vĩnh viễn
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </>
+            ) : (
+              <span className="font-bold text-red-600 px-1">
+                {selectedIds.length} bộ từ vựng đã chọn
+              </span>
+            )}
+             không? Hành động này không thể hoàn tác.
+          </span>
+        }
+        confirmText="Xác nhận, xóa vĩnh viễn"
+        cancelText="Hủy không xóa"
+        isDanger={true}
+      />
       {/*TẠO BỘ TỪ MỚI*/}
       {showCreateModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
@@ -767,16 +746,12 @@ function CollectionPage({ onNavigateToPractice }) {
               <div className="flex items-center gap-4">
 
                 {/* THANH TÌM KIẾM */}
-                <div className="relative w-56">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                  <input 
-                    type="text" 
-                    placeholder="Tìm từ vựng..." 
-                    value={wordListSearchTerm}
-                    onChange={(e) => setWordListSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all outline-none"
-                  />
-                </div>
+                <SearchBar 
+                  value={wordListSearchTerm}
+                  onChange={(e) => setWordListSearchTerm(e.target.value)}
+                  placeholder="Tìm từ vựng..."
+                  className="w-56"
+                />
                 
                 {/* HIỂN THỊ CÁC NÚT THAO TÁC KHI ĐANG CHỌN NHIỀU */}
                 {isWordSelectMode && selectedWordIds.length > 0 && (
@@ -869,29 +844,24 @@ function CollectionPage({ onNavigateToPractice }) {
       )}
 
       {/* Cảnh báo Xóa với Từ vựng của tôi */}
-      {showWordDeleteModal && (
-        <div className="fixed inset-0 bg-cyan-950/70 z-[110] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
-          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full border border-gray-100 scale-100 transition-all">
-            <div className="flex items-center gap-4 text-red-600 mb-6 pb-4 border-b border-gray-100">
-              <AlertTriangle size={32} />
-              <h2 className="text-2xl font-bold">{activeCollection?.id === 0 ? 'Xác nhận xóa khỏi hệ thống?' : 'Xác nhận xóa từ vựng?'}</h2>
-            </div>
-            
-            <p className="text-gray-700 text-lg leading-relaxed mb-6">
-              {wordToDelete ? (
-                <>Bạn có chắc chắn muốn xóa từ <strong>"{wordToDelete.word}"</strong> khỏi {activeCollection?.id === 0 ? 'hệ thống' : 'bộ từ vựng này'} không?</>
-              ) : (
-                <>Bạn có chắc chắn muốn xóa <strong className="text-red-600">{selectedWordIds.length} từ vựng</strong> đã chọn khỏi {activeCollection?.id === 0 ? 'hệ thống' : 'bộ từ vựng này'} không?</>
-              )}
-            </p>
-            
-            <div className="flex justify-end gap-3 pt-2">
-              <button onClick={() => setShowWordDeleteModal(false)} className="px-6 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg font-bold hover:bg-gray-50 transition-colors">Hủy</button>
-              <button onClick={confirmWordDelete} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg hover:shadow-red-500/50">Xóa ngay</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal 
+        isOpen={showWordDeleteModal}
+        onClose={() => setShowWordDeleteModal(false)}
+        onConfirm={confirmWordDelete}
+        title={activeCollection?.id === 0 ? 'Xác nhận xóa khỏi hệ thống?' : 'Xác nhận xóa từ vựng?'}
+        message={
+          <>
+            {wordToDelete ? (
+              <>Bạn có chắc chắn muốn xóa từ <strong>"{wordToDelete.word}"</strong> khỏi {activeCollection?.id === 0 ? 'hệ thống' : 'bộ từ vựng này'} không?</>
+            ) : (
+              <>Bạn có chắc chắn muốn xóa <strong className="text-red-600">{selectedWordIds.length} từ vựng</strong> đã chọn khỏi {activeCollection?.id === 0 ? 'hệ thống' : 'bộ từ vựng này'} không?</>
+            )}
+          </>
+        }
+        confirmText="Xóa ngay"
+        cancelText="Hủy"
+        isDanger={true}
+      />
 
       {/* THÊM TỪ VÀO BỘ TỪ KHÁC */}
       <AddToCollectionModal 

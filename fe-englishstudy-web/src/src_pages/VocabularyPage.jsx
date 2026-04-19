@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FolderPlus, Search, X, Filter, Heart, Plus, Upload, FileText, Zap, ChevronDown, Trash2, HelpCircle, Download, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import VocabTable from '../src_components/VocabTable'; 
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
+import SearchBar from '../src_components/SearchBar';
 
 const CURRENT_USER_ID = 5; 
 const ADMIN_USER_ID = 1;
@@ -465,52 +466,54 @@ function VocabularyPage({ initialFilter }) {
     const isAllSelected = draftFilters[category].length === allValues.length && allValues.length > 0;
 
     return (
-      <div className="relative col-span-1">
+      <div className="col-span-1 flex flex-col justify-start">
         <label className="block text-sm font-bold text-gray-700 mb-1.5">{title}</label>
-        <div 
-          onClick={() => setOpenFilterDropdown(isOpen ? null : category)}
-          className={`w-full px-4 py-2.5 border rounded-xl cursor-pointer flex justify-between items-center transition-colors ${isOpen ? 'bg-cyan-50 border-cyan-400' : 'bg-white border-gray-300 hover:border-cyan-400'}`}
-        >
-          <span className="text-gray-700 font-medium truncate pr-2">
-            {draftFilters[category].length === 0 
-              ? 'Tất cả' 
-              : draftFilters[category].length === allValues.length 
-                ? 'Đã chọn tất cả' 
-                : `Đã chọn (${draftFilters[category].length})`}
-          </span>
-          <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180 text-cyan-600' : ''}`} />
-        </div>
-
-        {isOpen && (
-          <div className="absolute z-[100] top-full left-0 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 flex flex-col overflow-hidden">
-            {searchKey && (
-              <div className="p-2 border-b border-gray-100 shrink-0">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                  <input type="text" placeholder="Tìm kiếm..." value={filterSearch[searchKey]} onChange={(e) => setFilterSearch({...filterSearch, [searchKey]: e.target.value})} className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
-                </div>
-              </div>
-            )}
-            <div className="overflow-y-auto p-2 flex-1 scrollbar-thin">
-              <label className="flex items-center gap-3 p-2.5 hover:bg-cyan-50 rounded-lg cursor-pointer border-b border-gray-50 group">
-                <input type="checkbox" checked={isAllSelected} onChange={() => toggleAllDraftFilter(category, allValues)} className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer" />
-                <span className="font-bold text-cyan-900 group-hover:text-cyan-700">Chọn tất cả</span>
-              </label>
-              {displayOptions.length > 0 ? displayOptions.map(opt => {
-                const val = isObject ? opt.id : opt;
-                const label = isObject ? opt.name : opt;
-                return (
-                  <label key={val} className="flex items-center gap-3 p-2.5 hover:bg-cyan-50 rounded-lg cursor-pointer group">
-                    <input type="checkbox" checked={draftFilters[category].includes(val)} onChange={() => toggleDraftFilter(category, val)} className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer shrink-0" />
-                    <span className="text-gray-700 font-medium group-hover:text-cyan-900 truncate">{label}</span>
-                  </label>
-                );
-              }) : (
-                <div className="p-4 text-center text-gray-400 text-sm">Không tìm thấy kết quả.</div>
-              )}
-            </div>
+        <div className="relative">
+          <div 
+            onClick={() => setOpenFilterDropdown(isOpen ? null : category)}
+            className={`w-full px-4 py-2.5 border rounded-xl cursor-pointer flex justify-between items-center transition-colors ${isOpen ? 'bg-cyan-50 border-cyan-400' : 'bg-white border-gray-300 hover:border-cyan-400'}`}
+          >
+            <span className="text-gray-700 font-medium truncate pr-2">
+              {draftFilters[category].length === 0 
+                ? 'Tất cả' 
+                : draftFilters[category].length === allValues.length 
+                  ? 'Đã chọn tất cả' 
+                  : `Đã chọn (${draftFilters[category].length})`}
+            </span>
+            <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180 text-cyan-600' : ''}`} />
           </div>
-        )}
+
+          {isOpen && (
+            <div className="absolute z-[100] top-full left-0 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 flex flex-col overflow-hidden">
+              {searchKey && (
+                <div className="p-2 border-b border-gray-100 shrink-0">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input type="text" placeholder="Tìm kiếm..." value={filterSearch[searchKey]} onChange={(e) => setFilterSearch({...filterSearch, [searchKey]: e.target.value})} className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+                  </div>
+                </div>
+              )}
+              <div className="overflow-y-auto p-2 flex-1 scrollbar-thin">
+                <label className="flex items-center gap-3 p-2.5 hover:bg-cyan-50 rounded-lg cursor-pointer border-b border-gray-50 group">
+                  <input type="checkbox" checked={isAllSelected} onChange={() => toggleAllDraftFilter(category, allValues)} className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer" />
+                  <span className="font-bold text-cyan-900 group-hover:text-cyan-700">Chọn tất cả</span>
+                </label>
+                {displayOptions.length > 0 ? displayOptions.map(opt => {
+                  const val = isObject ? opt.id : opt;
+                  const label = isObject ? opt.name : opt;
+                  return (
+                    <label key={val} className="flex items-center gap-3 p-2.5 hover:bg-cyan-50 rounded-lg cursor-pointer group">
+                      <input type="checkbox" checked={draftFilters[category].includes(val)} onChange={() => toggleDraftFilter(category, val)} className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer shrink-0" />
+                      <span className="text-gray-700 font-medium group-hover:text-cyan-900 truncate">{label}</span>
+                    </label>
+                  );
+                }) : (
+                  <div className="p-4 text-center text-gray-400 text-sm">Không tìm thấy kết quả.</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -522,16 +525,12 @@ function VocabularyPage({ initialFilter }) {
       <div className="bg-white rounded-[1.25rem] shadow-sm border border-gray-200 p-4 mb-6 flex justify-between items-center transition-all">
         
         <div className="flex gap-4 items-center w-full max-w-xl">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm từ vựng..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 bg-gray-50/50 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#0e7490] transition-all outline-none font-medium text-gray-700"
-            />
-          </div>
+          <SearchBar 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm kiếm từ vựng..."
+            className="flex-1"
+          />
           <button 
             onClick={() => { setDraftFilters(activeFilters); setShowFilterModal(true); setOpenFilterDropdown(null); }}
             className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 font-semibold transition-colors shrink-0 shadow-sm relative"
