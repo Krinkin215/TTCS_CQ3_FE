@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import Pagination from './Pagination';
+import { playAudio } from '../src_utils/audio';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -58,9 +59,6 @@ function VocabTable({
     setSortConfig({ key, direction });
   };
 
-  const playAudio = (word) => {
-    console.log(`Đang phát âm thanh từ: ${word}`);
-  };
 
   const SortArrows = ({ columnKey }) => {
     const isActive = sortConfig.key === columnKey;

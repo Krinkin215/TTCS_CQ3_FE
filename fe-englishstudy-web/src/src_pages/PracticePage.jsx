@@ -7,6 +7,8 @@ import {
 import StatusBadge from '../src_components/StatusBadge';
 import FilterBox from '../src_components/FilterBox';
 import VocabResultList from '../src_components/VocabResultList';
+import { playAudio } from '../src_utils/audio';
+
 
 const MOCK_COLLECTIONS = [
   { id: 1, name: 'Từ vựng TOEIC' }, { id: 2, name: 'Giao tiếp hàng ngày' }, { id: 3, name: 'Từ vựng của tôi' }
@@ -396,7 +398,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <button className="p-2 bg-gray-100 rounded-full hover:bg-cyan-100 text-cyan-700 transition-colors">
+                      <button onClick={() => playAudio(currentQ.word)} className="p-2 bg-gray-100 rounded-full hover:bg-cyan-100 text-cyan-700 transition-colors">
                         <Volume2 size={24} />
                       </button>
                       <button 
@@ -550,7 +552,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                       {matchFeedback.example && <p className="text-gray-600 italic text-sm mt-1">VD: "{matchFeedback.example}"</p>}
                     </div>
                     <div className="flex gap-2">
-                      <button className="p-2 bg-white rounded-full hover:bg-green-100 text-green-700 transition-colors shadow-sm"><Volume2 size={18}/></button>
+                      <button onClick={() => playAudio(matchFeedback.word)} className="p-2 bg-white rounded-full hover:bg-green-100 text-green-700 transition-colors shadow-sm"><Volume2 size={18}/></button>
                       <button onClick={() => toggleFavorite(matchFeedback.id)} className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm">
                         <Heart size={18} className={favoriteIds.includes(matchFeedback.id) ? "fill-red-500 text-red-500" : "text-gray-400"}/>
                       </button>
@@ -644,7 +646,7 @@ export default function PracticePage({ onBack, initialFilters }) {
               <div className="flex flex-col items-center mb-8 border-b border-gray-100 pb-8">
                 <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-black mb-6 border-4 transition-colors ${timeLeft <= 5 ? 'border-red-500 text-red-500' : 'border-orange-500 text-orange-600'}`}>{timeLeft}</div>
                 
-                <button className="w-24 h-24 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shadow-sm hover:scale-105 hover:bg-orange-200 transition-all mb-6">
+                <button onClick={() => playAudio(currentQ.word)} className="w-24 h-24 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shadow-sm hover:scale-105 hover:bg-orange-200 transition-all mb-6">
                   <Volume2 size={48} />
                 </button>
                 
@@ -703,7 +705,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                       {currentQ.example && <p className="text-gray-600 italic text-sm">VD: "{currentQ.example}"</p>}
                     </div>
                     <div className="flex gap-2">
-                      <button className="p-2 bg-gray-100 rounded-full hover:bg-orange-100 text-orange-700 transition-colors"><Volume2 size={24} /></button>
+                      <button onClick={() => playAudio(currentQ.word)} className="p-2 bg-gray-100 rounded-full hover:bg-orange-100 text-orange-700 transition-colors"><Volume2 size={24} /></button>
                       <button onClick={() => toggleFavorite(currentQ.id)} className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors">
                         <Heart size={24} className={favoriteIds.includes(currentQ.id) ? "fill-red-500 text-red-500" : "text-gray-400"} />
                       </button>

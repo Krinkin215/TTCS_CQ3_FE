@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LoginPage from './src_pages/LoginPage';
 import RegisterPage from './src_pages/RegisterPage';
 import HomePage from './src_pages/HomePage';
@@ -6,8 +6,42 @@ import PracticePage from './src_pages/PracticePage';
 import AdminHomePage from './src_pages/AdminHomePage';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('login');
-  const [userRole, setUserRole] = useState('user');
+  const getInitialPage = () => {
+    const path = window.location.pathname;
+    if (path.startsWith('/admin')) return 'home';
+    if (path.startsWith('/home')) return 'home';
+    if (path === '/register') return 'register';
+    return 'login';
+  };
+
+  const [currentPage, setCurrentPage] = useState(getInitialPage);
+  const [userRole, setUserRole] = useState(window.location.pathname.startsWith('/admin') ? 'admin' : 'user');
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const p = window.location.pathname;
+      if (p === '/register') setCurrentPage('register');
+      else if (p === '/login' || p === '/') setCurrentPage('login');
+      else if (p.startsWith('/admin')) { setCurrentPage('home'); setUserRole('admin'); }
+      else if (p.startsWith('/home')) { setCurrentPage('home'); setUserRole('user'); }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (currentPage === 'login') {
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+        window.history.pushState(null, '', '/login');
+      }
+      document.title = 'Đăng nhập - EngLearn';
+    } else if (currentPage === 'register') {
+      if (window.location.pathname !== '/register') {
+        window.history.pushState(null, '', '/register');
+      }
+      document.title = 'Đăng ký - EngLearn';
+    }
+  }, [currentPage]);
 
   return (
     <div className="min-h-screen bg-gray-50">

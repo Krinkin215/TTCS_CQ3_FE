@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutGrid, Users, BookOpen, BarChart3, LogOut, ShieldCheck, Bell, Library, Trophy } from 'lucide-react';
 import LeaderboardPage from './LeaderboardPage';
 import UserManagement from './UserManagement';
@@ -7,7 +7,50 @@ import AdminTopicManagement from './AdminTopicManagement';
 
 export default function AdminHomePage({ onLogout }) {
   const [timeFilter, setTimeFilter] = useState('week');
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const getInitialTab = () => {
+    const path = window.location.pathname;
+    if (path.includes('users')) return 'users';
+    if (path.includes('vocabs')) return 'vocabs';
+    if (path.includes('topics')) return 'topics';
+    if (path.includes('leaderboard')) return 'leaderboard';
+    return 'dashboard';
+  };
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  useEffect(() => {
+    const routeMap = {
+      'dashboard': { path: '/admin/dashboard', title: 'Dashboard - Admin EngLearn' },
+      'users': { path: '/admin/users', title: 'Quản lý User - Admin EngLearn' },
+      'vocabs': { path: '/admin/vocabs', title: 'Quản lý Từ vựng - Admin EngLearn' },
+      'topics': { path: '/admin/topics', title: 'Quản lý Chủ đề - Admin EngLearn' },
+      'leaderboard': { path: '/admin/leaderboard', title: 'Bảng xếp hạng - Admin EngLearn' },
+    };
+    
+    const route = routeMap[activeTab];
+    if (route) {
+      document.title = route.title;
+      if (window.location.pathname !== route.path) {
+        window.history.pushState({ tab: activeTab }, '', route.path);
+      }
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handlePopState = (e) => {
+       if (e.state && e.state.tab) {
+           setActiveTab(e.state.tab);
+       } else {
+           const p = window.location.pathname;
+           if (p.includes('users')) setActiveTab('users');
+           else if (p.includes('vocabs')) setActiveTab('vocabs');
+           else if (p.includes('topics')) setActiveTab('topics');
+           else if (p.includes('leaderboard')) setActiveTab('leaderboard');
+           else setActiveTab('dashboard');
+       }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const chartData = {
     week: [

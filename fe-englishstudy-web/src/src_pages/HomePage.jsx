@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Home, Heart, Library, LayoutGrid, Gamepad2, Trophy, 
   ChevronLeft, ChevronRight, Zap, BookOpen, User, Flame, ChevronDown, ChevronsUpDown,
@@ -88,7 +88,56 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     '2026-03-17' 
   ];
 
-  const [activeMenu, setActiveMenu] = useState('Trang chủ');
+  const getInitialMenu = () => {
+    const path = window.location.pathname;
+    if (path.includes('favorites')) return 'Yêu thích';
+    if (path.includes('collections')) return 'Bộ từ vựng';
+    if (path.includes('vocabulary')) return 'Từ vựng';
+    if (path.includes('topics')) return 'Chủ đề';
+    if (path.includes('practice')) return 'Luyện tập';
+    if (path.includes('leaderboard')) return 'Bảng xếp hạng';
+    return 'Trang chủ';
+  };
+  const [activeMenu, setActiveMenu] = useState(getInitialMenu);
+
+  useEffect(() => {
+    const routeMap = {
+      'Trang chủ': { path: '/home', title: 'Trang chủ - EngLearn' },
+      'Yêu thích': { path: '/home/favorites', title: 'Yêu thích - EngLearn' },
+      'Bộ từ vựng': { path: '/home/collections', title: 'Bộ từ vựng - EngLearn' },
+      'Từ vựng': { path: '/home/vocabulary', title: 'Từ vựng - EngLearn' },
+      'Chủ đề': { path: '/home/topics', title: 'Chủ đề - EngLearn' },
+      'Luyện tập': { path: '/home/practice', title: 'Luyện tập - EngLearn' },
+      'Bảng xếp hạng': { path: '/home/leaderboard', title: 'Bảng xếp hạng - EngLearn' },
+    };
+    
+    const route = routeMap[activeMenu];
+    if (route) {
+      document.title = route.title;
+      if (window.location.pathname !== route.path) {
+        window.history.pushState({ menu: activeMenu }, '', route.path);
+      }
+    }
+  }, [activeMenu]);
+
+  useEffect(() => {
+    const handlePopState = (e) => {
+       if (e.state && e.state.menu) {
+           setActiveMenu(e.state.menu);
+       } else {
+           const p = window.location.pathname;
+           if (p.includes('favorites')) setActiveMenu('Yêu thích');
+           else if (p.includes('collections')) setActiveMenu('Bộ từ vựng');
+           else if (p.includes('vocabulary')) setActiveMenu('Từ vựng');
+           else if (p.includes('topics')) setActiveMenu('Chủ đề');
+           else if (p.includes('practice')) setActiveMenu('Luyện tập');
+           else if (p.includes('leaderboard')) setActiveMenu('Bảng xếp hạng');
+           else setActiveMenu('Trang chủ');
+       }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const [vocabFilter, setVocabFilter] = useState(null);
   const [practiceInitialFilters, setPracticeInitialFilters] = useState(null);

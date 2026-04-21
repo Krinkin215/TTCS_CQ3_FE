@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, X, ChevronLeft, ChevronRight, CheckCircle2, Gamepad2, RotateCcw, ArrowLeft, ArrowRight, Heart } from 'lucide-react';
+import { playAudio as playGlobalAudio } from '../src_utils/audio';
 
 export default function FlashcardLearning({ topic, lesson, collection, onExit, onNextLesson, onPrevLesson, onPractice }) {
   const [localWords, setLocalWords] = React.useState([]);
@@ -72,7 +73,7 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
 
   const playAudio = (e) => {
     e.stopPropagation(); 
-    console.log(`Đang phát âm thanh từ: ${currentWord?.word}`);
+    playGlobalAudio(currentWord?.word);
   };
 
   const currentLessonIndex = (topic && lesson) ? topic.lessons.findIndex(l => l.id === lesson.id) : -1;

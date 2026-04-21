@@ -1,6 +1,7 @@
 import React from 'react';
 import { XCircle, CheckCircle2, Volume2, Heart } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import { playAudio } from '../src_utils/audio';
 
 export default function VocabResultList({ logs, favoriteIds, onToggleFavorite }) {
   if (!logs || logs.length === 0) return null;
@@ -28,7 +29,7 @@ export default function VocabResultList({ logs, favoriteIds, onToggleFavorite })
               <div className="flex items-center gap-4">
                 <span className="font-bold text-red-500 bg-red-100 px-3 py-1 rounded-lg border border-red-200">+0 điểm</span>
                 <div className="flex gap-2">
-                  <button className="p-2 bg-white rounded-full hover:bg-red-100 text-red-700 transition-colors shadow-sm"><Volume2 size={18}/></button>
+                  <button onClick={() => playAudio(log.q.word)} className="p-2 bg-white rounded-full hover:bg-red-100 text-red-700 transition-colors shadow-sm"><Volume2 size={18}/></button>
                   <button onClick={() => onToggleFavorite(log.q.id)} className="p-2 bg-white rounded-full hover:bg-red-100 transition-colors shadow-sm">
                     <Heart size={18} className={favoriteIds.includes(log.q.id) ? "fill-red-500 text-red-500" : "text-gray-400"}/>
                   </button>
@@ -61,7 +62,7 @@ export default function VocabResultList({ logs, favoriteIds, onToggleFavorite })
               <div className="flex items-center gap-4">
                 <span className="font-bold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-lg border border-yellow-200">+{log.pointsEarned} điểm</span>
                 <div className="flex gap-2">
-                  <button className="p-2 bg-white rounded-full hover:bg-green-100 text-green-700 transition-colors shadow-sm"><Volume2 size={18}/></button>
+                  <button onClick={() => playAudio(log.q.word)} className="p-2 bg-white rounded-full hover:bg-green-100 text-green-700 transition-colors shadow-sm"><Volume2 size={18}/></button>
                   <button onClick={() => onToggleFavorite(log.q.id)} className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm">
                     <Heart size={18} className={favoriteIds.includes(log.q.id) ? "fill-red-500 text-red-500" : "text-gray-400"}/>
                   </button>
