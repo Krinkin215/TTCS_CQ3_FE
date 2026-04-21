@@ -38,6 +38,7 @@ const MOCK_WORDS = [
 
 export default function AdminTopicManagement() {
   const [topics, setTopics] = useState(MOCK_TOPICS_DATA);
+  const [allWords, setAllWords] = useState(MOCK_WORDS);
   const [searchTerm, setSearchTerm] = useState('');
 
   // chọn nhiều chủ đỀ
@@ -119,6 +120,14 @@ export default function AdminTopicManagement() {
   };
 
   const handleSaveEditedWords = () => {
+    setAllWords(prev => prev.map(cw => {
+      const edited = editingWords.find(ew => ew.id === cw.id);
+      return edited ? edited : cw;
+    }));
+    setModalWords(prev => prev.map(cw => {
+      const edited = editingWords.find(ew => ew.id === cw.id);
+      return edited ? edited : cw;
+    }));
     alert('Đã lưu thay đổi từ vựng!');
     setShowEditWordModal(false);
     setEditingWords([]);
@@ -127,7 +136,10 @@ export default function AdminTopicManagement() {
   };
 
   // CÁC HÀM XỬ LÝ CHỦ ĐỀ 
-  const filteredTopics = topics.filter(t => t.title.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredTopics = topics.filter(t => t.title.toLowerCase().includes(searchTerm.toLowerCase())).map(t => ({
+    ...t,
+    totalVocab: allWords.filter(w => w.topicId === t.id).length
+  }));
 
   const toggleTopicSelect = (id) => {
     setSelectedTopicIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -185,7 +197,7 @@ export default function AdminTopicManagement() {
   // CÁC HÀM MỞ MODAL XEM CHI TIẾT 
   const openTopicWords = (topic) => {
     setActiveTopic(topic);
-    setModalWords(MOCK_WORDS.filter(w => w.topicId === topic.id));
+    setModalWords(allWords.filter(w => w.topicId === topic.id));
     setSelectedLessonFilters([]);
     setShowLessonFilterDropdown(false);
     setWordSearchTerm('');
@@ -202,7 +214,7 @@ export default function AdminTopicManagement() {
   const openLessonWords = (lesson, topic) => {
     setActiveLesson(lesson);
     setActiveTopic(topic);
-    setModalWords(MOCK_WORDS.filter(w => w.lessonId === lesson.id));
+    setModalWords(allWords.filter(w => w.lessonId === lesson.id));
     setWordSearchTerm('');
     setIsWordSelectMode(false);
     setSelectedWordIds([]);
@@ -225,6 +237,9 @@ export default function AdminTopicManagement() {
   };
 
   const handleDeleteWordConfirm = () => {
+    let deletedIds = wordToDelete ? [wordToDelete.id] : selectedWordIds;
+    setAllWords(prev => prev.filter(w => !deletedIds.includes(w.id)));
+    setModalWords(prev => prev.filter(w => !deletedIds.includes(w.id)));
     setWordToDelete(null);
     setSelectedWordIds([]);
     setIsWordSelectMode(false);
@@ -240,9 +255,25 @@ export default function AdminTopicManagement() {
   };
 
   const handleConfirmMove = () => {
+    const targetTopicId = parseInt(moveMode === 'full' ? moveTargetTopicId : activeTopic?.id);
+    const targetLessonId = parseInt(moveTargetLessonId);
+    const targetLessonName = topics.find(t => t.id === targetTopicId)?.lessons.find(l => l.id === targetLessonId)?.name || '';
+
+    const wordIdsToMove = movingWords.map(w => w.id);
+    
+    setAllWords(prev => prev.map(w => {
+      if (wordIdsToMove.includes(w.id)) {
+        return { ...w, topicId: targetTopicId, lessonId: targetLessonId, lessonName: targetLessonName };
+      }
+      return w;
+    }));
+
+    setModalWords(prev => prev.filter(w => !wordIdsToMove.includes(w.id)));
+
     setShowMoveWordModal(false);
     setSelectedWordIds([]);
     setIsWordSelectMode(false);
+    setMovingWords([]);
     alert('Đã di chuyển thành công!');
   };
 
@@ -546,10 +577,10 @@ export default function AdminTopicManagement() {
         <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
           <div className="space-y-4">
             {activeTopic?.lessons.map((lesson, idx) => {
-              const lessonWordCount = MOCK_WORDS.filter(w => w.lessonId === lesson.id).length;
+              const lessonWordCount = allWords.filter(w => w.lessonId === lesson.id).length;
               const levelLabels = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
-              // Tính cấp độ trung bình của các từ trong bài (MOCK: dùng level của từ đầu tiên)
-              const lessonWords = MOCK_WORDS.filter(w => w.lessonId === lesson.id);
+              // Tính cấp độ trung bình của các từ trong bài
+              const lessonWords = allWords.filter(w => w.lessonId === lesson.id);
               const avgLevel = lessonWords.length > 0
                 ? Math.round(lessonWords.reduce((a, w) => a + w.level, 0) / lessonWords.length)
                 : lesson.difficulty;

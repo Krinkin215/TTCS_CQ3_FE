@@ -3,6 +3,7 @@ import { Search, X, Filter, Plus, Upload, ChevronDown, Trash2, Edit2, FileSpread
 import VocabTable from '../src_components/VocabTable'; 
 import SearchBar from '../src_components/SearchBar';
 import ConfirmModal from '../src_components/ConfirmModal';
+import FilterDropdown from '../src_components/FilterDropdown';
 
 const ADMIN_USER_ID = 1;
 
@@ -13,18 +14,11 @@ const MOCK_VOCABULARIES = [
   { id: 4, word: 'Accomplish', pronunciation: '/əˈkʌm.plɪʃ/', word_type: 'Động từ', meaning: 'Hoàn thành, đạt được', example: 'The students accomplished the task in less than ten minutes.', level: 5, created_by: ADMIN_USER_ID, topic: 'Kinh doanh (Business)', lesson: 'Bài học 3' },
 ];
 
-const MOCK_TOPICS = [
-  { id: 1, name: 'Động vật (Animals)' },
-  { id: 2, name: 'Công nghệ (Technology)' },
-  { id: 3, name: 'Kinh doanh (Business)' },
-  { id: 4, name: 'Du lịch (Travel)' }
-];
-
-const MOCK_LESSONS = [
-  { id: 1, name: 'Bài học 1' },
-  { id: 2, name: 'Bài học 2' },
-  { id: 3, name: 'Bài học 3' },
-  { id: 4, name: 'Bài học 4' }
+const MOCK_TOPICS_DATA = [
+  { id: 1, name: 'Động vật (Animals)', lessons: [{id: 11, name: 'Bài học 1'}, {id: 12, name: 'Bài học 2'}] },
+  { id: 2, name: 'Công nghệ (Technology)', lessons: [{id: 21, name: 'Bài học 2'}] },
+  { id: 3, name: 'Kinh doanh (Business)', lessons: [{id: 31, name: 'Bài học 1'}, {id: 32, name: 'Bài học 3'}] },
+  { id: 4, name: 'Du lịch (Travel)', lessons: [{id: 41, name: 'Bài học 1'}, {id: 42, name: 'Bài học 4'}] }
 ];
 
 const FILTER_OPTIONS = {
@@ -106,12 +100,14 @@ export default function AdminVocabManagement() {
     }
     
     if (activeFilters.topics.length > 0) {
-      const topicObj = MOCK_TOPICS.find(t => t.name === word.topic);
+      const topicObj = MOCK_TOPICS_DATA.find(t => t.name === word.topic);
       if (!topicObj || !activeFilters.topics.includes(topicObj.id)) return false;
     }
     
     if (activeFilters.lessons.length > 0) {
-      const lessonObj = MOCK_LESSONS.find(l => l.name === word.lesson);
+      const topicObj = MOCK_TOPICS_DATA.find(t => t.name === word.topic);
+      if (!topicObj) return false;
+      const lessonObj = topicObj.lessons.find(l => l.name === word.lesson);
       if (!lessonObj || !activeFilters.lessons.includes(lessonObj.id)) return false;
     }
 
@@ -306,71 +302,7 @@ export default function AdminVocabManagement() {
     );
   };
 
-  const renderFilterDropdown = (title, category, options, isObject = false, searchKey = null) => {
-    const isOpen = openFilterDropdown === category;
-    let displayOptions = options;
-    
-    if (searchKey) {
-      displayOptions = options.filter(opt => 
-        (isObject ? opt.name : opt).toLowerCase().includes(filterSearch[searchKey].toLowerCase())
-      );
-    }
 
-    const allValues = options.map(opt => isObject ? opt.id : opt);
-    const isAllSelected = draftFilters[category].length === allValues.length && allValues.length > 0;
-
-    return (
-      <div className="col-span-1 flex flex-col justify-start">
-        <label className="block text-sm font-bold text-gray-700 mb-1.5">{title}</label>
-        <div className="relative">
-          <div 
-            onClick={() => setOpenFilterDropdown(isOpen ? null : category)}
-            className={`w-full px-4 py-2.5 border rounded-xl cursor-pointer flex justify-between items-center transition-colors ${isOpen ? 'bg-cyan-50 border-cyan-400' : 'bg-white border-gray-300 hover:border-cyan-400'}`}
-          >
-            <span className="text-gray-700 font-medium truncate pr-2">
-              {draftFilters[category].length === 0 
-                ? 'Tất cả' 
-                : draftFilters[category].length === allValues.length 
-                  ? 'Đã chọn tất cả' 
-                  : `Đã chọn (${draftFilters[category].length})`}
-            </span>
-            <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180 text-cyan-600' : ''}`} />
-          </div>
-
-          {isOpen && (
-            <div className="absolute z-[100] top-full left-0 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 flex flex-col overflow-hidden">
-              {searchKey && (
-                <div className="p-2 border-b border-gray-100 shrink-0">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                    <input type="text" placeholder="Tìm kiếm..." value={filterSearch[searchKey]} onChange={(e) => setFilterSearch({...filterSearch, [searchKey]: e.target.value})} className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
-                  </div>
-                </div>
-              )}
-              <div className="overflow-y-auto p-2 flex-1 scrollbar-thin">
-                <label className="flex items-center gap-3 p-2.5 hover:bg-cyan-50 rounded-lg cursor-pointer border-b border-gray-50 group">
-                  <input type="checkbox" checked={isAllSelected} onChange={() => toggleAllDraftFilter(category, allValues)} className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer" />
-                  <span className="font-bold text-cyan-900 group-hover:text-cyan-700">Chọn tất cả</span>
-                </label>
-                {displayOptions.length > 0 ? displayOptions.map(opt => {
-                  const val = isObject ? opt.id : opt;
-                  const label = isObject ? opt.name : opt;
-                  return (
-                    <label key={val} className="flex items-center gap-3 p-2.5 hover:bg-cyan-50 rounded-lg cursor-pointer group">
-                      <input type="checkbox" checked={draftFilters[category].includes(val)} onChange={() => toggleDraftFilter(category, val)} className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer shrink-0" />
-                      <span className="text-gray-700 font-medium group-hover:text-cyan-900 truncate">{label}</span>
-                    </label>
-                  );
-                }) : (
-                  <div className="p-4 text-center text-gray-400 text-sm">Không tìm thấy kết quả.</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
@@ -385,15 +317,108 @@ export default function AdminVocabManagement() {
             placeholder="Tìm kiếm từ vựng..."
             className="flex-1"
           />
-          <button 
-            onClick={() => { setDraftFilters(activeFilters); setShowFilterModal(true); setOpenFilterDropdown(null); }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 font-semibold transition-colors shrink-0 shadow-sm relative"
+          <FilterDropdown
+            label={(count) => count > 0 ? `${count} bộ lọc` : 'Bộ lọc'}
+            activeCount={Object.values(activeFilters).reduce((sum, arr) => sum + arr.length, 0)}
+            onClear={() => {
+              const empty = { topics: [], lessons: [], types: [], levels: [] };
+              setActiveFilters(empty); setDraftFilters(empty);
+            }}
+            dropdownWidth="w-72"
+            position="right-0"
+            title="Lọc từ vựng"
           >
-            <Filter size={18} /> Bộ lọc
-            {Object.values(activeFilters).some(arr => arr.length > 0) && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white"></span>
+            <div className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Chủ đề</div>
+            <div className="px-3 pb-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                <input type="text" placeholder="Tìm chủ đề..." value={filterSearch.topics} onChange={(e) => setFilterSearch({...filterSearch, topics: e.target.value})} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+              </div>
+            </div>
+            {MOCK_TOPICS_DATA.filter(t => t.name.toLowerCase().includes(filterSearch.topics.toLowerCase())).map(topic => (
+              <label key={topic.id} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.topics.includes(topic.id)}
+                  onChange={() => {
+                    const newTopics = activeFilters.topics.includes(topic.id) ? activeFilters.topics.filter(id => id !== topic.id) : [...activeFilters.topics, topic.id];
+                    let newLessons = activeFilters.lessons;
+                    if (!newTopics.includes(topic.id)) {
+                      const topicLessonIds = topic.lessons.map(l => l.id);
+                      newLessons = newLessons.filter(lid => !topicLessonIds.includes(lid));
+                    }
+                    setActiveFilters({...activeFilters, topics: newTopics, lessons: newLessons});
+                  }}
+                  className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-gray-700 truncate max-w-[200px]">{topic.name}</span>
+              </label>
+            ))}
+
+            <div className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-t border-gray-100 mt-2">Bài học</div>
+            {activeFilters.topics.length === 0 ? (
+              <div className="px-4 py-2 text-xs text-gray-400 italic">Vui lòng chọn chủ đề trước</div>
+            ) : (
+              <>
+                <div className="px-3 pb-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input type="text" placeholder="Tìm bài học..." value={filterSearch.lessons} onChange={(e) => setFilterSearch({...filterSearch, lessons: e.target.value})} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+                  </div>
+                </div>
+                {MOCK_TOPICS_DATA
+                  .filter(t => activeFilters.topics.includes(t.id))
+                  .flatMap(t => t.lessons)
+                  .filter(l => l.name.toLowerCase().includes(filterSearch.lessons.toLowerCase()))
+                  .map(lesson => (
+                    <label key={lesson.id} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={activeFilters.lessons.includes(lesson.id)}
+                        onChange={() => {
+                          const newLessons = activeFilters.lessons.includes(lesson.id) ? activeFilters.lessons.filter(id => id !== lesson.id) : [...activeFilters.lessons, lesson.id];
+                          setActiveFilters({...activeFilters, lessons: newLessons});
+                        }}
+                        className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                      />
+                      <span className="text-sm font-medium text-gray-700 truncate max-w-[200px]">{lesson.name}</span>
+                    </label>
+                  ))}
+              </>
             )}
-          </button>
+
+            <div className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-t border-gray-100 mt-2">Loại từ</div>
+            {FILTER_OPTIONS.types.map(type => (
+              <label key={type} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.types.includes(type)}
+                  onChange={() => {
+                    const newTypes = activeFilters.types.includes(type) ? activeFilters.types.filter(t => t !== type) : [...activeFilters.types, type];
+                    setActiveFilters({...activeFilters, types: newTypes});
+                  }}
+                  className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-gray-700">{type}</span>
+              </label>
+            ))}
+
+            <div className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-t border-gray-100 mt-2">Cấp độ</div>
+            {FILTER_OPTIONS.levels.map(level => (
+              <label key={level} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.levels.includes(level)}
+                  onChange={() => {
+                    const newLevels = activeFilters.levels.includes(level) ? activeFilters.levels.filter(l => l !== level) : [...activeFilters.levels, level];
+                    setActiveFilters({...activeFilters, levels: newLevels});
+                  }}
+                  className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-gray-700">{level}</span>
+              </label>
+            ))}
+          </FilterDropdown>
         </div>
 
         <div className="flex gap-3 items-center">
@@ -678,45 +703,7 @@ export default function AdminVocabManagement() {
         isDanger={true}
       />
 
-      {/* modal bộ lọc */}
-      {showFilterModal && (
-        <div className="fixed inset-0 bg-cyan-950/70 z-[150] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
-          <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-2xl flex flex-col animate-in zoom-in duration-200 border border-gray-100">
-            
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-cyan-50/30 rounded-t-[1.5rem]">
-              <div className="flex items-center gap-3">
-                <div className="bg-cyan-100 p-2 rounded-lg text-cyan-600"><Filter size={20} /></div>
-                <h2 className="text-xl font-black text-cyan-950">Bộ lọc từ vựng</h2>
-              </div>
-              <button onClick={() => { setShowFilterModal(false); setOpenFilterDropdown(null); }} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
-                <X size={24} />
-              </button>
-            </div>
 
-            <div className="p-6 grid grid-cols-2 gap-y-6 gap-x-6 relative min-h-[320px]">
-               {renderFilterDropdown("Chủ đề", "topics", MOCK_TOPICS, true, "topics")}
-               {renderFilterDropdown("Bài học", "lessons", MOCK_LESSONS, true, "lessons")}
-               {renderFilterDropdown("Loại từ", "types", FILTER_OPTIONS.types)}
-               {renderFilterDropdown("Cấp độ", "levels", FILTER_OPTIONS.levels)}
-            </div>
-
-            <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center rounded-b-[1.5rem]">
-              <button onClick={clearFilters} className="px-5 py-2.5 text-gray-500 font-bold hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                Xóa bộ lọc
-              </button>
-              <div className="flex gap-3">
-                <button onClick={() => setShowFilterModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">
-                  Hủy
-                </button>
-                <button onClick={applyFilters} className="px-8 py-2.5 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
-                  Áp dụng bộ lọc
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );

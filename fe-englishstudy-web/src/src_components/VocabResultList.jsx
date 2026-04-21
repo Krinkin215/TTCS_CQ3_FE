@@ -59,8 +59,16 @@ export default function VocabResultList({ logs, favoriteIds, onToggleFavorite })
                 <p className="text-base text-green-800 font-medium">{log.q.meaning}</p>
                 {log.q.example && <p className="text-gray-600 italic text-sm mt-1">VD: "{log.q.example}"</p>}
               </div>
-              <div className="flex items-center gap-4">
-                <span className="font-bold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-lg border border-yellow-200">+{log.pointsEarned} điểm</span>
+              <div className="flex items-center gap-3">
+                {log.errors > 0 && (
+                  <span className="text-xs text-red-500 font-medium bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 flex items-center gap-1">
+                    <span>Sai {log.errors} lần</span>
+                    <span className="opacity-80">(-{log.deduction}/{log.originalPoints})</span>
+                  </span>
+                )}
+                <span className="font-bold text-yellow-600 bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-200">
+                  +{log.pointsEarned} điểm
+                </span>
                 <div className="flex gap-2">
                   <button onClick={() => playAudio(log.q.word)} className="p-2 bg-white rounded-full hover:bg-green-100 text-green-700 transition-colors shadow-sm"><Volume2 size={18}/></button>
                   <button onClick={() => onToggleFavorite(log.q.id)} className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, Users, BookOpen, BarChart3, LogOut, ShieldCheck, Bell, Library, Trophy } from 'lucide-react';
+import { LayoutGrid, Users, BookOpen, BarChart3, LogOut, ShieldCheck, Bell, Library, Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
 import LeaderboardPage from './LeaderboardPage';
 import UserManagement from './UserManagement';
 import AdminVocabManagement from './AdminVocabManagement';
@@ -16,6 +16,7 @@ export default function AdminHomePage({ onLogout }) {
     return 'dashboard';
   };
   const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     const routeMap = {
@@ -93,30 +94,53 @@ export default function AdminHomePage({ onLogout }) {
     return (
       <button
         onClick={() => setActiveTab(id)}
-        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive ? 'bg-cyan-800 text-white shadow-md' : 'text-cyan-300 hover:bg-cyan-900'}`}
+        className={`flex items-center p-3 rounded-xl transition-colors ${
+          isActive 
+            ? 'bg-[#164e63] text-[#38bdf8] font-semibold' 
+            : 'text-gray-300 hover:bg-[#164e63] hover:text-white'
+        } ${!isSidebarOpen && 'justify-center'}`}
+        title={!isSidebarOpen ? label : ''}
       >
-        <Icon size={20} /> {label}
+        <div className="flex-shrink-0"><Icon size={22} /></div>
+        {isSidebarOpen && <span className="ml-4 truncate text-left w-full">{label}</span>}
       </button>
     );
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex font-sans text-gray-800">
       {/* sidebar */}
-      <aside className="w-64 bg-cyan-950 text-white flex flex-col h-screen sticky top-0">
-        <div className="p-6 border-b border-cyan-900">
-          <h1 className="text-2xl font-black">EngLearn <span className="text-xs bg-cyan-600 px-2 py-1 rounded ml-1">ADMIN</span></h1>
+      <aside 
+        className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-[#083344] text-white transition-all duration-300 flex flex-col relative shadow-xl z-20 sticky top-0 h-screen shrink-0`}
+      >
+        <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute -right-3 top-6 bg-[#0e7490] rounded-full p-1 text-white hover:bg-[#164e63] shadow-md z-30"
+        >
+          {isSidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+        </button>
+
+        <div className="h-20 flex items-center justify-center font-extrabold text-2xl tracking-wide border-b border-[#164e63]">
+          {isSidebarOpen ? <span className="text-white">EngLearn <span className="text-xs bg-cyan-600 px-2 py-1 rounded ml-1 align-middle">ADMIN</span></span> : 'E'}
         </div>
-        <nav className="flex-1 p-4 space-y-2">
+
+        <nav className="flex-1 py-6 flex flex-col gap-2 px-3 overflow-y-auto">
           {renderNavBtn('dashboard', LayoutGrid, 'Dashboard')}
           {renderNavBtn('users', Users, 'Quản lý User')}
           {renderNavBtn('vocabs', BookOpen, 'Quản lý Từ vựng')}
           {renderNavBtn('topics', Library, 'Quản lý Chủ đề')}
           {renderNavBtn('leaderboard', Trophy, 'Bảng xếp hạng')}
         </nav>
-        <button onClick={onLogout} className="m-4 flex items-center gap-3 px-4 py-3 hover:bg-red-900/30 text-red-400 rounded-xl font-bold transition-colors">
-          <LogOut size={20} /> Đăng xuất
-        </button>
+        <div className="p-4 border-t border-[#164e63]">
+          <button 
+            onClick={onLogout} 
+            className={`flex items-center w-full p-3 hover:bg-red-900/30 text-red-400 rounded-xl font-bold transition-colors ${!isSidebarOpen && 'justify-center'}`}
+            title={!isSidebarOpen ? 'Đăng xuất' : ''}
+          >
+            <LogOut size={20} className="shrink-0" />
+            {isSidebarOpen && <span className="ml-4 truncate">Đăng xuất</span>}
+          </button>
+        </div>
       </aside>
 
       {/* khu vực nội dung chính */}

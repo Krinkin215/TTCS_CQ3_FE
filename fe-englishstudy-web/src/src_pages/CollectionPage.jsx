@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
 import FlashcardLearning from '../src_components/FlashcardLearning';
@@ -147,6 +147,7 @@ function CollectionPage({ onNavigateToPractice }) {
 
     const wordIdsToProcess = isBulkAddMode ? selectedWordIds : [wordToAdd.id];
     const newDB = [...collectionVocabDB];
+    const addedCountsPerCollection = {};
 
     wordIdsToProcess.forEach(wId => {
       targetCollectionIds.forEach(cId => {
@@ -155,12 +156,19 @@ function CollectionPage({ onNavigateToPractice }) {
           duplicateCount++;
         } else {
           newDB.push({ vocabId: wId, collectionId: cId });
+          addedCountsPerCollection[cId] = (addedCountsPerCollection[cId] || 0) + 1;
           addedCount++;
         }
       });
     });
 
     setCollectionVocabDB(newDB);
+
+    if (Object.keys(addedCountsPerCollection).length > 0) {
+      setCollections(prev => prev.map(c => 
+        addedCountsPerCollection[c.id] ? { ...c, wordCount: c.wordCount + addedCountsPerCollection[c.id] } : c
+      ));
+    }
 
     let alertMsg = `KẾT QUẢ THÊM VÀO BỘ TỪ:\n\n`;
     if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} lượt từ vào các bộ.\n`;
@@ -361,9 +369,14 @@ function CollectionPage({ onNavigateToPractice }) {
 
     setCollectionWords(updatedWords);
 
-    setCollections(collections.map(c =>
-      c.id === activeCollection.id ? { ...c, wordCount: Math.max(0, c.wordCount - deletedCount) } : c
-    ));
+    setCollections(collections.map(c => {
+      if (c.id === activeCollection.id) {
+        const newWordCount = Math.max(0, c.wordCount - deletedCount);
+        const newMastered = Math.min(c.masteredVocab || 0, newWordCount);
+        return { ...c, wordCount: newWordCount, masteredVocab: newMastered };
+      }
+      return c;
+    }));
 
 
     setShowWordDeleteModal(false);

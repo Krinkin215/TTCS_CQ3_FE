@@ -1,8 +1,9 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FolderPlus, Search, X, Filter, Heart, Plus, Upload, FileText, Zap, ChevronDown, Trash2, HelpCircle, Download, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import VocabTable from '../src_components/VocabTable'; 
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
 import SearchBar from '../src_components/SearchBar';
+import FilterDropdown from '../src_components/FilterDropdown';
 
 const CURRENT_USER_ID = 5; 
 const ADMIN_USER_ID = 1;
@@ -145,14 +146,10 @@ function VocabularyPage({ initialFilter }) {
     }));
   };
 
-  const applyFilters = () => {
-    setActiveFilters(draftFilters);
-    setShowFilterModal(false);
-    setOpenFilterDropdown(null);
-  };
-
   const clearFilters = () => {
-    setDraftFilters(initialFilters);
+    const emptyFilters = { collections: [], topics: [], statuses: [], types: [], levels: [] };
+    setActiveFilters(emptyFilters);
+    setDraftFilters(emptyFilters);
   };
 
   const LEVEL_STR_TO_INT = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
@@ -538,15 +535,116 @@ function VocabularyPage({ initialFilter }) {
             placeholder="Tìm kiếm từ vựng..."
             className="flex-1"
           />
-          <button 
-            onClick={() => { setDraftFilters(activeFilters); setShowFilterModal(true); setOpenFilterDropdown(null); }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 font-semibold transition-colors shrink-0 shadow-sm relative"
+          <FilterDropdown
+            label={(count) => count > 0 ? `${count} bộ lọc` : 'Bộ lọc'}
+            activeCount={Object.values(activeFilters).reduce((sum, arr) => sum + arr.length, 0)}
+            onClear={clearFilters}
+            dropdownWidth="w-72"
+            position="right-0"
+            title="Lọc từ vựng"
           >
-            <Filter size={18} /> Bộ lọc
-            {Object.values(activeFilters).some(arr => arr.length > 0) && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white"></span>
-            )}
-          </button>
+            <div className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Trạng thái</div>
+            {FILTER_OPTIONS.statuses.map(status => (
+              <label key={status} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.statuses.includes(status)}
+                  onChange={() => {
+                    const newStatuses = activeFilters.statuses.includes(status)
+                      ? activeFilters.statuses.filter(s => s !== status)
+                      : [...activeFilters.statuses, status];
+                    setActiveFilters({...activeFilters, statuses: newStatuses});
+                  }}
+                  className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-gray-700">{status}</span>
+              </label>
+            ))}
+
+            <div className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-t border-gray-100 mt-2">Loại từ</div>
+            {FILTER_OPTIONS.types.map(type => (
+              <label key={type} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.types.includes(type)}
+                  onChange={() => {
+                    const newTypes = activeFilters.types.includes(type)
+                      ? activeFilters.types.filter(t => t !== type)
+                      : [...activeFilters.types, type];
+                    setActiveFilters({...activeFilters, types: newTypes});
+                  }}
+                  className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-gray-700">{type}</span>
+              </label>
+            ))}
+
+            <div className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-t border-gray-100 mt-2">Cấp độ</div>
+            {FILTER_OPTIONS.levels.map(level => (
+              <label key={level} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.levels.includes(level)}
+                  onChange={() => {
+                    const newLevels = activeFilters.levels.includes(level)
+                      ? activeFilters.levels.filter(l => l !== level)
+                      : [...activeFilters.levels, level];
+                    setActiveFilters({...activeFilters, levels: newLevels});
+                  }}
+                  className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-gray-700">{level}</span>
+              </label>
+            ))}
+
+            <div className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-t border-gray-100 mt-2">Bộ từ vựng</div>
+            <div className="px-3 pb-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                <input type="text" placeholder="Tìm bộ từ..." value={filterSearch.collections} onChange={(e) => setFilterSearch({...filterSearch, collections: e.target.value})} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+              </div>
+            </div>
+            {MOCK_COLLECTIONS.filter(c => c.name.toLowerCase().includes(filterSearch.collections.toLowerCase())).map(coll => (
+              <label key={coll.id} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.collections.includes(coll.id)}
+                  onChange={() => {
+                    const newColls = activeFilters.collections.includes(coll.id)
+                      ? activeFilters.collections.filter(c => c !== coll.id)
+                      : [...activeFilters.collections, coll.id];
+                    setActiveFilters({...activeFilters, collections: newColls});
+                  }}
+                  className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-gray-700 truncate max-w-[200px]">{coll.name}</span>
+              </label>
+            ))}
+
+            <div className="px-4 pt-3 pb-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-t border-gray-100 mt-2">Chủ đề</div>
+            <div className="px-3 pb-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                <input type="text" placeholder="Tìm chủ đề..." value={filterSearch.topics} onChange={(e) => setFilterSearch({...filterSearch, topics: e.target.value})} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+              </div>
+            </div>
+            {MOCK_TOPICS.filter(t => t.name.toLowerCase().includes(filterSearch.topics.toLowerCase())).map(topic => (
+              <label key={topic.id} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.topics.includes(topic.id)}
+                  onChange={() => {
+                    const newTopics = activeFilters.topics.includes(topic.id)
+                      ? activeFilters.topics.filter(t => t !== topic.id)
+                      : [...activeFilters.topics, topic.id];
+                    setActiveFilters({...activeFilters, topics: newTopics});
+                  }}
+                  className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-gray-700 truncate max-w-[200px]">{topic.name}</span>
+              </label>
+            ))}
+          </FilterDropdown>
         </div>
 
         <div className="flex gap-3 items-center">
@@ -854,46 +952,7 @@ function VocabularyPage({ initialFilter }) {
         </div>
       )}
 
-      {/* modal bộ lọc */}
-      {showFilterModal && (
-        <div className="fixed inset-0 bg-cyan-950/70 z-[150] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
-          <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-2xl flex flex-col animate-in zoom-in duration-200 border border-gray-100">
-            
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-cyan-50/30 rounded-t-[1.5rem]">
-              <div className="flex items-center gap-3">
-                <div className="bg-cyan-100 p-2 rounded-lg text-cyan-600"><Filter size={20} /></div>
-                <h2 className="text-xl font-black text-cyan-950">Bộ lọc từ vựng</h2>
-              </div>
-              <button onClick={() => { setShowFilterModal(false); setOpenFilterDropdown(null); }} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
-                <X size={24} />
-              </button>
-            </div>
 
-            <div className="p-6 grid grid-cols-2 gap-y-6 gap-x-6 relative min-h-[320px]">
-               {renderFilterDropdown("Bộ từ vựng", "collections", MOCK_COLLECTIONS, true, "collections")}
-               {renderFilterDropdown("Chủ đề", "topics", MOCK_TOPICS, true, "topics")}
-               {renderFilterDropdown("Trạng thái", "statuses", FILTER_OPTIONS.statuses)}
-               {renderFilterDropdown("Loại từ", "types", FILTER_OPTIONS.types)}
-               {renderFilterDropdown("Cấp độ", "levels", FILTER_OPTIONS.levels)}
-            </div>
-
-            <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center rounded-b-[1.5rem]">
-              <button onClick={clearFilters} className="px-5 py-2.5 text-gray-500 font-bold hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                Xóa bộ lọc
-              </button>
-              <div className="flex gap-3">
-                <button onClick={() => setShowFilterModal(false)} className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">
-                  Hủy
-                </button>
-                <button onClick={applyFilters} className="px-8 py-2.5 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
-                  Áp dụng bộ lọc
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );

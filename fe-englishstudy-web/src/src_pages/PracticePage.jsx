@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Gamepad2, BookOpen, Brain, Settings, HelpCircle, 
   History, BarChart2, Search, CheckSquare, X, Play, Clock, 
@@ -57,6 +57,7 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [matchedIds, setMatchedIds] = useState([]);
   const [matchFeedback, setMatchFeedback] = useState(null);
+  const [matchErrors, setMatchErrors] = useState({});
 
   const [listenInput, setListenInput] = useState('');
   const [hintsUsed, setHintsUsed] = useState(0);
@@ -66,6 +67,15 @@ export default function PracticePage({ onBack, initialFilters }) {
     MOCK_QUIZ_DATA.filter(q => q.isFavorite).map(q => q.id)
   );
   const [historyLogView, setHistoryLogView] = useState(null); 
+  const feedbackRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedAns !== null || matchFeedback !== null) {
+      setTimeout(() => {
+        feedbackRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [selectedAns, matchFeedback]);
 
   const toggleFavorite = (id) => {
     setFavoriteIds(prev => 
@@ -121,12 +131,8 @@ export default function PracticePage({ onBack, initialFilters }) {
   }, [activeMode, selectedLessons, availableLessons]);
 
   useEffect(() => {
-    if (activeMode === 'topic' && selectedLessons.length === 1) {
-      setWordCount(availableCount);
-    } else if (wordCount > availableCount && availableCount >= 20) {
-      setWordCount(availableCount);
-    }
-  }, [availableCount, activeMode, selectedLessons.length, wordCount]);
+    setWordCount(availableCount);
+  }, [availableCount]);
 
   useEffect(() => {
     let timer;
@@ -184,7 +190,7 @@ export default function PracticePage({ onBack, initialFilters }) {
   const handleRetryGame = (gameId) => {
     setQuizState('playing'); setCurrentQIndex(0); setSelectedAns(null); setQuizLog([]);
     if (gameId === 'match') {
-      setMatchLives(5); setMatchedIds([]); setSelectedMatch(null); setMatchFeedback(null);
+      setMatchLives(5); setMatchedIds([]); setSelectedMatch(null); setMatchFeedback(null); setMatchErrors({});
       setTimeLeft((gameSettings.timePerQuestion || 15) * MOCK_QUIZ_DATA.length); 
       const items = [];
       MOCK_QUIZ_DATA.forEach(q => {
@@ -238,7 +244,18 @@ export default function PracticePage({ onBack, initialFilters }) {
         
         let basePoints = getDynamicPoints(1.2); 
         let statusMultiplier = currentQ.status === 'NEW' ? 1.2 : currentQ.status === 'MASTERED' ? 0.5 : 1.0;
-        setQuizLog(prev => [...prev, { q: currentQ, isCorrect: true, pointsEarned: Math.round(basePoints * statusMultiplier) }]);
+        let points = Math.round(basePoints * statusMultiplier);
+        let originalPoints = points;
+        let deduction = 0;
+        
+        // Trừ điểm dựa trên số lần sai
+        const errors = matchErrors[item.id] || 0;
+        if (errors > 0) {
+          deduction = Math.round(points * 0.2) * errors; // Trừ 20% mỗi lần sai
+          points = Math.max(0, points - deduction);
+        }
+
+        setQuizLog(prev => [...prev, { q: currentQ, isCorrect: true, pointsEarned: points, originalPoints, deduction, errors }]);
         setSelectedMatch(null);
       } else if (selectedMatch.id === item.id && selectedMatch.type === item.type) {
         setSelectedMatch(null); 
@@ -247,11 +264,12 @@ export default function PracticePage({ onBack, initialFilters }) {
         setMatchLives(prev => prev - 1);
         setSelectedMatch(null);
         
-        const errorWordId = selectedMatch.type === 'word' ? selectedMatch.id : (item.type === 'word' ? item.id : null);
-        if (errorWordId) {
-           const errorQ = MOCK_QUIZ_DATA.find(q => q.id === errorWordId);
-           setQuizLog(prev => prev.find(l => l.q.id === errorWordId && !l.isCorrect) ? prev : [...prev, { q: errorQ, isCorrect: false, pointsEarned: 0 }]);
-        }
+        // Ghi nhận số lần sai cho cả 2 từ liên quan
+        setMatchErrors(prev => ({
+          ...prev,
+          [selectedMatch.id]: (prev[selectedMatch.id] || 0) + 1,
+          [item.id]: (prev[item.id] || 0) + 1
+        }));
       }
     }
   };
@@ -309,16 +327,11 @@ export default function PracticePage({ onBack, initialFilters }) {
   useEffect(() => {
     // Xử lý khi Hết Mạng 
     if (activeGame === 'match' && matchLives === 0 && quizState === 'playing') {
-      const remaining = MOCK_QUIZ_DATA.filter(q => !matchedIds.includes(q.id));
-      const newLogs = remaining.map(q => ({ q, isCorrect: false, pointsEarned: 0 }));
-      setQuizLog(prev => {
-         const existingIds = prev.map(l => l.q.id);
-         const filteredNew = newLogs.filter(l => !existingIds.includes(l.q.id));
-         return [...prev, ...filteredNew];
-      });
+      const allFailedLogs = MOCK_QUIZ_DATA.map(q => ({ q, isCorrect: false, pointsEarned: 0 }));
+      setQuizLog(allFailedLogs);
       setQuizState('result');
     }
-  }, [matchLives, activeGame, quizState, matchedIds]);
+  }, [matchLives, activeGame, quizState]);
 
 
   // GIAO DIỆN GAME TRẮC NGHIỆM
@@ -379,7 +392,7 @@ export default function PracticePage({ onBack, initialFilters }) {
               </div>
 
               {selectedAns !== null && (
-                <div className={`mt-8 p-6 rounded-2xl border-2 ${selectedAns === currentQ.correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} animate-in fade-in zoom-in-95`}>
+                <div ref={feedbackRef} className={`mt-8 p-6 rounded-2xl border-2 ${selectedAns === currentQ.correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} animate-in fade-in zoom-in-95`}>
                   <h3 className={`text-3xl font-black mb-4 ${selectedAns === currentQ.correct ? 'text-green-600' : 'text-red-600'}`}>
                     {selectedAns === currentQ.correct ? 'Tuyệt vời!' : 'Sai rồi!'}
                   </h3>
@@ -538,7 +551,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                   })}
                 </div>
               ) : (
-                <div className={`mt-4 p-6 rounded-2xl border-2 bg-green-50 border-green-200 animate-in zoom-in-95`}>
+                <div ref={feedbackRef} className={`mt-4 p-6 rounded-2xl border-2 bg-green-50 border-green-200 animate-in zoom-in-95`}>
                   <h3 className={`text-3xl font-black mb-4 text-green-600`}>Chính xác!</h3>
                   <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
                     <div>
@@ -692,7 +705,7 @@ export default function PracticePage({ onBack, initialFilters }) {
 
               {/* Feedback */}
               {selectedAns !== null && (
-                <div className={`mt-8 p-6 rounded-2xl border-2 ${selectedAns === 1 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} animate-in fade-in zoom-in-95`}>
+                <div ref={feedbackRef} className={`mt-8 p-6 rounded-2xl border-2 ${selectedAns === 1 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} animate-in fade-in zoom-in-95`}>
                   <h3 className={`text-3xl font-black mb-4 ${selectedAns === 1 ? 'text-green-600' : 'text-red-600'}`}>{selectedAns === 1 ? 'Tuyệt vời!' : `Sai rồi! Đáp án là: ${currentQ.word}`}</h3>
                   <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
                     <div>
