@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Search, X, Filter, Plus, Upload, ChevronDown, Trash2, Edit2, FileSpreadsheet, MoreVertical } from 'lucide-react';
-import VocabTable from '../src_components/VocabTable'; 
+import VocabTable from '../src_components/VocabTable';
 import SearchBar from '../src_components/SearchBar';
 import ConfirmModal from '../src_components/ConfirmModal';
 import FilterDropdown from '../src_components/FilterDropdown';
@@ -15,10 +15,10 @@ const MOCK_VOCABULARIES = [
 ];
 
 const MOCK_TOPICS_DATA = [
-  { id: 1, name: 'Động vật (Animals)', lessons: [{id: 11, name: 'Bài học 1'}, {id: 12, name: 'Bài học 2'}] },
-  { id: 2, name: 'Công nghệ (Technology)', lessons: [{id: 21, name: 'Bài học 2'}] },
-  { id: 3, name: 'Kinh doanh (Business)', lessons: [{id: 31, name: 'Bài học 1'}, {id: 32, name: 'Bài học 3'}] },
-  { id: 4, name: 'Du lịch (Travel)', lessons: [{id: 41, name: 'Bài học 1'}, {id: 42, name: 'Bài học 4'}] }
+  { id: 1, name: 'Động vật (Animals)', lessons: [{ id: 11, name: 'Bài học 1' }, { id: 12, name: 'Bài học 2' }] },
+  { id: 2, name: 'Công nghệ (Technology)', lessons: [{ id: 21, name: 'Bài học 2' }] },
+  { id: 3, name: 'Kinh doanh (Business)', lessons: [{ id: 31, name: 'Bài học 1' }, { id: 32, name: 'Bài học 3' }] },
+  { id: 4, name: 'Du lịch (Travel)', lessons: [{ id: 41, name: 'Bài học 1' }, { id: 42, name: 'Bài học 4' }] }
 ];
 
 const FILTER_OPTIONS = {
@@ -27,23 +27,23 @@ const FILTER_OPTIONS = {
 };
 
 export default function AdminVocabManagement() {
-  
+
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [vocabularies, setVocabularies] = useState(MOCK_VOCABULARIES);
-  
+
   // modal thêm từ mới
   const [showAddWordModal, setShowAddWordModal] = useState(false);
   const [showImportDropdown, setShowImportDropdown] = useState(false);
   const [showExitWarning, setShowExitWarning] = useState(false);
-  
+
   const fileInputRef = useRef(null);
 
   const defaultDraftRow = { id: Date.now(), word: '', pronunciation: '', word_type: 'Danh từ', meaning: '', level: 1, example: '', topic: '', lesson: '' };
   const [draftWords, setDraftWords] = useState([{ ...defaultDraftRow }]);
-  const [isSaving, setIsSaving] = useState(false); 
+  const [isSaving, setIsSaving] = useState(false);
 
   // modal chỉnh sửa
   const [showEditWordModal, setShowEditWordModal] = useState(false);
@@ -55,11 +55,11 @@ export default function AdminVocabManagement() {
 
   // bộ lọc
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [openFilterDropdown, setOpenFilterDropdown] = useState(null); 
+  const [openFilterDropdown, setOpenFilterDropdown] = useState(null);
   const [filterSearch, setFilterSearch] = useState({ topics: '', lessons: '' });
 
   const initialFilters = { topics: [], lessons: [], types: [], levels: [] };
-  const [activeFilters, setActiveFilters] = useState(initialFilters); 
+  const [activeFilters, setActiveFilters] = useState(initialFilters);
   const [draftFilters, setDraftFilters] = useState(initialFilters);
 
   // menu hành động dùng chung, tránh nhiều menu mở cùng lúc
@@ -98,12 +98,12 @@ export default function AdminVocabManagement() {
       const levelInts = activeFilters.levels.map(l => LEVEL_STR_TO_INT[l]).filter(Boolean);
       if (!levelInts.includes(word.level)) return false;
     }
-    
+
     if (activeFilters.topics.length > 0) {
       const topicObj = MOCK_TOPICS_DATA.find(t => t.name === word.topic);
       if (!topicObj || !activeFilters.topics.includes(topicObj.id)) return false;
     }
-    
+
     if (activeFilters.lessons.length > 0) {
       const topicObj = MOCK_TOPICS_DATA.find(t => t.name === word.topic);
       if (!topicObj) return false;
@@ -118,7 +118,7 @@ export default function AdminVocabManagement() {
   const handleAddDraftRow = () => setDraftWords([...draftWords, { ...defaultDraftRow, id: Date.now() }]);
   const handleRemoveDraftRow = (id) => setDraftWords(draftWords.filter(w => w.id !== id));
   const handleDraftChange = (id, field, value) => {
-    setDraftWords(draftWords.map(w => w.id === id ? { ...w, [field]: value } : w));
+    setDraftWords(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
   };
 
   const handleCloseAddModal = () => {
@@ -137,43 +137,58 @@ export default function AdminVocabManagement() {
   };
 
   const handleSaveNewWords = async () => {
-    const wordsToProcess = draftWords.filter(w => w.word.trim() && w.meaning.trim());
+    const wordsToProcess = draftWords.filter(w => w.word.trim() !== '');
 
     if (wordsToProcess.length === 0) {
-      alert("⚠️ Vui lòng nhập ít nhất 1 từ vựng có đủ TỪ TIẾNG ANH và NGHĨA!");
+      alert("⚠️ Vui lòng nhập ít nhất 1 từ vựng!");
       return;
     }
 
-    setIsSaving(true); 
-    
+    const hasIncompleteRow = wordsToProcess.some(w =>
+      !w.topic ||
+      !w.lesson ||
+      !w.word.trim() ||
+      !w.pronunciation.trim() ||
+      !w.word_type ||
+      !w.meaning.trim() ||
+      !w.example.trim()
+    );
+
+    if (hasIncompleteRow) {
+      alert("⚠️ LỖI: Vui lòng điền ĐẦY ĐỦ tất cả các cột (Chủ đề, Bài học, Từ vựng, Phiên âm, Nghĩa, Ví dụ) cho các từ bạn muốn lưu!");
+      return;
+    }
+
+    setIsSaving(true);
+
     let addedCount = 0;
     let duplicateCount = 0;
     let formatErrorCount = 0;
     const currentVocabs = [...vocabularies];
 
-    const wordRegex = /^[a-zA-Z\s-]+$/; 
-    const pronunRegex = /^\/.*\/$/;     
+    const wordRegex = /^[a-zA-Z\s-]+$/;
+    const pronunRegex = /^\/.*\/$/;
 
     for (const newWord of wordsToProcess) {
       const wordTrimmed = newWord.word.trim();
 
       if (!wordRegex.test(wordTrimmed)) { formatErrorCount++; continue; }
-      if (newWord.pronunciation && newWord.pronunciation.trim() !== '' && !pronunRegex.test(newWord.pronunciation.trim())) { formatErrorCount++; continue; }
+      if (newWord.pronunciation && !pronunRegex.test(newWord.pronunciation.trim())) { formatErrorCount++; continue; }
 
       const exists = currentVocabs.some(v => v.word.toLowerCase() === wordTrimmed.toLowerCase());
       if (exists) { duplicateCount++; continue; }
 
-      currentVocabs.unshift({ 
-        ...newWord, 
-        word: wordTrimmed, 
-        id: Date.now() + Math.random(), 
-        created_by: ADMIN_USER_ID 
+      currentVocabs.unshift({
+        ...newWord,
+        word: wordTrimmed,
+        id: Date.now() + Math.random(),
+        created_by: ADMIN_USER_ID
       });
       addedCount++;
     }
 
     setVocabularies(currentVocabs);
-    setIsSaving(false); 
+    setIsSaving(false);
 
     let alertMsg = `KẾT QUẢ THÊM TỪ VỰNG:\n\n`;
     if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} từ mới.\n`;
@@ -189,7 +204,7 @@ export default function AdminVocabManagement() {
     setShowImportDropdown(false);
     fileInputRef.current?.click();
   };
-  
+
   const handleFileUpload = (e) => {
     if (e.target.files.length > 0) alert(`Đã tải lên file: ${e.target.files[0].name}. (Cần Backend để parse file này)`);
     e.target.value = null;
@@ -229,19 +244,19 @@ export default function AdminVocabManagement() {
 
     for (const word of editingWords) {
       const wordTrimmed = word.word.trim();
-      
+
       if (!wordTrimmed || !word.meaning.trim()) { emptyCount++; continue; }
-      
+
       if (!wordRegex.test(wordTrimmed)) { formatErrorCount++; continue; }
       if (word.pronunciation && word.pronunciation.trim() !== '' && !pronunRegex.test(word.pronunciation.trim())) { formatErrorCount++; continue; }
-      
+
       const exists = vocabularies.some(v => v.id !== word.id && v.word.toLowerCase() === wordTrimmed.toLowerCase());
       if (exists) { duplicateCount++; continue; }
     }
 
     if (emptyCount > 0 || formatErrorCount > 0 || duplicateCount > 0) {
       alert(`LỖI KIỂM TRA DỮ LIỆU:\n\n${emptyCount > 0 ? `- Có ${emptyCount} từ bị bỏ trống Từ tiếng Anh hoặc Nghĩa.\n` : ''}${formatErrorCount > 0 ? `- Có ${formatErrorCount} từ sai định dạng (Từ chỉ chứa chữ cái, Phiên âm phải bọc trong / /).\n` : ''}${duplicateCount > 0 ? `- Có ${duplicateCount} từ bị trùng lặp với từ khác trong hệ thống.\n` : ''}\nVui lòng kiểm tra và sửa lại!`);
-      return; 
+      return;
     }
 
     setVocabularies(prev => prev.map(cw => {
@@ -275,7 +290,7 @@ export default function AdminVocabManagement() {
   const AdminActionColumn = ({ item }) => {
     return (
       <div className="relative flex justify-center">
-        <button 
+        <button
           onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
           className="p-2 text-gray-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-full transition-colors"
         >
@@ -284,13 +299,13 @@ export default function AdminVocabManagement() {
 
         {openMenuId === item.id && (
           <div className="absolute right-8 top-0 w-36 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-50 text-left">
-            <button 
+            <button
               onClick={() => { handleOpenEditModal([item]); setOpenMenuId(null); }}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium flex items-center gap-2"
             >
               <Edit2 size={16} /> Chỉnh sửa
             </button>
-            <button 
+            <button
               onClick={() => { handleOpenDeleteModal(item); setOpenMenuId(null); }}
               className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left font-medium flex items-center gap-2"
             >
@@ -306,12 +321,12 @@ export default function AdminVocabManagement() {
 
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
-      
+
       {/* thanh công cụ */}
       <div className="bg-white rounded-[1.25rem] shadow-sm border border-gray-200 p-4 mb-6 flex justify-between items-center transition-all">
-        
+
         <div className="flex gap-4 items-center w-full max-w-xl">
-          <SearchBar 
+          <SearchBar
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Tìm kiếm từ vựng..."
@@ -332,7 +347,7 @@ export default function AdminVocabManagement() {
             <div className="px-3 pb-2">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                <input type="text" placeholder="Tìm chủ đề..." value={filterSearch.topics} onChange={(e) => setFilterSearch({...filterSearch, topics: e.target.value})} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+                <input type="text" placeholder="Tìm chủ đề..." value={filterSearch.topics} onChange={(e) => setFilterSearch({ ...filterSearch, topics: e.target.value })} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
               </div>
             </div>
             {MOCK_TOPICS_DATA.filter(t => t.name.toLowerCase().includes(filterSearch.topics.toLowerCase())).map(topic => (
@@ -347,7 +362,7 @@ export default function AdminVocabManagement() {
                       const topicLessonIds = topic.lessons.map(l => l.id);
                       newLessons = newLessons.filter(lid => !topicLessonIds.includes(lid));
                     }
-                    setActiveFilters({...activeFilters, topics: newTopics, lessons: newLessons});
+                    setActiveFilters({ ...activeFilters, topics: newTopics, lessons: newLessons });
                   }}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                 />
@@ -363,7 +378,7 @@ export default function AdminVocabManagement() {
                 <div className="px-3 pb-2">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                    <input type="text" placeholder="Tìm bài học..." value={filterSearch.lessons} onChange={(e) => setFilterSearch({...filterSearch, lessons: e.target.value})} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+                    <input type="text" placeholder="Tìm bài học..." value={filterSearch.lessons} onChange={(e) => setFilterSearch({ ...filterSearch, lessons: e.target.value })} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
                   </div>
                 </div>
                 {MOCK_TOPICS_DATA
@@ -377,7 +392,7 @@ export default function AdminVocabManagement() {
                         checked={activeFilters.lessons.includes(lesson.id)}
                         onChange={() => {
                           const newLessons = activeFilters.lessons.includes(lesson.id) ? activeFilters.lessons.filter(id => id !== lesson.id) : [...activeFilters.lessons, lesson.id];
-                          setActiveFilters({...activeFilters, lessons: newLessons});
+                          setActiveFilters({ ...activeFilters, lessons: newLessons });
                         }}
                         className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                       />
@@ -395,7 +410,7 @@ export default function AdminVocabManagement() {
                   checked={activeFilters.types.includes(type)}
                   onChange={() => {
                     const newTypes = activeFilters.types.includes(type) ? activeFilters.types.filter(t => t !== type) : [...activeFilters.types, type];
-                    setActiveFilters({...activeFilters, types: newTypes});
+                    setActiveFilters({ ...activeFilters, types: newTypes });
                   }}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                 />
@@ -411,7 +426,7 @@ export default function AdminVocabManagement() {
                   checked={activeFilters.levels.includes(level)}
                   onChange={() => {
                     const newLevels = activeFilters.levels.includes(level) ? activeFilters.levels.filter(l => l !== level) : [...activeFilters.levels, level];
-                    setActiveFilters({...activeFilters, levels: newLevels});
+                    setActiveFilters({ ...activeFilters, levels: newLevels });
                   }}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                 />
@@ -423,7 +438,7 @@ export default function AdminVocabManagement() {
 
         <div className="flex gap-3 items-center">
           {!isSelectMode && (
-            <button 
+            <button
               onClick={() => setShowAddWordModal(true)}
               className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-sm transition-colors mr-2"
             >
@@ -433,42 +448,39 @@ export default function AdminVocabManagement() {
 
           {isSelectMode && (
             <>
-              <button 
+              <button
                 onClick={() => handleOpenEditModal(vocabularies.filter(w => selectedIds.includes(w.id)))}
                 disabled={selectedIds.length === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${
-                  selectedIds.length > 0
-                    ? 'bg-white text-cyan-700 border-cyan-300 hover:bg-cyan-50 cursor-pointer'
-                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${selectedIds.length > 0
+                  ? 'bg-white text-cyan-700 border-cyan-300 hover:bg-cyan-50 cursor-pointer'
+                  : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
+                  }`}
               >
                 <Edit2 size={18} /> Chỉnh sửa ({selectedIds.length})
               </button>
 
-              <button 
+              <button
                 onClick={() => handleOpenDeleteModal(null)}
                 disabled={selectedIds.length === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${
-                  selectedIds.length > 0 
-                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer' 
-                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${selectedIds.length > 0
+                  ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer'
+                  : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
+                  }`}
               >
                 <Trash2 size={18} /> Xóa ({selectedIds.length})
               </button>
             </>
           )}
-          
-          <button 
+
+          <button
             onClick={() => {
               setIsSelectMode(!isSelectMode);
-              if (isSelectMode) setSelectedIds([]); 
+              if (isSelectMode) setSelectedIds([]);
             }}
-            className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-colors ${
-              isSelectMode 
-                ? 'bg-[#164e63] text-white' 
-                : 'bg-[#0e7490] hover:bg-[#164e63] text-white'
-            }`}
+            className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-colors ${isSelectMode
+              ? 'bg-[#164e63] text-white'
+              : 'bg-[#0e7490] hover:bg-[#164e63] text-white'
+              }`}
           >
             {isSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
           </button>
@@ -476,23 +488,23 @@ export default function AdminVocabManagement() {
       </div>
 
 
-      <VocabTable 
+      <VocabTable
         words={filteredVocabularies}
         searchTerm={searchTerm}
         isSelectMode={isSelectMode}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
         onSelectAll={handleSelectAllCurrentPage}
-        ActionColumn={AdminActionColumn} 
+        ActionColumn={AdminActionColumn}
         showTopicColumn={true}
         showLessonColumn={true}
       />
-      
+
       {/* modal thêm từ vựng */}
       {showAddWordModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh] animate-in zoom-in duration-200 border border-gray-100 relative overflow-hidden">
-            
+
             <div className="p-5 border-b border-gray-100 shrink-0 bg-white z-20">
               <div className="flex justify-between items-center mb-5">
                 <h2 className="text-2xl font-black text-cyan-950">Thêm từ vựng mới</h2>
@@ -503,16 +515,16 @@ export default function AdminVocabManagement() {
 
               <div className="flex gap-3 items-center">
                 <div className="relative">
-                  <button 
+                  <button
                     onClick={() => setShowImportDropdown(!showImportDropdown)}
                     className="flex items-center gap-2 px-4 py-2 bg-[#0e7490] hover:bg-[#164e63] text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
                   >
-                    <Upload size={18} /> Nhập file <ChevronDown size={16} className={`transition-transform ${showImportDropdown ? 'rotate-180' : ''}`}/>
+                    <Upload size={18} /> Nhập file <ChevronDown size={16} className={`transition-transform ${showImportDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   {showImportDropdown && (
                     <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 shadow-xl rounded-xl py-2 z-50">
-                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600"/> Nhập file CSV (.csv)</button>
-                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600"/> Nhập file Excel (.xlsx)</button>
+                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600" /> Nhập file CSV (.csv)</button>
+                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600" /> Nhập file Excel (.xlsx)</button>
                     </div>
                   )}
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
@@ -521,86 +533,115 @@ export default function AdminVocabManagement() {
             </div>
 
             <div className="flex-1 overflow-y-auto bg-gray-50/50 p-6">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[1000px]">
-                    <thead>
-                      <tr className="bg-cyan-50/50 border-b border-gray-200 text-cyan-900 text-xs uppercase tracking-wider">
-                        <th className="p-3 w-12 text-center">#</th>
-                        <th className="p-3 w-32">Chủ đề</th>
-                        <th className="p-3 w-32">Bài học</th>
-                        <th className="p-3 w-32">Từ vựng <span className="text-red-500">*</span></th>
-                        <th className="p-3 w-32">Phiên âm</th>
-                        <th className="p-3 w-32">Loại từ</th>
-                        <th className="p-3 w-40">Nghĩa <span className="text-red-500">*</span></th>
-                        <th className="p-3 w-24 text-center">Cấp độ</th>
-                        <th className="p-3 w-48">Ví dụ</th>
-                        <th className="p-3 w-12 text-center"></th>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[1000px]">
+                  <thead>
+                    <tr className="bg-cyan-50/50 border-b border-gray-200 text-cyan-900 text-xs uppercase tracking-wider">
+                      <th className="p-3 w-12 text-center">#</th>
+                      <th className="p-3 w-32">Chủ đề <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-32">Bài học <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-32">Từ vựng <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-32">Phiên âm <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-32">Loại từ <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-40">Nghĩa <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-24 text-center">Cấp độ <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-48">Ví dụ <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-12 text-center"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {draftWords.map((word, index) => (
+                      <tr key={word.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                        <td className="p-3 text-center text-gray-400 font-bold">{index + 1}</td>
+                        <td className="p-3">
+                          <select
+                            value={word.topic || ''}
+                            onChange={(e) => {
+                              handleDraftChange(word.id, 'topic', e.target.value);
+                              handleDraftChange(word.id, 'lesson', '');
+                            }}
+                            className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-700 bg-white"
+                          >
+                            <option value="">-- Chọn --</option>
+                            {MOCK_TOPICS_DATA.map(t => (
+                              <option key={t.id} value={t.name}>{t.name}</option>
+                            ))}
+                          </select>
+                        </td>
+
+                        <td className="p-3">
+                          {(() => {
+                            const selectedTopic = MOCK_TOPICS_DATA.find(t => t.name === word.topic);
+                            const availableLessons = selectedTopic ? selectedTopic.lessons : [];
+                            return (
+                              <select
+                                value={word.lesson || ''}
+                                onChange={(e) => handleDraftChange(word.id, 'lesson', e.target.value)}
+                                disabled={!word.topic}
+                                className={`w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm bg-white ${!word.topic ? 'opacity-50 cursor-not-allowed text-gray-400' : 'text-gray-700'
+                                  }`}
+                              >
+                                <option value="">-- Chọn --</option>
+                                {availableLessons.map(l => (
+                                  <option key={l.id} value={l.name}>{l.name}</option>
+                                ))}
+                              </select>
+                            );
+                          })()}
+                        </td>
+                        <td className="p-3"><input type="text" placeholder="Apple" value={word.word} onChange={(e) => handleDraftChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950" /></td>
+                        <td className="p-3"><input type="text" placeholder="/ˈæp.əl/" value={word.pronunciation} onChange={(e) => handleDraftChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600" /></td>
+                        <td className="p-3">
+                          <select
+                            value={word.word_type}
+                            onChange={(e) => handleDraftChange(word.id, 'word_type', e.target.value)}
+                            className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white"
+                          >
+                            <option value="Danh từ">Danh từ</option>
+                            <option value="Động từ">Động từ</option>
+                            <option value="Tính từ">Tính từ</option>
+                            <option value="Trạng từ">Trạng từ</option>
+                          </select>
+                        </td>
+                        <td className="p-3"><input type="text" placeholder="Quả táo" value={word.meaning} onChange={(e) => handleDraftChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium" /></td>
+                        <td className="p-3">
+                          <select
+                            value={word.level}
+                            onChange={(e) => handleDraftChange(word.id, 'level', parseInt(e.target.value))}
+                            className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white text-center"
+                          >
+                            {[1, 2, 3, 4, 5, 6].map(lvl => (
+                              <option key={lvl} value={lvl}>{lvl === 1 ? 'A1' : lvl === 2 ? 'A2' : lvl === 3 ? 'B1' : lvl === 4 ? 'B2' : lvl === 5 ? 'C1' : 'C2'}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="p-3"><input type="text" placeholder="I eat an apple." value={word.example} onChange={(e) => handleDraftChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic" /></td>
+                        <td className="p-3 text-center">
+                          {draftWords.length > 1 && (
+                            <button onClick={() => handleRemoveDraftRow(word.id)} className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded transition-colors"><Trash2 size={16} /></button>
+                          )}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {draftWords.map((word, index) => (
-                        <tr key={word.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                          <td className="p-3 text-center text-gray-400 font-bold">{index + 1}</td>
-                          <td className="p-3">
-                            <input type="text" placeholder="Tên chủ đề..." value={word.topic || ''} onChange={(e) => handleDraftChange(word.id, 'topic', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-700"/>
-                          </td>
-                          <td className="p-3">
-                            <input type="text" placeholder="Tên bài học..." value={word.lesson || ''} onChange={(e) => handleDraftChange(word.id, 'lesson', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-700"/>
-                          </td>
-                          <td className="p-3"><input type="text" placeholder="Apple" value={word.word} onChange={(e) => handleDraftChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950"/></td>
-                          <td className="p-3"><input type="text" placeholder="/ˈæp.əl/" value={word.pronunciation} onChange={(e) => handleDraftChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600"/></td>
-                          <td className="p-3">
-                            <select 
-                              value={word.word_type} 
-                              onChange={(e) => handleDraftChange(word.id, 'word_type', e.target.value)} 
-                              className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white"
-                            >
-                              <option value="Danh từ">Danh từ</option>
-                              <option value="Động từ">Động từ</option>
-                              <option value="Tính từ">Tính từ</option>
-                              <option value="Trạng từ">Trạng từ</option>
-                            </select>
-                          </td>
-                          <td className="p-3"><input type="text" placeholder="Quả táo" value={word.meaning} onChange={(e) => handleDraftChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium"/></td>
-                          <td className="p-3">
-                            <select 
-                              value={word.level} 
-                              onChange={(e) => handleDraftChange(word.id, 'level', parseInt(e.target.value))} 
-                              className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white text-center"
-                            >
-                              {[1, 2, 3, 4, 5, 6].map(lvl => (
-                                <option key={lvl} value={lvl}>{lvl === 1 ? 'A1' : lvl === 2 ? 'A2' : lvl === 3 ? 'B1' : lvl === 4 ? 'B2' : lvl === 5 ? 'C1' : 'C2'}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="p-3"><input type="text" placeholder="I eat an apple." value={word.example} onChange={(e) => handleDraftChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic"/></td>
-                          <td className="p-3 text-center">
-                            {draftWords.length > 1 && (
-                              <button onClick={() => handleRemoveDraftRow(word.id)} className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded transition-colors"><Trash2 size={16}/></button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <button onClick={handleAddDraftRow} className="w-full py-3 bg-gray-50 hover:bg-cyan-50 text-cyan-700 text-sm font-bold flex justify-center items-center gap-2 border-t border-gray-200 transition-colors">
-                    <Plus size={18}/> Thêm dòng
-                  </button>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
+                <button onClick={handleAddDraftRow} className="w-full py-3 bg-gray-50 hover:bg-cyan-50 text-cyan-700 text-sm font-bold flex justify-center items-center gap-2 border-t border-gray-200 transition-colors">
+                  <Plus size={18} /> Thêm dòng
+                </button>
+              </div>
             </div>
 
             <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
               <button onClick={handleCloseAddModal} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">
                 Hủy
               </button>
-              <button 
+              <button
                 onClick={handleSaveNewWords}
                 disabled={isSaving}
-                className={`px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 ${
-                  isSaving 
-                    ? 'bg-gray-400 text-white cursor-not-allowed' 
-                    : 'bg-[#65a30d] hover:bg-[#4d7c0f] text-white hover:shadow-xl hover:-translate-y-0.5'
-                }`}
+                className={`px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 ${isSaving
+                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                  : 'bg-[#65a30d] hover:bg-[#4d7c0f] text-white hover:shadow-xl hover:-translate-y-0.5'
+                  }`}
               >
                 {isSaving ? 'Đang kiểm tra dữ liệu...' : 'Lưu từ vựng'}
               </button>
@@ -610,7 +651,7 @@ export default function AdminVocabManagement() {
       )}
 
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={showExitWarning}
         onClose={() => setShowExitWarning(false)}
         onConfirm={forceCloseAddModal}
@@ -625,68 +666,68 @@ export default function AdminVocabManagement() {
       {showEditWordModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh] animate-in zoom-in duration-200 border border-gray-100 overflow-hidden">
-             
-             <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white z-10 shrink-0">
-                <h2 className="text-xl font-bold text-cyan-950 flex items-center gap-2">
-                  <Edit2 className="text-cyan-600"/> Chỉnh sửa {editingWords.length} từ vựng
-                </h2>
-                <button onClick={() => setShowEditWordModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><X size={24}/></button>
-             </div>
-             
-             <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[1000px]">
-                    <thead>
-                      <tr className="bg-cyan-50/50 border-b border-gray-200 text-cyan-900 text-xs uppercase tracking-wider">
-                        <th className="p-3 w-12 text-center">#</th>
-                        <th className="p-3 w-32">Từ vựng <span className="text-red-500">*</span></th>
-                        <th className="p-3 w-32">Phiên âm</th>
-                        <th className="p-3 w-32">Loại từ</th>
-                        <th className="p-3 w-40">Nghĩa <span className="text-red-500">*</span></th>
-                        <th className="p-3 w-24 text-center">Cấp độ</th>
-                        <th className="p-3 w-48">Ví dụ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {editingWords.map((word, index) => (
-                         <tr key={word.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                            <td className="p-3 text-center text-gray-400 font-bold">{index + 1}</td>
-                            <td className="p-3"><input type="text" value={word.word} onChange={(e) => handleEditWordChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950"/></td>
-                            <td className="p-3"><input type="text" value={word.pronunciation} onChange={(e) => handleEditWordChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600"/></td>
-                            <td className="p-3">
-                              <select value={word.word_type} onChange={(e) => handleEditWordChange(word.id, 'word_type', e.target.value)} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white">
-                                <option value="Danh từ">Danh từ</option>
-                                <option value="Động từ">Động từ</option>
-                                <option value="Tính từ">Tính từ</option>
-                                <option value="Trạng từ">Trạng từ</option>
-                              </select>
-                            </td>
-                            <td className="p-3"><input type="text" value={word.meaning} onChange={(e) => handleEditWordChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium"/></td>
-                            <td className="p-3">
-                              <select value={word.level} onChange={(e) => handleEditWordChange(word.id, 'level', parseInt(e.target.value))} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white text-center">
-                                {[1, 2, 3, 4, 5, 6].map(lvl => (
-                                  <option key={lvl} value={lvl}>{lvl === 1 ? 'A1' : lvl === 2 ? 'A2' : lvl === 3 ? 'B1' : lvl === 4 ? 'B2' : lvl === 5 ? 'C1' : 'C2'}</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="p-3"><input type="text" value={word.example} onChange={(e) => handleEditWordChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic"/></td>
-                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-               </div>
-             </div>
 
-             <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
-               <button onClick={() => setShowEditWordModal(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">Hủy</button>
-               <button onClick={handleSaveEditedWords} className="px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all bg-[#0e7490] hover:bg-[#164e63] text-white">Xác nhận Lưu</button>
-             </div>
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white z-10 shrink-0">
+              <h2 className="text-xl font-bold text-cyan-950 flex items-center gap-2">
+                <Edit2 className="text-cyan-600" /> Chỉnh sửa {editingWords.length} từ vựng
+              </h2>
+              <button onClick={() => setShowEditWordModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><X size={24} /></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[1000px]">
+                  <thead>
+                    <tr className="bg-cyan-50/50 border-b border-gray-200 text-cyan-900 text-xs uppercase tracking-wider">
+                      <th className="p-3 w-12 text-center">#</th>
+                      <th className="p-3 w-32">Từ vựng <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-32">Phiên âm</th>
+                      <th className="p-3 w-32">Loại từ</th>
+                      <th className="p-3 w-40">Nghĩa <span className="text-red-500">*</span></th>
+                      <th className="p-3 w-24 text-center">Cấp độ</th>
+                      <th className="p-3 w-48">Ví dụ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {editingWords.map((word, index) => (
+                      <tr key={word.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                        <td className="p-3 text-center text-gray-400 font-bold">{index + 1}</td>
+                        <td className="p-3"><input type="text" value={word.word} onChange={(e) => handleEditWordChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950" /></td>
+                        <td className="p-3"><input type="text" value={word.pronunciation} onChange={(e) => handleEditWordChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600" /></td>
+                        <td className="p-3">
+                          <select value={word.word_type} onChange={(e) => handleEditWordChange(word.id, 'word_type', e.target.value)} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white">
+                            <option value="Danh từ">Danh từ</option>
+                            <option value="Động từ">Động từ</option>
+                            <option value="Tính từ">Tính từ</option>
+                            <option value="Trạng từ">Trạng từ</option>
+                          </select>
+                        </td>
+                        <td className="p-3"><input type="text" value={word.meaning} onChange={(e) => handleEditWordChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium" /></td>
+                        <td className="p-3">
+                          <select value={word.level} onChange={(e) => handleEditWordChange(word.id, 'level', parseInt(e.target.value))} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white text-center">
+                            {[1, 2, 3, 4, 5, 6].map(lvl => (
+                              <option key={lvl} value={lvl}>{lvl === 1 ? 'A1' : lvl === 2 ? 'A2' : lvl === 3 ? 'B1' : lvl === 4 ? 'B2' : lvl === 5 ? 'C1' : 'C2'}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="p-3"><input type="text" value={word.example} onChange={(e) => handleEditWordChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic" /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
+              <button onClick={() => setShowEditWordModal(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">Hủy</button>
+              <button onClick={handleSaveEditedWords} className="px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all bg-[#0e7490] hover:bg-[#164e63] text-white">Xác nhận Lưu</button>
+            </div>
           </div>
         </div>
       )}
 
       {/* xác nhận xóa */}
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}

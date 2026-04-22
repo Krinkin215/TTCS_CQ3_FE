@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FolderPlus, Search, X, Filter, Heart, Plus, Upload, FileText, Zap, ChevronDown, Trash2, HelpCircle, Download, AlertTriangle, FileSpreadsheet } from 'lucide-react';
-import VocabTable from '../src_components/VocabTable'; 
+import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
 import SearchBar from '../src_components/SearchBar';
 import FilterDropdown from '../src_components/FilterDropdown';
 
-const CURRENT_USER_ID = 5; 
+const CURRENT_USER_ID = 5;
 const ADMIN_USER_ID = 1;
 
 const MOCK_VOCABULARIES = [
@@ -27,7 +27,7 @@ const MOCK_VOCABULARIES = [
 ];
 
 const MOCK_COLLECTIONS = [
-  { id: 0, name: 'Từ vựng của tôi' }, 
+  { id: 0, name: 'Từ vựng của tôi' },
   { id: 1, name: 'Từ vựng luyện thi TOEIC' },
   { id: 2, name: 'Communication English' },
   { id: 3, name: 'Từ khó nhớ - A1/A2' },
@@ -49,56 +49,56 @@ const FILTER_OPTIONS = {
 const ITEMS_PER_PAGE = 10;
 
 function VocabularyPage({ initialFilter }) {
-  
+
 
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
-  const [wordToAdd, setWordToAdd] = useState(null); 
-  const [isBulkAddMode, setIsBulkAddMode] = useState(false); 
-  const [modalSearchTerm, setModalSearchTerm] = useState(''); 
+  const [wordToAdd, setWordToAdd] = useState(null);
+  const [isBulkAddMode, setIsBulkAddMode] = useState(false);
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
 
   const [vocabularies, setVocabularies] = useState(MOCK_VOCABULARIES);
   const [collectionVocabDB, setCollectionVocabDB] = useState([]);
   const [favoriteVocabDB, setFavoriteVocabDB] = useState([1, 3]);
 
-  
+
   // modal thêm từ mới
   const [showAddWordModal, setShowAddWordModal] = useState(false);
-  const [addWordTab, setAddWordTab] = useState('manual'); 
+  const [addWordTab, setAddWordTab] = useState('manual');
   const [showImportDropdown, setShowImportDropdown] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [showExitWarning, setShowExitWarning] = useState(false);
-  
+
   const fileInputRef = useRef(null);
 
   const defaultDraftRow = { id: Date.now(), word: '', pronunciation: '', word_type: '', meaning: '', level: 1, example: '' };
   const [draftWords, setDraftWords] = useState([{ ...defaultDraftRow }]);
-  
+
   const [pasteText, setPasteText] = useState('');
-  const [isSaving, setIsSaving] = useState(false); 
+  const [isSaving, setIsSaving] = useState(false);
 
   // bộ lọc
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [openFilterDropdown, setOpenFilterDropdown] = useState(null); 
+  const [openFilterDropdown, setOpenFilterDropdown] = useState(null);
   const [filterSearch, setFilterSearch] = useState({ collections: '', topics: '' });
 
   const initialFilters = { collections: [], topics: [], statuses: [], types: [], levels: [] };
-  const [activeFilters, setActiveFilters] = useState(initialFilters); 
-  const [draftFilters, setDraftFilters] = useState(initialFilters);  
+  const [activeFilters, setActiveFilters] = useState(initialFilters);
+  const [draftFilters, setDraftFilters] = useState(initialFilters);
 
   useEffect(() => {
     const baseFilters = { collections: [], topics: [], statuses: [], types: [], levels: [] };
-    
+
     if (initialFilter) {
       let statusesToSet = [initialFilter];
       if (initialFilter === 'Tổng từ đã học') {
         statusesToSet = ['Đã thuộc', 'Đã học', 'Chưa thuộc'];
       }
-      
+
       const newFilters = { ...baseFilters, statuses: statusesToSet };
       setActiveFilters(newFilters);
       setDraftFilters(newFilters);
@@ -110,8 +110,8 @@ function VocabularyPage({ initialFilter }) {
 
   const toggleDraftFilter = (category, value) => {
     setDraftFilters(prev => {
-      let newCategoryValues = prev[category].includes(value) 
-        ? prev[category].filter(v => v !== value) 
+      let newCategoryValues = prev[category].includes(value)
+        ? prev[category].filter(v => v !== value)
         : [...prev[category], value];
 
       if (category === 'statuses') {
@@ -161,7 +161,7 @@ function VocabularyPage({ initialFilter }) {
       const levelInts = activeFilters.levels.map(l => LEVEL_STR_TO_INT[l]).filter(Boolean);
       if (!levelInts.includes(word.level)) return false;
     }
-    
+
     let mockStatus = 'Chưa học';
     if (word.isFavorite) {
       mockStatus = 'Đã thuộc';
@@ -177,8 +177,8 @@ function VocabularyPage({ initialFilter }) {
       const wColls = word.collectionIds || [];
       const isMatch = activeFilters.collections.some(id => {
         if (id === 0) return word.created_by === CURRENT_USER_ID || wColls.includes(0);
-        
-        return wColls.includes(id); 
+
+        return wColls.includes(id);
       });
       if (!isMatch) return false;
     }
@@ -199,8 +199,8 @@ function VocabularyPage({ initialFilter }) {
 
   // 2. Kiểm tra trước khi thoát 
   const handleCloseAddModal = () => {
-    const hasUnsavedData = addWordTab === 'manual' 
-      ? draftWords.some(w => w.word.trim() || w.meaning.trim()) 
+    const hasUnsavedData = addWordTab === 'manual'
+      ? draftWords.some(w => w.word.trim() || w.meaning.trim())
       : pasteText.trim().length > 0;
 
     if (hasUnsavedData) {
@@ -228,7 +228,7 @@ function VocabularyPage({ initialFilter }) {
       const LEVEL_TO_INT = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
       wordsToProcess = lines.map((line, idx) => {
         const parts = line.split('|').map(p => p.trim());
-        if (parts.length >= 2 && parts[0] && parts[3]) { 
+        if (parts.length >= 2 && parts[0] && parts[3]) {
           return {
             id: Date.now() + idx,
             word: parts[0], pronunciation: parts[1] || '', word_type: parts[2] || '',
@@ -245,16 +245,16 @@ function VocabularyPage({ initialFilter }) {
       return;
     }
 
-    setIsSaving(true); 
-    
+    setIsSaving(true);
+
     let addedCount = 0;
     let duplicateCount = 0;
     let formatErrorCount = 0;
     let apiErrorCount = 0;
     const currentVocabs = [...vocabularies];
 
-    const wordRegex = /^[a-zA-Z\s-]+$/; 
-    const pronunRegex = /^\/.*\/$/;     
+    const wordRegex = /^[a-zA-Z\s-]+$/;
+    const pronunRegex = /^\/.*\/$/;
 
     for (const newWord of wordsToProcess) {
       const wordTrimmed = newWord.word.trim();
@@ -276,26 +276,26 @@ function VocabularyPage({ initialFilter }) {
       // TRA TỪ ĐIỂN THỰC TẾ 
       try {
         const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${wordTrimmed}`);
-        if (!response.ok) { 
-          apiErrorCount++; 
-          continue; 
+        if (!response.ok) {
+          apiErrorCount++;
+          continue;
         }
       } catch (error) {
         console.warn("Lỗi kết nối API từ điển, tạm bỏ qua check ngữ nghĩa.");
       }
 
       // PASS TOÀN BỘ -> ĐƯỢC PHÉP LƯU
-      currentVocabs.unshift({ 
-        ...newWord, 
-        word: wordTrimmed, 
-        id: Date.now() + Math.random(), 
-        created_by: CURRENT_USER_ID 
+      currentVocabs.unshift({
+        ...newWord,
+        word: wordTrimmed,
+        id: Date.now() + Math.random(),
+        created_by: CURRENT_USER_ID
       });
       addedCount++;
     }
 
     setVocabularies(currentVocabs);
-    setIsSaving(false); 
+    setIsSaving(false);
 
     // TỔNG HỢP BÁO CÁO CHO NGƯỜI DÙNG
     let alertMsg = `KẾT QUẢ THÊM TỪ VỰNG:\n\n`;
@@ -336,7 +336,7 @@ function VocabularyPage({ initialFilter }) {
   };
 
   const toggleFavorite = (id) => {
-    setFavoriteVocabDB(prev => 
+    setFavoriteVocabDB(prev =>
       prev.includes(id) ? prev.filter(vId => vId !== id) : [...prev, id]
     );
   };
@@ -354,7 +354,7 @@ function VocabularyPage({ initialFilter }) {
     if (favoritedCount > 0) alertMsg += `⚠️ Bỏ qua: ${favoritedCount} từ (Vì đã nằm trong danh sách Yêu thích rồi).`;
 
     alert(alertMsg);
-    
+
     setIsSelectMode(false);
     setSelectedIds([]);
   };
@@ -368,13 +368,13 @@ function VocabularyPage({ initialFilter }) {
   const handleOpenAddToCollectionModal = (word = null) => {
     if (word) {
       setWordToAdd(word);
-      setIsBulkAddMode(false); 
+      setIsBulkAddMode(false);
     } else {
       setWordToAdd(null);
-      setIsBulkAddMode(true);  
+      setIsBulkAddMode(true);
     }
-    setSelectedCollectionIds([]); 
-    setModalSearchTerm('');       
+    setSelectedCollectionIds([]);
+    setModalSearchTerm('');
     setShowAddToCollectionModal(true);
   };
 
@@ -393,16 +393,16 @@ function VocabularyPage({ initialFilter }) {
   const handleConfirmAddToCollections = (targetCollectionIds) => {
     let addedCount = 0;
     let duplicateCount = 0;
-    
+
     const wordIdsToProcess = isBulkAddMode ? selectedIds : [wordToAdd.id];
     const newDB = [...collectionVocabDB];
 
     wordIdsToProcess.forEach(wId => {
       targetCollectionIds.forEach(cId => {
         const isDuplicate = newDB.some(record => record.vocabId === wId && record.collectionId === cId);
-        
+
         if (isDuplicate) {
-          duplicateCount++; 
+          duplicateCount++;
         } else {
           newDB.push({ vocabId: wId, collectionId: cId });
           addedCount++;
@@ -410,12 +410,12 @@ function VocabularyPage({ initialFilter }) {
       });
     });
 
-    setCollectionVocabDB(newDB); 
+    setCollectionVocabDB(newDB);
 
     let alertMsg = `KẾT QUẢ THÊM VÀO BỘ TỪ:\n\n`;
     if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} lượt từ vào các bộ.\n`;
     if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} lượt (Vì từ đã tồn tại sẵn trong bộ được chọn).`;
-    
+
     alert(alertMsg);
 
     setShowAddToCollectionModal(false);
@@ -436,19 +436,19 @@ function VocabularyPage({ initialFilter }) {
 
     return (
       <div className="flex items-center justify-center gap-2">
-        <button 
+        <button
           onClick={() => handleOpenAddToCollectionModal(item)}
           className="px-3 py-1.5 bg-white border border-cyan-200 text-cyan-700 rounded-lg text-xs font-bold shadow-sm hover:bg-cyan-50 transition-colors whitespace-nowrap"
         >
           + Bộ từ
         </button>
-        <button 
+        <button
           onClick={() => toggleFavorite(item.id)}
           className="p-2 rounded-full transition-all hover:scale-110 hover:bg-red-50"
         >
-          <Heart 
-            size={22} 
-            fill={isFav ? "currentColor" : "none"} 
+          <Heart
+            size={22}
+            fill={isFav ? "currentColor" : "none"}
             className={`transition-colors duration-300 ${isFav ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}`}
           />
         </button>
@@ -459,9 +459,9 @@ function VocabularyPage({ initialFilter }) {
   const renderFilterDropdown = (title, category, options, isObject = false, searchKey = null) => {
     const isOpen = openFilterDropdown === category;
     let displayOptions = options;
-    
+
     if (searchKey) {
-      displayOptions = options.filter(opt => 
+      displayOptions = options.filter(opt =>
         (isObject ? opt.name : opt).toLowerCase().includes(filterSearch[searchKey].toLowerCase())
       );
     }
@@ -473,15 +473,15 @@ function VocabularyPage({ initialFilter }) {
       <div className="col-span-1 flex flex-col justify-start">
         <label className="block text-sm font-bold text-gray-700 mb-1.5">{title}</label>
         <div className="relative">
-          <div 
+          <div
             onClick={() => setOpenFilterDropdown(isOpen ? null : category)}
             className={`w-full px-4 py-2.5 border rounded-xl cursor-pointer flex justify-between items-center transition-colors ${isOpen ? 'bg-cyan-50 border-cyan-400' : 'bg-white border-gray-300 hover:border-cyan-400'}`}
           >
             <span className="text-gray-700 font-medium truncate pr-2">
-              {draftFilters[category].length === 0 
-                ? 'Tất cả' 
-                : draftFilters[category].length === allValues.length 
-                  ? 'Đã chọn tất cả' 
+              {draftFilters[category].length === 0
+                ? 'Tất cả'
+                : draftFilters[category].length === allValues.length
+                  ? 'Đã chọn tất cả'
                   : `Đã chọn (${draftFilters[category].length})`}
             </span>
             <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180 text-cyan-600' : ''}`} />
@@ -493,7 +493,7 @@ function VocabularyPage({ initialFilter }) {
                 <div className="p-2 border-b border-gray-100 shrink-0">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                    <input type="text" placeholder="Tìm kiếm..." value={filterSearch[searchKey]} onChange={(e) => setFilterSearch({...filterSearch, [searchKey]: e.target.value})} className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+                    <input type="text" placeholder="Tìm kiếm..." value={filterSearch[searchKey]} onChange={(e) => setFilterSearch({ ...filterSearch, [searchKey]: e.target.value })} className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
                   </div>
                 </div>
               )}
@@ -524,12 +524,12 @@ function VocabularyPage({ initialFilter }) {
 
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
-      
+
       {/* thanh công cụ */}
       <div className="bg-white rounded-[1.25rem] shadow-sm border border-gray-200 p-4 mb-6 flex justify-between items-center transition-all">
-        
+
         <div className="flex gap-4 items-center w-full max-w-xl">
-          <SearchBar 
+          <SearchBar
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Tìm kiếm từ vựng..."
@@ -553,7 +553,7 @@ function VocabularyPage({ initialFilter }) {
                     const newStatuses = activeFilters.statuses.includes(status)
                       ? activeFilters.statuses.filter(s => s !== status)
                       : [...activeFilters.statuses, status];
-                    setActiveFilters({...activeFilters, statuses: newStatuses});
+                    setActiveFilters({ ...activeFilters, statuses: newStatuses });
                   }}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                 />
@@ -571,7 +571,7 @@ function VocabularyPage({ initialFilter }) {
                     const newTypes = activeFilters.types.includes(type)
                       ? activeFilters.types.filter(t => t !== type)
                       : [...activeFilters.types, type];
-                    setActiveFilters({...activeFilters, types: newTypes});
+                    setActiveFilters({ ...activeFilters, types: newTypes });
                   }}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                 />
@@ -589,7 +589,7 @@ function VocabularyPage({ initialFilter }) {
                     const newLevels = activeFilters.levels.includes(level)
                       ? activeFilters.levels.filter(l => l !== level)
                       : [...activeFilters.levels, level];
-                    setActiveFilters({...activeFilters, levels: newLevels});
+                    setActiveFilters({ ...activeFilters, levels: newLevels });
                   }}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                 />
@@ -601,7 +601,7 @@ function VocabularyPage({ initialFilter }) {
             <div className="px-3 pb-2">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                <input type="text" placeholder="Tìm bộ từ..." value={filterSearch.collections} onChange={(e) => setFilterSearch({...filterSearch, collections: e.target.value})} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+                <input type="text" placeholder="Tìm bộ từ..." value={filterSearch.collections} onChange={(e) => setFilterSearch({ ...filterSearch, collections: e.target.value })} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
               </div>
             </div>
             {MOCK_COLLECTIONS.filter(c => c.name.toLowerCase().includes(filterSearch.collections.toLowerCase())).map(coll => (
@@ -613,7 +613,7 @@ function VocabularyPage({ initialFilter }) {
                     const newColls = activeFilters.collections.includes(coll.id)
                       ? activeFilters.collections.filter(c => c !== coll.id)
                       : [...activeFilters.collections, coll.id];
-                    setActiveFilters({...activeFilters, collections: newColls});
+                    setActiveFilters({ ...activeFilters, collections: newColls });
                   }}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                 />
@@ -625,7 +625,7 @@ function VocabularyPage({ initialFilter }) {
             <div className="px-3 pb-2">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                <input type="text" placeholder="Tìm chủ đề..." value={filterSearch.topics} onChange={(e) => setFilterSearch({...filterSearch, topics: e.target.value})} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
+                <input type="text" placeholder="Tìm chủ đề..." value={filterSearch.topics} onChange={(e) => setFilterSearch({ ...filterSearch, topics: e.target.value })} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
               </div>
             </div>
             {MOCK_TOPICS.filter(t => t.name.toLowerCase().includes(filterSearch.topics.toLowerCase())).map(topic => (
@@ -637,7 +637,7 @@ function VocabularyPage({ initialFilter }) {
                     const newTopics = activeFilters.topics.includes(topic.id)
                       ? activeFilters.topics.filter(t => t !== topic.id)
                       : [...activeFilters.topics, topic.id];
-                    setActiveFilters({...activeFilters, topics: newTopics});
+                    setActiveFilters({ ...activeFilters, topics: newTopics });
                   }}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                 />
@@ -649,7 +649,7 @@ function VocabularyPage({ initialFilter }) {
 
         <div className="flex gap-3 items-center">
           {!isSelectMode && (
-            <button 
+            <button
               onClick={() => setShowAddWordModal(true)}
               className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-sm transition-colors mr-2"
             >
@@ -659,62 +659,59 @@ function VocabularyPage({ initialFilter }) {
 
           {isSelectMode && (
             <>
-              <button 
+              <button
                 onClick={() => handleOpenAddToCollectionModal(null)}
                 disabled={selectedIds.length === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${
-                  selectedIds.length > 0
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${selectedIds.length > 0
                     ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
                     : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                }`}
+                  }`}
               >
                 <FolderPlus size={18} /> Thêm vào...
               </button>
 
-              <button 
+              <button
                 onClick={handleBulkFavorite}
                 disabled={unfavoritedSelectedCount === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${
-                  unfavoritedSelectedCount > 0 
-                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer' 
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${unfavoritedSelectedCount > 0
+                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer'
                     : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                }`}
+                  }`}
               >
-                <Heart size={18} fill={unfavoritedSelectedCount > 0 ? "currentColor" : "none"} /> 
+                <Heart size={18} fill={unfavoritedSelectedCount > 0 ? "currentColor" : "none"} />
                 Yêu thích ({unfavoritedSelectedCount})
               </button>
             </>
           )}
-          
-          <button 
+
+          <button
             onClick={() => {
               setIsSelectMode(!isSelectMode);
-              if (isSelectMode) setSelectedIds([]); 
+              if (isSelectMode) setSelectedIds([]);
             }}
-            className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-colors ${
-              isSelectMode 
-                ? 'bg-[#164e63] text-white' 
+            className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-colors ${isSelectMode
+                ? 'bg-[#164e63] text-white'
                 : 'bg-[#0e7490] hover:bg-[#164e63] text-white'
-            }`}
+              }`}
           >
             {isSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
           </button>
         </div>
       </div>
 
-      
-      <VocabTable 
+
+      <VocabTable
         words={filteredVocabularies}
         searchTerm={searchTerm}
         isSelectMode={isSelectMode}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
         onSelectAll={handleSelectAllCurrentPage}
-        ActionColumn={VocabularyActionColumn} 
+        ActionColumn={VocabularyActionColumn}
       />
 
       {/* modal thêm vào bộ từ */}
-      <AddToCollectionModal 
+      <AddToCollectionModal
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}
         isBulkMode={isBulkAddMode}
@@ -723,13 +720,13 @@ function VocabularyPage({ initialFilter }) {
         collections={MOCK_COLLECTIONS}
         onConfirm={handleConfirmAddToCollections}
       />
-      
+
       {/* modal thêm từ vựng */}
       {showAddWordModal && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] animate-in zoom-in duration-200 border border-gray-100 relative overflow-hidden">
-            
-            
+
+
             <div className="p-5 border-b border-gray-100 shrink-0 bg-white z-20">
               <div className="flex justify-between items-center mb-5">
                 <h2 className="text-2xl font-black text-cyan-950">Thêm từ vựng mới</h2>
@@ -740,39 +737,39 @@ function VocabularyPage({ initialFilter }) {
 
               <div className="flex gap-3 items-center">
                 <div className="relative">
-                  <button 
+                  <button
                     onClick={() => setShowImportDropdown(!showImportDropdown)}
                     className="flex items-center gap-2 px-4 py-2 bg-[#0e7490] hover:bg-[#164e63] text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
                   >
-                    <Upload size={18} /> Nhập file <ChevronDown size={16} className={`transition-transform ${showImportDropdown ? 'rotate-180' : ''}`}/>
+                    <Upload size={18} /> Nhập file <ChevronDown size={16} className={`transition-transform ${showImportDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   {showImportDropdown && (
                     <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 shadow-xl rounded-xl py-2 z-50">
-                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600"/> Nhập file CSV (.csv)</button>
-                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600"/> Nhập file Excel (.xlsx)</button>
+                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600" /> Nhập file CSV (.csv)</button>
+                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600" /> Nhập file Excel (.xlsx)</button>
                     </div>
                   )}
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
                 </div>
 
                 <button onClick={() => setShowGuideModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-bold rounded-lg transition-colors shadow-sm">
-                  <HelpCircle size={18} className="text-cyan-600"/> Hướng dẫn
+                  <HelpCircle size={18} className="text-cyan-600" /> Hướng dẫn
                 </button>
 
                 <div className="w-px h-6 bg-gray-200 mx-1"></div>
 
-                <button 
+                <button
                   onClick={() => setAddWordTab(addWordTab === 'manual' ? 'paste' : 'manual')}
                   className={`flex items-center gap-2 px-4 py-2 border text-sm font-bold rounded-lg transition-colors shadow-sm ${addWordTab === 'paste' ? 'bg-cyan-100 border-cyan-300 text-cyan-800' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
                 >
-                  <Zap size={18} className={addWordTab === 'paste' ? 'text-orange-500 fill-orange-500' : 'text-orange-400'}/> Thêm nhanh (Paste)
+                  <Zap size={18} className={addWordTab === 'paste' ? 'text-orange-500 fill-orange-500' : 'text-orange-400'} /> Thêm nhanh (Paste)
                 </button>
               </div>
             </div>
 
-            
+
             <div className="flex-1 overflow-y-auto bg-gray-50/50 p-6">
-              
+
               {/* tab nhập thủ công */}
               {addWordTab === 'manual' && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -793,13 +790,13 @@ function VocabularyPage({ initialFilter }) {
                       {draftWords.map((word, index) => (
                         <tr key={word.id} className="border-b border-gray-100 hover:bg-gray-50/50">
                           <td className="p-3 text-center text-gray-400 font-bold">{index + 1}</td>
-                          <td className="p-3"><input type="text" placeholder="Apple" value={word.word} onChange={(e) => handleDraftChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950"/></td>
-                          <td className="p-3"><input type="text" placeholder="/ˈæp.əl/" value={word.pronunciation} onChange={(e) => handleDraftChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600"/></td>
+                          <td className="p-3"><input type="text" placeholder="Apple" value={word.word} onChange={(e) => handleDraftChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950" /></td>
+                          <td className="p-3"><input type="text" placeholder="/ˈæp.əl/" value={word.pronunciation} onChange={(e) => handleDraftChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600" /></td>
                           <td className="p-3">
                             <div className="relative">
-                              <select 
-                                value={word.word_type} 
-                                onChange={(e) => handleDraftChange(word.id, 'word_type', e.target.value)} 
+                              <select
+                                value={word.word_type}
+                                onChange={(e) => handleDraftChange(word.id, 'word_type', e.target.value)}
                                 className="w-full pl-3 pr-9 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white appearance-none cursor-pointer"
                               >
                                 <option value="Danh từ">Danh từ</option>
@@ -812,12 +809,12 @@ function VocabularyPage({ initialFilter }) {
                               </div>
                             </div>
                           </td>
-                          <td className="p-3"><input type="text" placeholder="Quả táo" value={word.meaning} onChange={(e) => handleDraftChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium"/></td>
+                          <td className="p-3"><input type="text" placeholder="Quả táo" value={word.meaning} onChange={(e) => handleDraftChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium" /></td>
                           <td className="p-3">
                             <div className="relative">
-                              <select 
-                                value={word.level} 
-                                onChange={(e) => handleDraftChange(word.id, 'level', parseInt(e.target.value))} 
+                              <select
+                                value={word.level}
+                                onChange={(e) => handleDraftChange(word.id, 'level', parseInt(e.target.value))}
                                 className="w-full pl-3 pr-8 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white appearance-none cursor-pointer text-center"
                               >
                                 {[1, 2, 3, 4, 5, 6].map(lvl => (
@@ -831,10 +828,10 @@ function VocabularyPage({ initialFilter }) {
                               </div>
                             </div>
                           </td>
-                          <td className="p-3"><input type="text" placeholder="I eat an apple." value={word.example} onChange={(e) => handleDraftChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic"/></td>
+                          <td className="p-3"><input type="text" placeholder="I eat an apple." value={word.example} onChange={(e) => handleDraftChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic" /></td>
                           <td className="p-3 text-center">
                             {draftWords.length > 1 && (
-                              <button onClick={() => handleRemoveDraftRow(word.id)} className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded transition-colors"><Trash2 size={16}/></button>
+                              <button onClick={() => handleRemoveDraftRow(word.id)} className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded transition-colors"><Trash2 size={16} /></button>
                             )}
                           </td>
                         </tr>
@@ -842,7 +839,7 @@ function VocabularyPage({ initialFilter }) {
                     </tbody>
                   </table>
                   <button onClick={handleAddDraftRow} className="w-full py-3 bg-gray-50 hover:bg-cyan-50 text-cyan-700 text-sm font-bold flex justify-center items-center gap-2 border-t border-gray-200 transition-colors">
-                    <Plus size={18}/> Thêm dòng
+                    <Plus size={18} /> Thêm dòng
                   </button>
                 </div>
               )}
@@ -851,7 +848,7 @@ function VocabularyPage({ initialFilter }) {
               {addWordTab === 'paste' && (
                 <div className="flex flex-col h-full animate-in fade-in duration-300">
                   <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4 flex gap-3">
-                    <div className="bg-purple-200/50 p-2 rounded-lg h-fit text-purple-700"><Zap size={20} fill="currentColor"/></div>
+                    <div className="bg-purple-200/50 p-2 rounded-lg h-fit text-purple-700"><Zap size={20} fill="currentColor" /></div>
                     <div>
                       <h4 className="font-bold text-purple-900 mb-1 text-sm">Hướng dẫn dùng AI (ChatGPT, Gemini) để tạo từ vựng:</h4>
                       <p className="text-sm text-gray-700 mb-2">Hãy copy đoạn lệnh (prompt) dưới đây và dán vào AI cùng danh sách từ của bạn. Sau đó copy kết quả dán vào ô bên dưới.</p>
@@ -860,10 +857,10 @@ function VocabularyPage({ initialFilter }) {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex-1 relative">
                     <span className="absolute top-3 left-4 text-xs font-bold text-gray-400 uppercase tracking-wider z-10">Định dạng: Từ vựng | Phiên âm | Loại từ | Nghĩa | Cấp độ | Ví dụ</span>
-                    <textarea 
+                    <textarea
                       value={pasteText}
                       onChange={(e) => setPasteText(e.target.value)}
                       placeholder="apple | /ˈæp.əl/ | Danh từ | quả táo | A1 | I eat an apple&#10;determine | /dɪˈtɜː.mɪn/ | Động từ | xác định | B1 | Determine your goal"
@@ -874,19 +871,18 @@ function VocabularyPage({ initialFilter }) {
               )}
             </div>
 
-            
+
             <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
               <button onClick={handleCloseAddModal} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">
                 Hủy
               </button>
-              <button 
+              <button
                 onClick={handleSaveNewWords}
                 disabled={isSaving}
-                className={`px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 ${
-                  isSaving 
-                    ? 'bg-gray-400 text-white cursor-not-allowed' 
+                className={`px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 ${isSaving
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
                     : 'bg-[#65a30d] hover:bg-[#4d7c0f] text-white hover:shadow-xl hover:-translate-y-0.5'
-                }`}
+                  }`}
               >
                 {isSaving ? (
                   <>Đang kiểm tra dữ liệu...</>
@@ -904,8 +900,8 @@ function VocabularyPage({ initialFilter }) {
         <div className="fixed inset-0 bg-cyan-950/70 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-in zoom-in duration-200 overflow-hidden">
             <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-cyan-50/30">
-              <h3 className="text-xl font-bold text-cyan-950 flex items-center gap-2"><HelpCircle className="text-cyan-600"/> Hướng dẫn nhập từ vựng</h3>
-              <button onClick={() => setShowGuideModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full"><X size={20}/></button>
+              <h3 className="text-xl font-bold text-cyan-950 flex items-center gap-2"><HelpCircle className="text-cyan-600" /> Hướng dẫn nhập từ vựng</h3>
+              <button onClick={() => setShowGuideModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full"><X size={20} /></button>
             </div>
             <div className="p-6 text-sm text-gray-700 space-y-4">
               <p>Hệ thống hỗ trợ nhập dữ liệu hàng loạt qua file <strong>Excel (.xlsx)</strong> hoặc <strong>CSV (.csv)</strong>.</p>
@@ -923,10 +919,10 @@ function VocabularyPage({ initialFilter }) {
                 </li>
                 <li><strong className="text-cyan-800">Dòng đầu tiên:</strong> Có thể có hoặc không có Header (Tiêu đề cột).</li>
               </ul>
-              
+
               <div className="mt-6 pt-4 border-t border-gray-100 flex justify-center">
                 <button onClick={handleDownloadTemplate} className="flex items-center gap-2 px-6 py-2.5 bg-[#84cc16] hover:bg-[#65a30d] text-white font-bold rounded-lg shadow-md transition-colors">
-                  <Download size={18}/> Tải file mẫu (Template)
+                  <Download size={18} /> Tải file mẫu (Template)
                 </button>
               </div>
             </div>
@@ -934,7 +930,7 @@ function VocabularyPage({ initialFilter }) {
         </div>
       )}
 
-      
+
       {showExitWarning && (
         <div className="fixed inset-0 bg-cyan-950/80 z-[120] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in duration-200">

@@ -50,6 +50,9 @@ export default function AdminTopicManagement() {
   const [showEditTopicModal, setShowEditTopicModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(null);
   const [newTopicName, setNewTopicName] = useState('');
+  const [newTopicImage, setNewTopicImage] = useState('');
+  const [newTopicImageTab, setNewTopicImageTab] = useState('url'); // 'url' | 'upload'
+  const topicImageFileRef = useRef(null);
 
   const [showCreateLessonModal, setShowCreateLessonModal] = useState(false);
   const [newLessonName, setNewLessonName] = useState('');
@@ -85,7 +88,7 @@ export default function AdminTopicManagement() {
   const [movingWords, setMovingWords] = useState([]);
   const [moveTargetTopicId, setMoveTargetTopicId] = useState('');
   const [moveTargetLessonId, setMoveTargetLessonId] = useState('');
-  const [moveMode, setMoveMode] = useState('full'); // 'full' = chọn cả chủ đề + bài học, 'lesson-only' = chỉ bài học trong cùng chủ đề
+  const [moveMode, setMoveMode] = useState('full');
 
   // modal chỉnh sửa từ vựng
   const [showEditWordModal, setShowEditWordModal] = useState(false);
@@ -161,10 +164,25 @@ export default function AdminTopicManagement() {
     if (!newTopicName.trim()) return;
     const newId = Date.now();
     setTopics([...topics, {
-      id: newId, title: newTopicName, totalVocab: 0, color: 'bg-gray-100 text-gray-700', imageUrl: 'https://cdn-icons-png.flaticon.com/512/616/616408.png', lessons: []
+      id: newId,
+      title: newTopicName,
+      totalVocab: 0,
+      color: 'bg-gray-100 text-gray-700',
+      imageUrl: newTopicImage.trim() || 'https://cdn-icons-png.flaticon.com/512/616/616408.png',
+      lessons: []
     }]);
     setNewTopicName('');
+    setNewTopicImage('');
+    setNewTopicImageTab('url');
     setShowCreateTopicModal(false);
+  };
+
+  const handleTopicImageFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setNewTopicImage(ev.target.result);
+    reader.readAsDataURL(file);
   };
 
   const handleEditTopic = () => {
@@ -260,7 +278,7 @@ export default function AdminTopicManagement() {
     const targetLessonName = topics.find(t => t.id === targetTopicId)?.lessons.find(l => l.id === targetLessonId)?.name || '';
 
     const wordIdsToMove = movingWords.map(w => w.id);
-    
+
     setAllWords(prev => prev.map(w => {
       if (wordIdsToMove.includes(w.id)) {
         return { ...w, topicId: targetTopicId, lessonId: targetLessonId, lessonName: targetLessonName };
@@ -439,14 +457,108 @@ export default function AdminTopicManagement() {
 
       {/* modal tạo chủ đề */}
       <ModalWrapper isOpen={showCreateTopicModal} zIndex="z-[200]">
-        <h3 className="text-xl font-bold text-cyan-950 mb-4">Tạo chủ đề mới</h3>
-        <div className="mb-6">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Tên chủ đề</label>
-          <input type="text" value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none" placeholder="Nhập tên chủ đề..." autoFocus />
+        <h3 className="text-xl font-bold text-cyan-950 mb-5 flex items-center gap-2">
+          <Plus size={20} className="text-cyan-600" /> Tạo chủ đề mới
+        </h3>
+
+        {/* tên chủ đề */}
+        <div className="mb-5">
+          <label className="block text-sm font-bold text-gray-700 mb-2">Tên chủ đề <span className="text-red-500">*</span></label>
+          <input
+            type="text"
+            value={newTopicName}
+            onChange={(e) => setNewTopicName(e.target.value)}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none"
+            placeholder="Nhập tên chủ đề..."
+            autoFocus
+          />
         </div>
+
+        {/* ảnh chủ đề */}
+        <div className="mb-6">
+          <label className="block text-sm font-bold text-gray-700 mb-2">Ảnh chủ đề</label>
+
+          {/* tab switch */}
+          <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl w-fit">
+            <button
+              onClick={() => { setNewTopicImageTab('url'); setNewTopicImage(''); }}
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${newTopicImageTab === 'url' ? 'bg-white shadow text-cyan-700' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              URL ảnh
+            </button>
+            <button
+              onClick={() => { setNewTopicImageTab('upload'); setNewTopicImage(''); }}
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${newTopicImageTab === 'upload' ? 'bg-white shadow text-cyan-700' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Tải ảnh lên
+            </button>
+          </div>
+
+          <div className="flex gap-4 items-start">
+            {/* input */}
+            <div className="flex-1">
+              {newTopicImageTab === 'url' ? (
+                <input
+                  type="text"
+                  value={newTopicImage}
+                  onChange={(e) => setNewTopicImage(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none text-sm"
+                  placeholder="https://example.com/image.png"
+                />
+              ) : (
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={topicImageFileRef}
+                    onChange={handleTopicImageFileChange}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => topicImageFileRef.current?.click()}
+                    className="w-full px-4 py-3 border-2 border-dashed border-gray-300 hover:border-cyan-400 rounded-xl text-sm text-gray-500 hover:text-cyan-600 font-medium transition-colors bg-gray-50 hover:bg-cyan-50 text-left"
+                  >
+                    {newTopicImage ? '✓ Đã chọn ảnh — nhấn để đổi' : '📁 Nhấn để chọn file ảnh...'}
+                  </button>
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-1.5">Để trống sẽ dùng ảnh mặc định</p>
+            </div>
+
+            {/* preview */}
+            <div className="shrink-0 w-16 h-16 rounded-xl border-2 border-gray-200 bg-gray-100 flex items-center justify-center overflow-hidden">
+              {newTopicImage ? (
+                <img
+                  src={newTopicImage}
+                  alt="preview"
+                  className="w-full h-full object-contain"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <img
+                  src="https://cdn-icons-png.flaticon.com/512/616/616408.png"
+                  alt="default"
+                  className="w-10 h-10 object-contain opacity-30"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="flex justify-end gap-3">
-          <button onClick={() => setShowCreateTopicModal(false)} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">Hủy</button>
-          <button onClick={handleCreateTopic} disabled={!newTopicName.trim()} className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all">Xác nhận</button>
+          <button
+            onClick={() => { setShowCreateTopicModal(false); setNewTopicName(''); setNewTopicImage(''); setNewTopicImageTab('url'); }}
+            className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleCreateTopic}
+            disabled={!newTopicName.trim()}
+            className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all"
+          >
+            Xác nhận
+          </button>
         </div>
       </ModalWrapper>
 
