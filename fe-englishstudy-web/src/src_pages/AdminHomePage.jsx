@@ -52,12 +52,10 @@ export default function AdminHomePage({ onLogout }) {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const todayLearningCount = 850;
-
   const stats = [
-    { label: 'Tổng người dùng', value: '1,284', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Từ vựng hệ thống', value: '15,400', icon: BookOpen, color: 'text-cyan-600', bg: 'bg-cyan-50' },
-    { label: 'Lượt học hôm nay', value: todayLearningCount.toLocaleString(), icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: 'Tổng người dùng', value: '—', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Từ vựng hệ thống', value: '—', icon: BookOpen, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+    { label: 'Lượt học hôm nay', value: '—', icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50' },
   ];
 
   const renderNavBtn = (id, icon, label) => {

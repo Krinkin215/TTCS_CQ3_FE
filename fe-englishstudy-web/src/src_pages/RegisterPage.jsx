@@ -4,12 +4,11 @@ import { register as apiRegister } from '../src_utils/services/authService';
 
 
 function RegisterPage({ onNavigateToLogin }) {
-    // 1. Tạo state để lưu trữ dữ liệu người dùng nhập
+  // 1. Tạo state để lưu trữ dữ liệu người dùng nhập
   const [formData, setFormData] = useState({
     fullName: '',
     date_of_birth: '',
     email: '',
-    username: '',
     password: '',
     confirmPassword: ''
   });
@@ -26,23 +25,23 @@ function RegisterPage({ onNavigateToLogin }) {
 
   // Hàm kiểm tra độ mạnh của mật khẩu
   const validatePassword = (pass) => {
-    if (pass.length > 0 && pass.length < 8) {
-      return "Mật khẩu phải có ít nhất 8 ký tự.";
+    if (pass.length > 0 && pass.length < 6) {
+      return "Mật khẩu phải có ít nhất 6 ký tự.";
     }
     // Regex kiểm tra có ít nhất 1 chữ cái và 1 chữ số
-    const hasLetter = /[a-zA-Z]/.test(pass);
-    const hasNumber = /[0-9]/.test(pass);
-    
-    if (pass.length >= 8 && (!hasLetter || !hasNumber)) {
-      return "Mật khẩu phải bao gồm cả chữ cái và chữ số.";
-    }
+    // const hasLetter = /[a-zA-Z]/.test(pass);
+    // const hasNumber = /[0-9]/.test(pass);
+
+    // if (pass.length >= 8 && (!hasLetter || !hasNumber)) {
+    //   return "Mật khẩu phải bao gồm cả chữ cái và chữ số.";
+    // }
     return ""; // Không có lỗi
   };
 
   // Hàm xử lý khi người dùng gõ vào các ô input
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Cập nhật dữ liệu
     setFormData({
       ...formData,
@@ -53,7 +52,7 @@ function RegisterPage({ onNavigateToLogin }) {
     if (name === 'password') {
       const passError = validatePassword(value);
       setErrors(prev => ({ ...prev, password: passError }));
-      
+
       // Nếu đã gõ xác nhận mật khẩu rồi thì kiểm tra lại luôn xem có khớp không
       if (formData.confirmPassword && value !== formData.confirmPassword) {
         setErrors(prev => ({ ...prev, confirmPassword: "Mật khẩu xác nhận không khớp." }));
@@ -73,10 +72,9 @@ function RegisterPage({ onNavigateToLogin }) {
 
   // Hàm xử lý khi bấm nút Đăng ký
   const handleSubmit = async (e) => {
-    e.preventDefault(); 
-    
-    // 1. Kiểm tra xem các trường có bị bỏ trống không 
-    if (!formData.fullName || !formData.email || !formData.username || !formData.date_of_birth) {
+    e.preventDefault();
+
+    if (!formData.fullName || !formData.email || !formData.date_of_birth) {
       alert("Vui lòng điền đầy đủ thông tin!");
       return;
     }
@@ -91,10 +89,10 @@ function RegisterPage({ onNavigateToLogin }) {
     try {
       await apiRegister({
         fullName: formData.fullName,
-        date_of_birth: formData.date_of_birth,
+        dateOfBirth: formData.date_of_birth,
         email: formData.email,
-        username: formData.username,
-        password: formData.password
+        password: formData.password,
+        retypePassword: formData.confirmPassword
       });
 
       alert("Đăng ký tài khoản thành công! Mời bạn đăng nhập.");
@@ -105,9 +103,9 @@ function RegisterPage({ onNavigateToLogin }) {
   };
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#164e63] py-8">
-      
+
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
-        
+
         {/* Tiêu đề */}
         <div className="text-center mb-6">
           <h1 className="text-4xl font-extrabold text-[#083344]">EngLearn</h1>
@@ -118,7 +116,7 @@ function RegisterPage({ onNavigateToLogin }) {
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label className="block text-sm font-medium text-[#164e63] mb-1">Họ và tên đầy đủ</label>
-            <input 
+            <input
               type="text" name="fullName"
               value={formData.fullName} onChange={handleChange}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#0284c7] outline-none"
@@ -128,18 +126,18 @@ function RegisterPage({ onNavigateToLogin }) {
 
           <div>
             <label className="block text-sm font-medium text-cyan-900 mb-1">Ngày sinh</label>
-            <input 
-              type="date" 
-              name="date_of_birth"          
-              value={formData.date_of_birth} 
-              onChange={handleChange}        
+            <input
+              type="date"
+              name="date_of_birth"
+              value={formData.date_of_birth}
+              onChange={handleChange}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-[#164e63] mb-1">Email</label>
-            <input 
+            <input
               type="email" name="email"
               value={formData.email} onChange={handleChange}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#0284c7] outline-none"
@@ -147,28 +145,17 @@ function RegisterPage({ onNavigateToLogin }) {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-cyan-900 mb-1">Tên người dùng</label>
-            <input 
-              type="text" 
-              name="username"         
-              value={formData.username} 
-              onChange={handleChange}   
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
-              placeholder="Nhập tên người dùng..."
-            />
-          </div>
+
 
           <div>
             <label className="block text-sm font-medium text-[#164e63] mb-1">Mật khẩu</label>
             <div className="relative">
-              <input 
-                type={showPassword ? "text" : "password"} 
+              <input
+                type={showPassword ? "text" : "password"}
                 name="password"
                 value={formData.password} onChange={handleChange}
-                className={`w-full pl-4 pr-12 py-2.5 rounded-lg border focus:ring-2 outline-none transition-all ${
-                  errors.password ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-[#0284c7]'
-                }`}
+                className={`w-full pl-4 pr-12 py-2.5 rounded-lg border focus:ring-2 outline-none transition-all ${errors.password ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-[#0284c7]'
+                  }`}
                 placeholder="••••••••" required
               />
               <button
@@ -189,13 +176,12 @@ function RegisterPage({ onNavigateToLogin }) {
           <div>
             <label className="block text-sm font-medium text-[#164e63] mb-1">Xác nhận lại mật khẩu</label>
             <div className="relative">
-              <input 
-                type={showConfirmPassword ? "text" : "password"} 
+              <input
+                type={showConfirmPassword ? "text" : "password"}
                 name="confirmPassword"
                 value={formData.confirmPassword} onChange={handleChange}
-                className={`w-full pl-4 pr-12 py-2.5 rounded-lg border focus:ring-2 outline-none transition-all ${
-                  errors.confirmPassword ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-[#0284c7]'
-                }`}
+                className={`w-full pl-4 pr-12 py-2.5 rounded-lg border focus:ring-2 outline-none transition-all ${errors.confirmPassword ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-[#0284c7]'
+                  }`}
                 placeholder="••••••••" required
               />
               <button
@@ -215,9 +201,9 @@ function RegisterPage({ onNavigateToLogin }) {
 
           {/* Nút bấm Đăng ký */}
           <div className="pt-2">
-            <button 
+            <button
               type="submit"
-            className="w-full bg-[#0e7490] hover:bg-[#164e63] text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 shadow-lg"
+              className="w-full bg-[#0e7490] hover:bg-[#164e63] text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 shadow-lg"
             >
               Đăng ký ngay
             </button>
@@ -226,10 +212,10 @@ function RegisterPage({ onNavigateToLogin }) {
 
         {/* Phần footer chuyển trang */}
         <p className="text-center text-sm text-gray-900 mt-6">
-          Đã có tài khoản? 
+          Đã có tài khoản?
           {/* Nút bấm để chuyển về Đăng nhập */}
-          <button 
-            onClick={onNavigateToLogin} 
+          <button
+            onClick={onNavigateToLogin}
             className="text-[#0369a1] font-semibold hover:underline ml-1 focus:outline-none"
           >
             Đăng nhập
