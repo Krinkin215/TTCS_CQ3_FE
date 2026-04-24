@@ -1,11 +1,14 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, X, Filter, Plus, Edit2, Trash2, BookOpen, Eye, Check, ChevronRight, Copy, FolderInput, LogOut, MoreVertical, Gamepad2, ChevronDown, Settings, AlertTriangle } from 'lucide-react';
+import { Search, X, Filter, Plus, Edit2, Trash2, BookOpen, Eye, Check, ChevronRight, Copy, FolderInput, LogOut, MoreVertical, Gamepad2, ChevronDown, Settings, AlertTriangle, Upload } from 'lucide-react';
 import VocabTable from '../src_components/VocabTable';
 import SearchBar from '../src_components/SearchBar';
 import ConfirmModal from '../src_components/ConfirmModal';
 import ModalWrapper from '../src_components/ModalWrapper';
 import FilterDropdown from '../src_components/FilterDropdown';
+import { fetchTopics, fetchTopicById, createTopic as apiCreateTopic, updateTopic as apiUpdateTopic, deleteTopic as apiDeleteTopic, fetchTopicVocabularies, importTopicVocabularies } from '../src_utils/services/topicService';
+import { fetchLessons, fetchLessonById, createLesson as apiCreateLesson, updateLesson as apiUpdateLesson, deleteLesson as apiDeleteLesson } from '../src_utils/services/lessonService';
+import { updateVocabulary, deleteVocabulary, fetchVocabularyById } from '../src_utils/services/vocabService';
 
 const ADMIN_USER_ID = 1;
 
@@ -40,6 +43,55 @@ export default function AdminTopicManagement() {
   const [topics, setTopics] = useState(MOCK_TOPICS_DATA);
   const [allWords, setAllWords] = useState(MOCK_WORDS);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      setIsLoading(true);
+      try {
+        const [topicsRes, lessonsRes] = await Promise.allSettled([fetchTopics(), fetchLessons()]);
+        const topicsList = topicsRes.status === 'fulfilled'
+          ? (Array.isArray(topicsRes.value) ? topicsRes.value : (topicsRes.value?.items ?? topicsRes.value?.data ?? []))
+          : [];
+        const lessonsList = lessonsRes.status === 'fulfilled'
+          ? (Array.isArray(lessonsRes.value) ? lessonsRes.value : (lessonsRes.value?.items ?? lessonsRes.value?.data ?? []))
+          : [];
+
+        if (!cancelled && Array.isArray(topicsList) && topicsList.length > 0) {
+          const mappedTopics = topicsList.map((t) => {
+            const id = t.id ?? t.topicId ?? t.topic_id;
+            const title = t.title ?? t.name ?? '';
+            const imageUrl = t.imageUrl ?? t.image_url ?? '';
+            const topicLessons = Array.isArray(lessonsList)
+              ? lessonsList
+                  .filter((l) => (l.topicId ?? l.topic_id ?? l.topic?.id) === id)
+                  .map((l) => ({
+                    id: l.id ?? l.lessonId ?? l.lesson_id,
+                    name: l.name ?? l.title ?? '',
+                    difficulty: l.difficulty ?? l.level ?? 1
+                  }))
+              : [];
+            return {
+              id,
+              title,
+              totalVocab: t.totalVocab ?? t.total_vocab ?? 0,
+              color: 'bg-gray-100 text-gray-700',
+              imageUrl: imageUrl || 'https://cdn-icons-png.flaticon.com/512/616/616408.png',
+              lessons: topicLessons
+            };
+          });
+          setTopics(mappedTopics);
+        }
+      } catch {
+        // fallback giữ MOCK
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, []);
 
   // chọn nhiều chủ đỀ
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -94,6 +146,15 @@ export default function AdminTopicManagement() {
   const [showEditWordModal, setShowEditWordModal] = useState(false);
   const [editingWords, setEditingWords] = useState([]);
 
+  // import CSV cho chủ đề
+  const topicCsvFileRef = useRef(null);
+
+  // modal chỉnh sửa bài học
+  const [showEditLessonModal, setShowEditLessonModal] = useState(false);
+  const [editingLesson, setEditingLesson] = useState(null);
+  const [editLessonName, setEditLessonName] = useState('');
+  const [editLessonDifficulty, setEditLessonDifficulty] = useState(1);
+
   // menu hành động dùng chung, tránh nhiều menu mở cùng lúc
   const [openMenuId, setOpenMenuId] = useState(null);
   // vị trí của menu đang mở (fixed position)
@@ -122,7 +183,23 @@ export default function AdminTopicManagement() {
     setEditingWords(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
   };
 
-  const handleSaveEditedWords = () => {
+  const handleSaveEditedWords = async () => {
+    await Promise.all(
+      editingWords.map(async (w) => {
+        try {
+          await updateVocabulary(w.id, {
+            word: w.word,
+            pronunciation: w.pronunciation,
+            word_type: w.word_type,
+            meaning: w.meaning,
+            level: w.level,
+            example: w.example
+          });
+        } catch {
+          // ignore để UI vẫn cập nhật local
+        }
+      })
+    );
     setAllWords(prev => prev.map(cw => {
       const edited = editingWords.find(ew => ew.id === cw.id);
       return edited ? edited : cw;
@@ -148,33 +225,45 @@ export default function AdminTopicManagement() {
     setSelectedTopicIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const handleDeleteTopicConfirm = () => {
-    if (topicToDelete) {
-      setTopics(topics.filter(t => t.id !== topicToDelete.id));
-      setTopicToDelete(null);
-    } else {
-      setTopics(topics.filter(t => !selectedTopicIds.includes(t.id)));
-      setSelectedTopicIds([]);
-      setIsSelectMode(false);
+  const handleDeleteTopicConfirm = async () => {
+    try {
+      if (topicToDelete) {
+        await apiDeleteTopic(topicToDelete.id);
+        setTopics(topics.filter(t => t.id !== topicToDelete.id));
+        setTopicToDelete(null);
+      } else {
+        await Promise.all(selectedTopicIds.map((id) => apiDeleteTopic(id)));
+        setTopics(topics.filter(t => !selectedTopicIds.includes(t.id)));
+        setSelectedTopicIds([]);
+        setIsSelectMode(false);
+      }
+    } catch {
+      alert('Xóa chủ đề thất bại. Vui lòng thử lại.');
+    } finally {
+      setShowConfirmDeleteTopic(false);
     }
-    setShowConfirmDeleteTopic(false);
   };
 
-  const handleCreateTopic = () => {
+  const handleCreateTopic = async () => {
     if (!newTopicName.trim()) return;
-    const newId = Date.now();
-    setTopics([...topics, {
-      id: newId,
-      title: newTopicName,
-      totalVocab: 0,
-      color: 'bg-gray-100 text-gray-700',
-      imageUrl: newTopicImage.trim() || 'https://cdn-icons-png.flaticon.com/512/616/616408.png',
-      lessons: []
-    }]);
-    setNewTopicName('');
-    setNewTopicImage('');
-    setNewTopicImageTab('url');
-    setShowCreateTopicModal(false);
+    try {
+      const created = await apiCreateTopic({ title: newTopicName, imageUrl: newTopicImage }).catch(() => null);
+      const newId = created?.id ?? created?.topicId ?? Date.now();
+      setTopics([...topics, {
+        id: newId,
+        title: created?.title ?? newTopicName,
+        totalVocab: created?.totalVocab ?? 0,
+        color: 'bg-gray-100 text-gray-700',
+        imageUrl: (created?.imageUrl ?? newTopicImage.trim()) || 'https://cdn-icons-png.flaticon.com/512/616/616408.png',
+        lessons: []
+      }]);
+      setNewTopicName('');
+      setNewTopicImage('');
+      setNewTopicImageTab('url');
+      setShowCreateTopicModal(false);
+    } catch {
+      alert('Tạo chủ đề thất bại.');
+    }
   };
 
   const handleTopicImageFileChange = (e) => {
@@ -185,37 +274,176 @@ export default function AdminTopicManagement() {
     reader.readAsDataURL(file);
   };
 
-  const handleEditTopic = () => {
+  const handleEditTopic = async () => {
     if (!newTopicName.trim() || !editingTopic) return;
-    setTopics(topics.map(t => t.id === editingTopic.id ? { ...t, title: newTopicName } : t));
-    setEditingTopic(null);
-    setNewTopicName('');
-    setShowEditTopicModal(false);
+    try {
+      await apiUpdateTopic(editingTopic.id, { title: newTopicName, imageUrl: newTopicImage }).catch(() => null);
+      setTopics(topics.map(t => t.id === editingTopic.id ? { ...t, title: newTopicName, imageUrl: newTopicImage || t.imageUrl } : t));
+      setEditingTopic(null);
+      setNewTopicName('');
+      setShowEditTopicModal(false);
+    } catch {
+      alert('Cập nhật chủ đề thất bại.');
+    }
   };
 
-  const handleCreateLesson = () => {
+  const handleCreateLesson = async () => {
     if (!newLessonName.trim() || !activeTopic) return;
-    const newLessonId = Date.now();
-    const updatedTopics = topics.map(t => {
-      if (t.id === activeTopic.id) {
-        return {
-          ...t,
-          lessons: [...t.lessons, { id: newLessonId, name: newLessonName, difficulty: newLessonDifficulty }]
-        };
+    try {
+      const created = await apiCreateLesson({ name: newLessonName, difficulty: newLessonDifficulty, topicId: activeTopic.id }).catch(() => null);
+      const newLessonId = created?.id ?? created?.lessonId ?? Date.now();
+      const updatedTopics = topics.map(t => {
+        if (t.id === activeTopic.id) {
+          return {
+            ...t,
+            lessons: [...t.lessons, { id: newLessonId, name: created?.name ?? newLessonName, difficulty: created?.difficulty ?? newLessonDifficulty }]
+          };
+        }
+        return t;
+      });
+      setTopics(updatedTopics);
+      setActiveTopic(updatedTopics.find(t => t.id === activeTopic.id));
+      setNewLessonName('');
+      setNewLessonDifficulty(1);
+      setShowCreateLessonModal(false);
+    } catch {
+      alert('Tạo bài học thất bại.');
+    }
+  };
+
+  // IMPORT CSV CHO CHỦ ĐỀ
+  const handleTopicCsvImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeTopic) return;
+    try {
+      await importTopicVocabularies(activeTopic.id, file);
+      alert(`Đã import CSV vào chủ đề "${activeTopic.title}" thành công!`);
+      // reload words for this topic
+      const words = await fetchTopicVocabularies(activeTopic.id);
+      const list = Array.isArray(words) ? words : (words?.items ?? words?.data ?? []);
+      if (Array.isArray(list) && list.length > 0) {
+        setModalWords(list.map((w) => ({
+          id: w.id ?? w.vocabId ?? w.vocab_id,
+          word: w.word ?? '',
+          pronunciation: w.pronunciation ?? '',
+          word_type: w.word_type ?? w.type ?? '',
+          meaning: w.meaning ?? '',
+          example: w.example ?? '',
+          level: w.level ?? 1,
+          topicId: activeTopic.id,
+          lessonId: w.lessonId ?? w.lesson?.id,
+          lessonName: w.lessonName ?? w.lesson?.name
+        })));
       }
-      return t;
-    });
-    setTopics(updatedTopics);
-    setActiveTopic(updatedTopics.find(t => t.id === activeTopic.id));
-    setNewLessonName('');
-    setNewLessonDifficulty(1);
-    setShowCreateLessonModal(false);
+    } catch {
+      alert('Import CSV thất bại. Vui lòng kiểm tra định dạng file.');
+    } finally {
+      e.target.value = null;
+    }
+  };
+
+  // CHỈNH SỬA BÀI HỌC
+  const handleOpenEditLesson = async (lesson, topic) => {
+    setEditingLesson(lesson);
+    setEditLessonName(lesson.name);
+    setEditLessonDifficulty(lesson.difficulty ?? 1);
+    setShowEditLessonModal(true);
+    try {
+      const detail = await fetchLessonById(lesson.id);
+      if (detail) {
+        setEditLessonName(detail.name ?? detail.title ?? lesson.name);
+        setEditLessonDifficulty(detail.difficulty ?? detail.level ?? lesson.difficulty ?? 1);
+        setEditingLesson({ ...lesson, name: detail.name ?? detail.title ?? lesson.name, difficulty: detail.difficulty ?? detail.level ?? lesson.difficulty ?? 1 });
+      }
+    } catch {
+      // fallback giữ dữ liệu hiện có
+    }
+  };
+
+  const handleEditLesson = async () => {
+    if (!editLessonName.trim() || !editingLesson) return;
+    try {
+      await apiUpdateLesson(editingLesson.id, {
+        name: editLessonName,
+        difficulty: editLessonDifficulty,
+        topicId: activeTopic?.id
+      }).catch(() => null);
+      const updatedTopics = topics.map(t => {
+        if (t.id === activeTopic?.id) {
+          return {
+            ...t,
+            lessons: t.lessons.map(l =>
+              l.id === editingLesson.id
+                ? { ...l, name: editLessonName, difficulty: editLessonDifficulty }
+                : l
+            )
+          };
+        }
+        return t;
+      });
+      setTopics(updatedTopics);
+      if (activeTopic) {
+        setActiveTopic(updatedTopics.find(t => t.id === activeTopic.id));
+      }
+      setShowEditLessonModal(false);
+      setEditingLesson(null);
+    } catch {
+      alert('Cập nhật bài học thất bại.');
+    }
+  };
+
+  // XÓA BÀI HỌC
+  const [showConfirmDeleteLesson, setShowConfirmDeleteLesson] = useState(false);
+  const [lessonToDelete, setLessonToDelete] = useState(null);
+
+  const handleDeleteLessonConfirm = async () => {
+    try {
+      if (lessonToDelete) {
+        await apiDeleteLesson(lessonToDelete.id).catch(() => {});
+        const updatedTopics = topics.map(t => {
+          if (t.id === activeTopic?.id) {
+            return { ...t, lessons: t.lessons.filter(l => l.id !== lessonToDelete.id) };
+          }
+          return t;
+        });
+        setTopics(updatedTopics);
+        if (activeTopic) {
+          setActiveTopic(updatedTopics.find(t => t.id === activeTopic.id));
+        }
+      }
+    } catch {
+      alert('Xóa bài học thất bại.');
+    } finally {
+      setShowConfirmDeleteLesson(false);
+      setLessonToDelete(null);
+    }
   };
 
   // CÁC HÀM MỞ MODAL XEM CHI TIẾT 
-  const openTopicWords = (topic) => {
+  const openTopicWords = async (topic) => {
     setActiveTopic(topic);
-    setModalWords(allWords.filter(w => w.topicId === topic.id));
+    try {
+      const words = await fetchTopicVocabularies(topic.id);
+      const list = Array.isArray(words) ? words : (words?.items ?? words?.data ?? []);
+      if (Array.isArray(list) && list.length > 0) {
+        setModalWords(list.map((w) => ({
+          id: w.id ?? w.vocabId ?? w.vocab_id,
+          word: w.word ?? '',
+          pronunciation: w.pronunciation ?? '',
+          word_type: w.word_type ?? w.type ?? '',
+          meaning: w.meaning ?? '',
+          example: w.example ?? '',
+          level: w.level ?? 1,
+          topicId: topic.id,
+          lessonId: w.lessonId ?? w.lesson?.id,
+          lessonName: w.lessonName ?? w.lesson?.name
+        })));
+      } else {
+        setModalWords(allWords.filter(w => w.topicId === topic.id));
+      }
+    } catch {
+      setModalWords(allWords.filter(w => w.topicId === topic.id));
+    }
     setSelectedLessonFilters([]);
     setShowLessonFilterDropdown(false);
     setWordSearchTerm('');
@@ -254,8 +482,9 @@ export default function AdminTopicManagement() {
     }
   };
 
-  const handleDeleteWordConfirm = () => {
-    let deletedIds = wordToDelete ? [wordToDelete.id] : selectedWordIds;
+  const handleDeleteWordConfirm = async () => {
+    const deletedIds = wordToDelete ? [wordToDelete.id] : selectedWordIds;
+    await Promise.all(deletedIds.map((id) => deleteVocabulary(id).catch(() => {})));
     setAllWords(prev => prev.filter(w => !deletedIds.includes(w.id)));
     setModalWords(prev => prev.filter(w => !deletedIds.includes(w.id)));
     setWordToDelete(null);
@@ -309,7 +538,7 @@ export default function AdminTopicManagement() {
           style={{ position: 'fixed', top: menuAnchor.top, right: menuAnchor.right }}
           className="w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
         >
-          <button onClick={() => { closeMenu(); setEditingWords([item]); setShowEditWordModal(true); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
+          <button onClick={async () => { closeMenu(); setEditingWords([item]); setShowEditWordModal(true); try { const detail = await fetchVocabularyById(item.id); if (detail) { setEditingWords([{ ...item, word: detail.word ?? item.word, pronunciation: detail.pronunciation ?? item.pronunciation, word_type: detail.word_type ?? detail.type ?? item.word_type, meaning: detail.meaning ?? item.meaning, level: detail.level ?? item.level, example: detail.example ?? item.example }]); } } catch {} }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
             <Edit2 size={16} /> Chỉnh sửa
           </button>
           <button onClick={() => { closeMenu(); openMoveModal([item], false); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
@@ -339,7 +568,7 @@ export default function AdminTopicManagement() {
           style={{ position: 'fixed', top: menuAnchor.top, right: menuAnchor.right }}
           className="w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
         >
-          <button onClick={() => { closeMenu(); setEditingWords([item]); setShowEditWordModal(true); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
+          <button onClick={async () => { closeMenu(); setEditingWords([item]); setShowEditWordModal(true); try { const detail = await fetchVocabularyById(item.id); if (detail) { setEditingWords([{ ...item, word: detail.word ?? item.word, pronunciation: detail.pronunciation ?? item.pronunciation, word_type: detail.word_type ?? detail.type ?? item.word_type, meaning: detail.meaning ?? item.meaning, level: detail.level ?? item.level, example: detail.example ?? item.example }]); } } catch {} }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
             <Edit2 size={16} /> Chỉnh sửa
           </button>
           <button onClick={() => { closeMenu(); openMoveModal([item], true); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
@@ -395,6 +624,11 @@ export default function AdminTopicManagement() {
       {/* danh sách chủ đề */}
       <div>
         <h2 className="text-2xl font-bold text-[#083344] mb-6 border-b-2 border-gray-200 pb-2 inline-block">Chủ đề từ vựng</h2>
+        {isLoading && (
+          <div className="mb-4 text-sm font-bold text-gray-400">
+            Đang tải chủ đề...
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredTopics.map((topic) => (
             <div key={topic.id} className="relative bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all flex flex-col justify-between min-h-[14rem] group">
@@ -427,7 +661,19 @@ export default function AdminTopicManagement() {
                   <h3 className="font-bold text-gray-800 line-clamp-1">{topic.title}</h3>
                   {!isSelectMode && (
                     <button
-                      onClick={() => { setEditingTopic(topic); setNewTopicName(topic.title); setShowEditTopicModal(true); }}
+                      onClick={async () => {
+                        setEditingTopic(topic);
+                        setNewTopicName(topic.title);
+                        setShowEditTopicModal(true);
+                        try {
+                          const detail = await fetchTopicById(topic.id);
+                          if (detail) {
+                            setNewTopicName(detail.title ?? detail.name ?? topic.title);
+                            setNewTopicImage(detail.imageUrl ?? detail.image_url ?? topic.imageUrl ?? '');
+                            setEditingTopic({ ...topic, title: detail.title ?? detail.name ?? topic.title, imageUrl: detail.imageUrl ?? detail.image_url ?? topic.imageUrl });
+                          }
+                        } catch {}
+                      }}
                       className="shrink-0 p-1 text-gray-300 hover:text-cyan-600 hover:bg-cyan-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
                     >
                       <Edit2 size={15} />
@@ -644,6 +890,12 @@ export default function AdminTopicManagement() {
               ))}
             </FilterDropdown>
 
+            {/* import CSV */}
+            <button onClick={() => topicCsvFileRef.current?.click()} className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-xl hover:bg-emerald-100 text-sm flex items-center gap-2 transition-colors">
+              <Upload size={16} /> Import CSV
+            </button>
+            <input type="file" ref={topicCsvFileRef} onChange={handleTopicCsvImport} className="hidden" accept=".csv" />
+
             {/* chọn nhiều */}
             {!isWordSelectMode ? (
               <button onClick={() => setIsWordSelectMode(true)} className="px-4 py-2 border border-cyan-200 text-cyan-700 font-bold rounded-xl hover:bg-cyan-50 text-sm">Chọn nhiều</button>
@@ -712,9 +964,17 @@ export default function AdminTopicManagement() {
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => openLessonWords(lesson, activeTopic)} className="px-6 py-2.5 bg-white border border-cyan-200 text-cyan-700 font-bold rounded-xl hover:bg-cyan-50 transition-colors shadow-sm">
-                    Xem từ
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleOpenEditLesson(lesson, activeTopic)} className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors" title="Chỉnh sửa bài học">
+                      <Edit2 size={18} />
+                    </button>
+                    <button onClick={() => { setLessonToDelete(lesson); setShowConfirmDeleteLesson(true); }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Xóa bài học">
+                      <Trash2 size={18} />
+                    </button>
+                    <button onClick={() => openLessonWords(lesson, activeTopic)} className="px-6 py-2.5 bg-white border border-cyan-200 text-cyan-700 font-bold rounded-xl hover:bg-cyan-50 transition-colors shadow-sm">
+                      Xem từ
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -896,6 +1156,54 @@ export default function AdminTopicManagement() {
           <button onClick={handleSaveEditedWords} className="px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all bg-[#0e7490] hover:bg-[#164e63] text-white">Xác nhận Lưu</button>
         </div>
       </ModalWrapper>
+
+      {/* modal chỉnh sửa bài học */}
+      <ModalWrapper isOpen={showEditLessonModal} zIndex="z-[200]">
+        <h3 className="text-xl font-bold text-cyan-950 mb-4 flex items-center gap-2">
+          <Edit2 className="text-cyan-600" /> Chỉnh sửa bài học
+        </h3>
+        <div className="mb-4">
+          <label className="block text-sm font-bold text-gray-700 mb-2">Tên bài học</label>
+          <input
+            type="text"
+            value={editLessonName}
+            onChange={(e) => setEditLessonName(e.target.value)}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none"
+            placeholder="Nhập tên bài học..."
+            autoFocus
+          />
+        </div>
+        <div className="mb-6">
+          <label className="block text-sm font-bold text-gray-700 mb-2">Độ khó</label>
+          <select
+            value={editLessonDifficulty}
+            onChange={(e) => setEditLessonDifficulty(parseInt(e.target.value))}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none font-bold text-blue-600"
+          >
+            <option value={1}>A1</option>
+            <option value={2}>A2</option>
+            <option value={3}>B1</option>
+            <option value={4}>B2</option>
+            <option value={5}>C1</option>
+            <option value={6}>C2</option>
+          </select>
+        </div>
+        <div className="flex justify-end gap-3">
+          <button onClick={() => setShowEditLessonModal(false)} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">Hủy</button>
+          <button onClick={handleEditLesson} disabled={!editLessonName.trim()} className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all">Lưu thay đổi</button>
+        </div>
+      </ModalWrapper>
+
+      {/* xác nhận xóa bài học */}
+      <ConfirmModal
+        isOpen={showConfirmDeleteLesson}
+        onClose={() => setShowConfirmDeleteLesson(false)}
+        onConfirm={handleDeleteLessonConfirm}
+        title="Xóa bài học"
+        message={lessonToDelete ? `Bạn có chắc chắn muốn xóa bài học "${lessonToDelete.name}" không? Các từ vựng trong bài học này sẽ không bị xóa.` : 'Bạn có chắc chắn muốn xóa bài học này không?'}
+        confirmText="Xóa vĩnh viễn"
+        isDanger={true}
+      />
 
     </div>
   );

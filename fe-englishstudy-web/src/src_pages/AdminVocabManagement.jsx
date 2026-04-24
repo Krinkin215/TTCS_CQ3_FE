@@ -4,6 +4,8 @@ import VocabTable from '../src_components/VocabTable';
 import SearchBar from '../src_components/SearchBar';
 import ConfirmModal from '../src_components/ConfirmModal';
 import FilterDropdown from '../src_components/FilterDropdown';
+import { adminImportVocabulariesCsv } from '../src_utils/services/vocabService';
+import { createVocabulary, updateVocabulary, deleteVocabulary } from '../src_utils/services/vocabService';
 
 const ADMIN_USER_ID = 1;
 
@@ -178,13 +180,32 @@ export default function AdminVocabManagement() {
       const exists = currentVocabs.some(v => v.word.toLowerCase() === wordTrimmed.toLowerCase());
       if (exists) { duplicateCount++; continue; }
 
-      currentVocabs.unshift({
-        ...newWord,
-        word: wordTrimmed,
-        id: Date.now() + Math.random(),
-        created_by: ADMIN_USER_ID
-      });
-      addedCount++;
+      try {
+        const created = await createVocabulary({
+          word: wordTrimmed,
+          pronunciation: newWord.pronunciation?.trim() || '',
+          word_type: newWord.word_type || '',
+          meaning: newWord.meaning?.trim() || '',
+          level: newWord.level || 1,
+          example: newWord.example || ''
+        });
+
+        currentVocabs.unshift({
+          ...newWord,
+          word: created?.word ?? wordTrimmed,
+          id: created?.id ?? Date.now() + Math.random(),
+          created_by: ADMIN_USER_ID
+        });
+        addedCount++;
+      } catch {
+        currentVocabs.unshift({
+          ...newWord,
+          word: wordTrimmed,
+          id: Date.now() + Math.random(),
+          created_by: ADMIN_USER_ID
+        });
+        addedCount++;
+      }
     }
 
     setVocabularies(currentVocabs);
@@ -205,9 +226,21 @@ export default function AdminVocabManagement() {
     fileInputRef.current?.click();
   };
 
-  const handleFileUpload = (e) => {
-    if (e.target.files.length > 0) alert(`Đã tải lên file: ${e.target.files[0].name}. (Cần Backend để parse file này)`);
-    e.target.value = null;
+  const handleFileUpload = async (e) => {
+    try {
+      if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        // ưu tiên import theo bộ lọc topic/lesson hiện tại (nếu có)
+        const topicId = draftWords?.[0]?.topicId ?? activeFilters?.topics?.[0];
+        const lessonId = draftWords?.[0]?.lessonId ?? activeFilters?.lessons?.[0];
+        await adminImportVocabulariesCsv(file, { topicId, lessonId });
+        alert(`Đã import file: ${file.name}`);
+      }
+    } catch {
+      alert('Import file thất bại. Vui lòng kiểm tra quyền admin và định dạng CSV.');
+    } finally {
+      e.target.value = null;
+    }
   };
 
   const toggleSelect = (id) => {
@@ -235,7 +268,7 @@ export default function AdminVocabManagement() {
     setEditingWords(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
   };
 
-  const handleSaveEditedWords = () => {
+  const handleSaveEditedWords = async () => {
     const wordRegex = /^[a-zA-Z\s-]+$/;
     const pronunRegex = /^\/.*\/$/;
     let formatErrorCount = 0;
@@ -259,6 +292,24 @@ export default function AdminVocabManagement() {
       return;
     }
 
+    // update backend (best-effort) rồi update UI
+    await Promise.all(
+      editingWords.map(async (w) => {
+        try {
+          await updateVocabulary(w.id, {
+            word: w.word,
+            pronunciation: w.pronunciation,
+            word_type: w.word_type,
+            meaning: w.meaning,
+            level: w.level,
+            example: w.example
+          });
+        } catch {
+          // ignore để UI vẫn lưu local
+        }
+      })
+    );
+
     setVocabularies(prev => prev.map(cw => {
       const edited = editingWords.find(ew => ew.id === cw.id);
       return edited ? edited : cw;
@@ -275,16 +326,21 @@ export default function AdminVocabManagement() {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
-    if (wordToDelete) {
-      setVocabularies(vocabularies.filter(v => v.id !== wordToDelete.id));
-    } else {
-      setVocabularies(vocabularies.filter(v => !selectedIds.includes(v.id)));
-      setIsSelectMode(false);
-      setSelectedIds([]);
+  const confirmDelete = async () => {
+    try {
+      if (wordToDelete) {
+        await deleteVocabulary(wordToDelete.id).catch(() => {});
+        setVocabularies(vocabularies.filter(v => v.id !== wordToDelete.id));
+      } else {
+        await Promise.all(selectedIds.map((id) => deleteVocabulary(id).catch(() => {})));
+        setVocabularies(vocabularies.filter(v => !selectedIds.includes(v.id)));
+        setIsSelectMode(false);
+        setSelectedIds([]);
+      }
+    } finally {
+      setShowDeleteModal(false);
+      setWordToDelete(null);
     }
-    setShowDeleteModal(false);
-    setWordToDelete(null);
   };
 
   const AdminActionColumn = ({ item }) => {

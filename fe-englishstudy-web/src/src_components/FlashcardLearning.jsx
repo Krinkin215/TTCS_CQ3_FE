@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, X, ChevronLeft, ChevronRight, CheckCircle2, Gamepad2, RotateCcw, ArrowLeft, ArrowRight, Heart } from 'lucide-react';
 import { playAudio as playGlobalAudio } from '../src_utils/audio';
+import { fetchLessonVocabularies } from '../src_utils/services/lessonService';
+import { saveVocabProgress } from '../src_utils/services/userService';
 
 export default function FlashcardLearning({ topic, lesson, collection, onExit, onNextLesson, onPrevLesson, onPractice }) {
   const [localWords, setLocalWords] = React.useState([]);
@@ -14,18 +16,47 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
       { word: 'Accomplish', pronunciation: '/əˈkʌm.plɪʃ/', word_type: 'VERB', meaning: 'Hoàn thành, đạt được', example: 'The students accomplished the task in less than ten minutes.', isFavorite: true, status: 'LEARNING' }
     ];
     
-    const count = collection ? collection.wordCount : (lesson?.wordCount || 5);
-    const parentId = collection ? collection.id : lesson?.id;
-    
-    const generated = Array.from({ length: count }).map((_, index) => {
-      const baseWord = baseMockWords[index % baseMockWords.length];
-      return { ...baseWord, id: `${parentId}-${index}`, word: index >= baseMockWords.length ? `${baseWord.word} ${index + 1}` : baseWord.word };
-    });
-    
-    setLocalWords(generated);
-    setCurrentIndex(0);
-    setIsFinished(false);
-    setIsFlipped(false);
+    const run = async () => {
+      // ưu tiên load vocab thật theo lesson nếu có
+      if (!collection && lesson?.id) {
+        try {
+          const res = await fetchLessonVocabularies(lesson.id);
+          const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
+          if (Array.isArray(list) && list.length > 0) {
+            const mapped = list.map((w, idx) => ({
+              id: w.id ?? w.vocabId ?? `${lesson.id}-${idx}`,
+              word: w.word ?? '',
+              pronunciation: w.pronunciation ?? '',
+              word_type: w.word_type ?? w.type ?? '',
+              meaning: w.meaning ?? '',
+              example: w.example ?? '',
+              isFavorite: false,
+              status: w.status ?? 'LEARNING'
+            }));
+            setLocalWords(mapped);
+            setCurrentIndex(0);
+            setIsFinished(false);
+            setIsFlipped(false);
+            return;
+          }
+        } catch {
+          // fallback mock
+        }
+      }
+
+      const count = collection ? collection.wordCount : (lesson?.wordCount || 5);
+      const parentId = collection ? collection.id : lesson?.id;
+      const generated = Array.from({ length: count }).map((_, index) => {
+        const baseWord = baseMockWords[index % baseMockWords.length];
+        return { ...baseWord, id: `${parentId}-${index}`, word: index >= baseMockWords.length ? `${baseWord.word} ${index + 1}` : baseWord.word };
+      });
+      setLocalWords(generated);
+      setCurrentIndex(0);
+      setIsFinished(false);
+      setIsFlipped(false);
+    };
+
+    run();
   }, [lesson, collection]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -63,6 +94,24 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
       setIsFinished(true); 
     }
   };
+
+  useEffect(() => {
+    if (!isFinished) return;
+    if (collection) return;
+    if (!lesson?.id) return;
+
+    // best-effort lưu tiến độ học
+    Promise.all(
+      localWords.map((w) =>
+        saveVocabProgress({
+          vocabId: w.id,
+          status: w.status ?? 'LEARNING',
+          lessonId: lesson.id,
+          topicId: topic?.id
+        }).catch(() => {})
+      )
+    ).catch(() => {});
+  }, [isFinished, localWords, lesson, topic, collection]);
 
   const handlePrev = () => {
     if (currentIndex > 0) {

@@ -4,6 +4,8 @@ import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
 import SearchBar from '../src_components/SearchBar';
 import FilterDropdown from '../src_components/FilterDropdown';
+import { downloadVocabImportTemplate, importVocabulariesCsv } from '../src_utils/services/vocabService';
+import { createVocabulary } from '../src_utils/services/vocabService';
 
 const CURRENT_USER_ID = 5;
 const ADMIN_USER_ID = 1;
@@ -284,14 +286,34 @@ function VocabularyPage({ initialFilter }) {
         console.warn("Lỗi kết nối API từ điển, tạm bỏ qua check ngữ nghĩa.");
       }
 
-      // PASS TOÀN BỘ -> ĐƯỢC PHÉP LƯU
-      currentVocabs.unshift({
-        ...newWord,
-        word: wordTrimmed,
-        id: Date.now() + Math.random(),
-        created_by: CURRENT_USER_ID
-      });
-      addedCount++;
+      // PASS TOÀN BỘ -> LƯU VỀ BACKEND (fallback local nếu backend lỗi)
+      try {
+        const created = await createVocabulary({
+          word: wordTrimmed,
+          pronunciation: newWord.pronunciation?.trim() || '',
+          word_type: newWord.word_type || '',
+          meaning: newWord.meaning?.trim() || '',
+          level: newWord.level || 1,
+          example: newWord.example || ''
+        });
+
+        currentVocabs.unshift({
+          ...newWord,
+          word: created?.word ?? wordTrimmed,
+          id: created?.id ?? Date.now() + Math.random(),
+          created_by: CURRENT_USER_ID
+        });
+        addedCount++;
+      } catch {
+        // fallback vẫn cho thêm local để không gián đoạn trải nghiệm
+        currentVocabs.unshift({
+          ...newWord,
+          word: wordTrimmed,
+          id: Date.now() + Math.random(),
+          created_by: CURRENT_USER_ID
+        });
+        addedCount++;
+      }
     }
 
     setVocabularies(currentVocabs);
@@ -310,14 +332,37 @@ function VocabularyPage({ initialFilter }) {
   };
 
   // 4. chức năng Tải file mẫu & Mở file
-  const handleDownloadTemplate = () => alert("Đang tải file mẫu Template_ThemTuVung.xlsx về máy...");
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await downloadVocabImportTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'vocab-import.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert('Tải template thất bại. Vui lòng thử lại.');
+    }
+  };
   const triggerFileInput = () => {
     setShowImportDropdown(false);
     fileInputRef.current?.click();
   };
-  const handleFileUpload = (e) => {
-    if (e.target.files.length > 0) alert(`Đã tải lên file: ${e.target.files[0].name}. (Cần Backend để parse file này)`);
-    e.target.value = null;
+  const handleFileUpload = async (e) => {
+    try {
+      if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        await importVocabulariesCsv(file, { collectionId: 0 });
+        alert(`Đã import file: ${file.name}`);
+      }
+    } catch {
+      alert('Import file thất bại. Vui lòng kiểm tra định dạng CSV.');
+    } finally {
+      e.target.value = null;
+    }
   };
 
   const toggleSelect = (id) => {

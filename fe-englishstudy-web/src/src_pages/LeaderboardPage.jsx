@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Trophy, Flame, Medal, Award, Crown, Star } from 'lucide-react';
+import { fetchLeaderboard } from '../src_utils/services/leaderboardService';
 
 const CURRENT_USER_ID = 5;
 
@@ -9,8 +10,12 @@ const generateMockUsers = () => {
     username: i + 1 === CURRENT_USER_ID ? 'Phạm Minh Đức (Bạn)' : `Người dùng ${i + 1}`,
     email: i + 1 === CURRENT_USER_ID ? 'pmducc1506@gmail.com' : `user${i + 1}@student.ptit.edu.vn`,
     avatarUrl: `https://i.pravatar.cc/150?u=${i + 10}`,
-    totalScore: Math.floor(Math.random() * 15000) + 500,
-    streak: Math.floor(Math.random() * 120) + 1,
+    // "Tất cả": tổng điểm tích lũy + streak cao nhất
+    totalScoreAll: Math.floor(Math.random() * 15000) + 500,
+    bestStreakAll: Math.floor(Math.random() * 120) + 1,
+    // "Ngày": điểm số user làm được trong ngày + streak hiện tại tới ngày hôm đó
+    scoreInDay: Math.floor(Math.random() * 800),
+    streakInDay: Math.floor(Math.random() * 30),
     isCurrentUser: i + 1 === CURRENT_USER_ID
   }));
   return users;
@@ -21,25 +26,64 @@ const MOCK_DATA = generateMockUsers();
 function LeaderboardPage({ isAdmin = false }) {
   const [timeFilter, setTimeFilter] = useState('day'); 
   const [sortBy, setSortBy] = useState('score'); 
+  const [serverUsers, setServerUsers] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      setIsLoading(true);
+      try {
+        const data = await fetchLeaderboard({ sortBy, timeFilter, limit: 200 });
+        if (!cancelled && data.length > 0) {
+          // Map sang shape UI hiện tại (ngày/tất cả)
+          const mapped = data.map((u) => ({
+            id: u.id,
+            username: u.username,
+            email: u.email,
+            avatarUrl: u.avatarUrl || `https://i.pravatar.cc/150?u=${String(u.id)}`,
+            totalScoreAll: timeFilter === 'all' ? u.score : 0,
+            bestStreakAll: timeFilter === 'all' ? u.streak : 0,
+            scoreInDay: timeFilter === 'day' ? u.score : 0,
+            streakInDay: timeFilter === 'day' ? u.streak : 0,
+            isCurrentUser: u.id === CURRENT_USER_ID,
+            rank: u.rank
+          }));
+          setServerUsers(mapped);
+        } else if (!cancelled) {
+          setServerUsers(null);
+        }
+      } catch {
+        if (!cancelled) setServerUsers(null);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [sortBy, timeFilter]);
 
   // SẮP XẾP VÀ XẾP HẠNG
   const rankedUsers = useMemo(() => {
-    let sorted = [...MOCK_DATA];
+    const base = serverUsers && serverUsers.length > 0 ? serverUsers : MOCK_DATA;
+    const sorted = [...base];
 
-    // Ở đây nếu có API thật, bộ lọc thời gian sẽ được gọi ở Backend. 
-    // Tạm thời trên UI ta xáo trộn nhẹ điểm số để thấy sự thay đổi khi bấm filter
-    if (timeFilter !== 'all') {
-       sorted = sorted.map(u => ({ ...u, totalScore: Math.floor(u.totalScore * Math.random()), streak: Math.floor(u.streak * Math.random()) }));
-    }
+    const getScore = (u) => (timeFilter === 'day' ? u.scoreInDay : u.totalScoreAll);
+    const getStreak = (u) => (timeFilter === 'day' ? u.streakInDay : u.bestStreakAll);
 
-    // Sắp xếp theo Tiêu chí
+    // Sắp xếp theo Tiêu chí (phụ thuộc filter thời gian)
     sorted.sort((a, b) => {
-      if (sortBy === 'score') return b.totalScore - a.totalScore;
-      return b.streak - a.streak;
+      if (sortBy === 'score') return getScore(b) - getScore(a);
+      return getStreak(b) - getStreak(a);
     });
 
     // Gán hạng (Rank)
-    return sorted.map((user, index) => ({ ...user, rank: index + 1 }));
+    return sorted.map((user, index) => ({
+      ...user,
+      rank: user.rank ?? index + 1,
+      _displayScore: getScore(user),
+      _displayStreak: getStreak(user)
+    }));
   }, [timeFilter, sortBy]);
 
   const top3 = rankedUsers.slice(0, 3);
@@ -84,7 +128,7 @@ function LeaderboardPage({ isAdmin = false }) {
             <div className={`flex items-center gap-1.5 w-full justify-center px-2 py-1 rounded-lg ${sortBy === 'score' ? 'bg-yellow-500/15' : ''}`}>
               <Trophy size={sortBy === 'score' ? 18 : 14} className={sortBy === 'score' ? 'text-yellow-600' : 'text-gray-400'} />
               <span className={`font-black ${sortBy === 'score' ? 'text-xl text-yellow-700' : 'text-sm text-gray-500'}`}>
-                {user.totalScore.toLocaleString()}
+                {user._displayScore.toLocaleString()}
               </span>
               {sortBy === 'score' && <span className="text-xs text-yellow-600 font-bold">điểm</span>}
             </div>
@@ -93,7 +137,7 @@ function LeaderboardPage({ isAdmin = false }) {
             <div className={`flex items-center gap-1.5 w-full justify-center px-2 py-1 rounded-lg ${sortBy === 'streak' ? 'bg-orange-500/15' : ''}`}>
               <Flame size={sortBy === 'streak' ? 18 : 14} className={sortBy === 'streak' ? 'text-orange-500' : 'text-gray-400'} />
               <span className={`font-black ${sortBy === 'streak' ? 'text-xl text-orange-600' : 'text-sm text-gray-500'}`}>
-                {user.streak}
+                {user._displayStreak}
               </span>
               {sortBy === 'streak' && <span className="text-xs text-orange-500 font-bold">ngày</span>}
             </div>
@@ -120,9 +164,6 @@ function LeaderboardPage({ isAdmin = false }) {
           <div className="flex bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
             {[
               { id: 'day', label: 'Ngày' },
-              { id: 'week', label: 'Tuần' },
-              { id: 'month', label: 'Tháng' },
-              { id: 'year', label: 'Năm' },
               { id: 'all', label: 'Tất cả' }
             ].map(tab => (
               <button
@@ -158,6 +199,12 @@ function LeaderboardPage({ isAdmin = false }) {
             <Flame size={18} className={sortBy === 'streak' ? 'animate-pulse' : ''}/> STREAK
           </button>
         </div>
+
+        {isLoading && (
+          <div className="text-sm font-bold text-gray-400">
+            Đang tải bảng xếp hạng...
+          </div>
+        )}
       </div>
 
       {/* BỤC VINH DANH */}
@@ -216,9 +263,9 @@ function LeaderboardPage({ isAdmin = false }) {
               {/* Cột Dữ liệu 1 */}
               <div className="w-32 text-center text-sm font-bold text-gray-400 flex items-center justify-center gap-1.5">
                 {sortBy === 'score' ? (
-                  <>{user.streak} <Flame size={14} /></>
+                  <>{user._displayStreak} <Flame size={14} /></>
                 ) : (
-                  <>{user.totalScore.toLocaleString()} <Trophy size={14}/></>
+                  <>{user._displayScore.toLocaleString()} <Trophy size={14}/></>
                 )}
               </div>
 
@@ -227,9 +274,9 @@ function LeaderboardPage({ isAdmin = false }) {
                 sortBy === 'score' ? 'text-yellow-600 bg-yellow-50/50 py-1 rounded-lg' : 'text-orange-500 bg-orange-50/50 py-1 rounded-lg'
               }`}>
                 {sortBy === 'score' ? (
-                  <>{user.totalScore.toLocaleString()} <Trophy size={16} fill="currentColor" className="text-yellow-500"/></>
+                  <>{user._displayScore.toLocaleString()} <Trophy size={16} fill="currentColor" className="text-yellow-500"/></>
                 ) : (
-                  <>{user.streak} <Flame size={16} fill="currentColor" className="text-orange-400"/></>
+                  <>{user._displayStreak} <Flame size={16} fill="currentColor" className="text-orange-400"/></>
                 )}
               </div>
             </div>

@@ -6,7 +6,6 @@ import AdminVocabManagement from './AdminVocabManagement';
 import AdminTopicManagement from './AdminTopicManagement';
 
 export default function AdminHomePage({ onLogout }) {
-  const [timeFilter, setTimeFilter] = useState('week');
   const getInitialTab = () => {
     const path = window.location.pathname;
     if (path.includes('users')) return 'users';
@@ -53,34 +52,7 @@ export default function AdminHomePage({ onLogout }) {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const chartData = {
-    week: [
-      { label: 'T2', subLabel: '13/04', value: 320 },
-      { label: 'T3', subLabel: '14/04', value: 450 },
-      { label: 'T4', subLabel: '15/04', value: 410 },
-      { label: 'T5', subLabel: '16/04', value: 680 },
-      { label: 'T6', subLabel: '17/04', value: 520 },
-      { label: 'T7', subLabel: '18/04 (Nay)', value: 850 },
-      { label: 'CN', subLabel: '19/04', value: 710 },
-    ],
-    month: [
-      { label: 'Tuần 1', subLabel: '01/04 - 07/04', value: 2500 },
-      { label: 'Tuần 2', subLabel: '08/04 - 14/04', value: 3200 },
-      { label: 'Tuần 3', subLabel: '15/04 - 21/04', value: 3940 },
-      { label: 'Tuần 4', subLabel: '22/04 - 28/04', value: 4100 },
-      { label: 'Tuần 5', subLabel: '29/04 - 30/04', value: 1200 },
-    ],
-    year: [
-      { label: 'Quý 1', subLabel: 'Th.1 - Th.3', value: 35000 },
-      { label: 'Quý 2', subLabel: 'Th.4 - Th.6', value: 45940 },
-      { label: 'Quý 3', subLabel: 'Th.7 - Th.9', value: 42000 },
-      { label: 'Quý 4', subLabel: 'Th.10 - Th.12', value: 48000 },
-    ]
-  };
-
-  const currentData = chartData[timeFilter];
-  const maxLearningValue = Math.max(...currentData.map(d => d.value));
-  const todayLearningCount = chartData.week.find(d => d.label === 'T7').value;
+  const todayLearningCount = 850;
 
   const stats = [
     { label: 'Tổng người dùng', value: '1,284', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -169,35 +141,7 @@ export default function AdminHomePage({ onLogout }) {
               ))}
             </div>
 
-            <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-800">Lưu lượng học tập</h3>
-                  <p className="text-sm text-slate-400 font-medium mt-1">Số lượt học tập</p>
-                </div>
-                <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} className="bg-slate-50 border border-slate-200 text-slate-600 text-sm font-bold rounded-xl focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none cursor-pointer hover:bg-slate-100 transition-colors">
-                  <option value="week">Tuần này</option><option value="month">Tháng này</option><option value="year">Năm nay</option>
-                </select>
-              </div>
-              <div className="h-64 flex items-end gap-2 md:gap-4 lg:gap-6 pt-12 border-b border-slate-100 pb-2">
-                {currentData.map((data, index) => {
-                  const heightPercentage = (data.value / maxLearningValue) * 100;
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center group h-full justify-end cursor-pointer">
-                      <div className="w-full max-w-[40px] bg-cyan-100 group-hover:bg-cyan-500 transition-all duration-300 rounded-t-xl relative flex justify-center" style={{ height: `${heightPercentage}%` }}>
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-10 bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-md pointer-events-none z-10">
-                          {data.value} lượt<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex flex-col items-center text-center">
-                        <span className="text-sm text-slate-700 font-bold group-hover:text-cyan-600 transition-colors">{data.label}</span>
-                        <span className="text-[10px] md:text-xs text-slate-400 font-medium mt-0.5 whitespace-nowrap">{data.subLabel}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            {/* Sơ đồ hiển thị lưu lượng học tập đã được loại bỏ theo yêu cầu mới */}
           </div>
         )}
 

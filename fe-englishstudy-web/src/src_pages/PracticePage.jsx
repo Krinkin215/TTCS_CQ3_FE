@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
-  Gamepad2, BookOpen, Brain, Settings, HelpCircle, 
+  Gamepad2, BookOpen, Brain, HelpCircle, 
   History, BarChart2, Search, CheckSquare, X, Play, Clock, 
   RotateCcw, Target, Trophy, Flame, ChevronRight, Volume2, Heart, ArrowLeft, CheckCircle2, XCircle, ArrowRight, Lightbulb
 } from 'lucide-react';
@@ -8,6 +8,8 @@ import StatusBadge from '../src_components/StatusBadge';
 import FilterBox from '../src_components/FilterBox';
 import VocabResultList from '../src_components/VocabResultList';
 import { playAudio } from '../src_utils/audio';
+import { initGame, finishGame } from '../src_utils/services/practiceService';
+import { fetchVocabReview } from '../src_utils/services/userService';
 
 
 const MOCK_COLLECTIONS = [
@@ -20,7 +22,7 @@ const MOCK_TOPICS = [
 const STATUS_OPTIONS = [
   { id: 'NEW', name: 'Chưa học' }, { id: 'LEARNING', name: 'Đang học' }, { id: 'MASTERED', name: 'Đã thuộc' }, 
 ];
-const MOCK_QUIZ_DATA = [
+const DEFAULT_QUIZ_DATA = [
   { id: 1, word: 'Sightseeing', pronunciation: '/ˈsaɪtˌsiː.ɪŋ/', type: 'Danh từ', meaning: 'Sự tham quan', example: 'We did a bit of sightseeing in London.', options: ['Sự tham quan', 'Sự mệt mỏi', 'Mua sắm', 'Nấu ăn'], correct: 0, isFavorite: false, status: 'NEW' },
   { id: 2, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', options: ['Lười biếng', 'Nhiệt tình, hăng hái', 'Tức giận', 'Buồn bã'], correct: 1, isFavorite: true, status: 'MASTERED' },
   { id: 3, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', options: ['Che giấu', 'Phá hủy', 'Bỏ qua', 'Xác định, quyết định'], correct: 3, isFavorite: false, status: 'LEARNING' },
@@ -30,7 +32,6 @@ const MOCK_QUIZ_DATA = [
 export default function PracticePage({ onBack, initialFilters }) {
   const [activeMode, setActiveMode] = useState('collection'); 
   const [activeTab, setActiveTab] = useState('history'); 
-  const [showSettings, setShowSettings] = useState(false);
   const [instructionGame, setInstructionGame] = useState(null); 
 
   const [selectedCollections, setSelectedCollections] = useState([]);
@@ -38,6 +39,9 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [selectedLessons, setSelectedLessons] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [wordCount, setWordCount] = useState(20);
+
+  const [smartReviewWords, setSmartReviewWords] = useState([]);
+  const [isSmartLoading, setIsSmartLoading] = useState(false);
 
   const [gameSettings, setGameSettings] = useState({
     timePerQuestion: 15,
@@ -63,8 +67,10 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [hintsUsed, setHintsUsed] = useState(0);
   const [revealedIndices, setRevealedIndices] = useState([]);
 
+  const [quizData, setQuizData] = useState(DEFAULT_QUIZ_DATA);
+  const [hasSubmittedResult, setHasSubmittedResult] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState(
-    MOCK_QUIZ_DATA.filter(q => q.isFavorite).map(q => q.id)
+    DEFAULT_QUIZ_DATA.filter(q => q.isFavorite).map(q => q.id)
   );
   const [historyLogView, setHistoryLogView] = useState(null); 
   const feedbackRef = useRef(null);
@@ -100,6 +106,27 @@ export default function PracticePage({ onBack, initialFilters }) {
     }
   }, [initialFilters]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (activeMode !== 'smart') return;
+      setIsSmartLoading(true);
+      try {
+        const res = await fetchVocabReview();
+        const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
+        if (!cancelled && Array.isArray(list)) {
+          setSmartReviewWords(list);
+        }
+      } catch {
+        if (!cancelled) setSmartReviewWords([]);
+      } finally {
+        if (!cancelled) setIsSmartLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [activeMode]);
+
   const availableLessons = useMemo(() => {
     return MOCK_TOPICS.filter(t => selectedTopics.includes(t.id)).flatMap(t => t.lessons);
   }, [selectedTopics]);
@@ -113,13 +140,13 @@ export default function PracticePage({ onBack, initialFilters }) {
       const selected = availableLessons.filter(l => selectedLessons.includes(l.id));
       total = selected.reduce((sum, l) => sum + (l.wordCount || 20), 0);
     } else {
-      total = 100;
+      total = smartReviewWords.length;
     }
     if (selectedStatuses.length > 0 && selectedStatuses.length < 3) {
       total = Math.floor(total * (selectedStatuses.length / 3));
     }
     return total;
-  }, [activeMode, selectedCollections, selectedLessons, selectedStatuses, availableLessons]);
+  }, [activeMode, selectedCollections, selectedLessons, selectedStatuses, availableLessons, smartReviewWords.length]);
 
   const avgDifficulty = useMemo(() => {
     if (activeMode === 'topic' && selectedLessons.length > 0) {
@@ -161,7 +188,7 @@ export default function PracticePage({ onBack, initialFilters }) {
   const handleAnswer = (index) => {
     if (selectedAns !== null) return; 
     setSelectedAns(index);
-    const currentQ = MOCK_QUIZ_DATA[currentQIndex];
+    const currentQ = quizData[currentQIndex];
     const isCorrect = index === currentQ.correct;
     
     let points = 0;
@@ -179,7 +206,7 @@ export default function PracticePage({ onBack, initialFilters }) {
   };
 
   const handleNextQuestion = () => {
-    if (currentQIndex < MOCK_QUIZ_DATA.length - 1) { 
+    if (currentQIndex < quizData.length - 1) { 
       setCurrentQIndex(prev => prev + 1); setSelectedAns(null); 
       setListenInput(''); setHintsUsed(0); setRevealedIndices([]); 
       setTimeLeft(gameSettings.timePerQuestion || 15); 
@@ -189,11 +216,12 @@ export default function PracticePage({ onBack, initialFilters }) {
 
   const handleRetryGame = (gameId) => {
     setQuizState('playing'); setCurrentQIndex(0); setSelectedAns(null); setQuizLog([]);
+    setHasSubmittedResult(false);
     if (gameId === 'match') {
       setMatchLives(5); setMatchedIds([]); setSelectedMatch(null); setMatchFeedback(null); setMatchErrors({});
-      setTimeLeft((gameSettings.timePerQuestion || 15) * MOCK_QUIZ_DATA.length); 
+      setTimeLeft((gameSettings.timePerQuestion || 15) * quizData.length); 
       const items = [];
-      MOCK_QUIZ_DATA.forEach(q => {
+      quizData.forEach(q => {
         items.push({ id: q.id, text: q.word, type: 'word' });
         items.push({ id: q.id, text: q.meaning, type: 'meaning' });
       });
@@ -225,7 +253,49 @@ export default function PracticePage({ onBack, initialFilters }) {
     }
 
     if (gameId === 'quiz' || gameId === 'match' || gameId === 'listen') {
-      setActiveGame(gameId); handleRetryGame(gameId);
+      (async () => {
+        try {
+          const initPayload = {
+            mode: activeMode,
+            collectionIds: selectedCollections,
+            topicIds: selectedTopics,
+            lessonIds: selectedLessons,
+            statuses: selectedStatuses,
+            limit: wordCount,
+            // Smart mode: truyền danh sách vocab cần ôn (nếu backend hỗ trợ)
+            vocabIds: activeMode === 'smart'
+              ? smartReviewWords
+                  .map(w => w.id ?? w.vocabId ?? w.vocab_id)
+                  .filter(Boolean)
+              : undefined
+          };
+          const questions = await initGame(gameId, initPayload);
+          const list = Array.isArray(questions) ? questions : (questions?.items ?? questions?.data ?? []);
+          if (Array.isArray(list) && list.length > 0) {
+            const mapped = list.map((q, idx) => ({
+              id: q.id ?? q.questionId ?? q.question_id ?? idx + 1,
+              word: q.word ?? q.term ?? q.vocabulary?.word ?? '',
+              pronunciation: q.pronunciation ?? q.vocabulary?.pronunciation ?? '',
+              type: q.type ?? q.word_type ?? q.vocabulary?.word_type ?? '',
+              meaning: q.meaning ?? q.vocabulary?.meaning ?? '',
+              example: q.example ?? q.vocabulary?.example ?? '',
+              options: q.options ?? q.choices ?? [],
+              correct: q.correct ?? q.correctIndex ?? q.correct_index ?? 0,
+              isFavorite: false,
+              status: q.status ?? 'NEW'
+            }));
+            setQuizData(mapped);
+            setFavoriteIds([]);
+          } else {
+            setQuizData(DEFAULT_QUIZ_DATA);
+          }
+        } catch {
+          setQuizData(DEFAULT_QUIZ_DATA);
+        } finally {
+          setActiveGame(gameId);
+          handleRetryGame(gameId);
+        }
+      })();
     } else {
       alert("Tính năng này đang được phát triển!");
     }
@@ -239,7 +309,7 @@ export default function PracticePage({ onBack, initialFilters }) {
       if (selectedMatch.id === item.id && selectedMatch.type !== item.type) {
         // NỐI ĐÚNG
         setMatchedIds(prev => [...prev, item.id]);
-        const currentQ = MOCK_QUIZ_DATA.find(q => q.id === item.id);
+        const currentQ = quizData.find(q => q.id === item.id);
         setMatchFeedback(currentQ);
         
         let basePoints = getDynamicPoints(1.2); 
@@ -276,7 +346,7 @@ export default function PracticePage({ onBack, initialFilters }) {
 
   const handleMatchNext = () => {
     setMatchFeedback(null);
-    if (matchedIds.length === MOCK_QUIZ_DATA.length) {
+    if (matchedIds.length === quizData.length) {
       setQuizState('result'); 
     }
   };
@@ -284,7 +354,7 @@ export default function PracticePage({ onBack, initialFilters }) {
   // GAME NGHE - VIẾT 
   const handleListenSubmit = (isTimeout = false) => {
     if (selectedAns !== null) return;
-    const currentQ = MOCK_QUIZ_DATA[currentQIndex];
+    const currentQ = quizData[currentQIndex];
     const isCorrect = !isTimeout && listenInput.trim().toLowerCase() === currentQ.word.toLowerCase();
     
     setSelectedAns(isCorrect ? 1 : 0); 
@@ -293,7 +363,7 @@ export default function PracticePage({ onBack, initialFilters }) {
   };
 
   const handleUseHint = () => {
-    const word = MOCK_QUIZ_DATA[currentQIndex].word;
+    const word = quizData[currentQIndex].word;
     if (hintsUsed >= 3 || revealedIndices.length >= word.length) return;
     
     let unrevealed = [];
@@ -327,22 +397,46 @@ export default function PracticePage({ onBack, initialFilters }) {
   useEffect(() => {
     // Xử lý khi Hết Mạng 
     if (activeGame === 'match' && matchLives === 0 && quizState === 'playing') {
-      const allFailedLogs = MOCK_QUIZ_DATA.map(q => ({ q, isCorrect: false, pointsEarned: 0 }));
+      const allFailedLogs = quizData.map(q => ({ q, isCorrect: false, pointsEarned: 0 }));
       setQuizLog(allFailedLogs);
       setQuizState('result');
     }
-  }, [matchLives, activeGame, quizState]);
+  }, [matchLives, activeGame, quizState, quizData]);
+
+  useEffect(() => {
+    if (!activeGame) return;
+    if (quizState !== 'result') return;
+    if (hasSubmittedResult) return;
+    if (quizLog.length === 0) return;
+
+    const totalScore = quizLog.reduce((sum, log) => sum + (log.pointsEarned || 0), 0);
+    const correctCount = quizLog.filter(l => l.isCorrect).length;
+    const finishPayload = {
+      mode: activeMode,
+      totalScore,
+      correctCount,
+      totalQuestions: quizLog.length,
+      details: quizLog.map(l => ({
+        questionId: l.q?.id,
+        isCorrect: l.isCorrect,
+        pointsEarned: l.pointsEarned ?? 0
+      }))
+    };
+
+    setHasSubmittedResult(true);
+    finishGame(activeGame, finishPayload).catch(() => {});
+  }, [activeGame, quizState, quizLog, hasSubmittedResult, activeMode]);
 
 
   // GIAO DIỆN GAME TRẮC NGHIỆM
   if (activeGame === 'quiz') {
-    const currentQ = MOCK_QUIZ_DATA[currentQIndex];
+    const currentQ = quizData[currentQIndex];
     const correctAnswers = quizLog.filter(log => log.isCorrect).length;
     const totalScore = quizLog.reduce((sum, log) => sum + (log.pointsEarned || 0), 0); 
     
     let resultMessage = "";
-    if (correctAnswers === MOCK_QUIZ_DATA.length) resultMessage = "Hoàn hảo! Bạn thật xuất sắc! 🎉";
-    else if (correctAnswers >= MOCK_QUIZ_DATA.length / 2) resultMessage = "Khá lắm! Hãy tiếp tục phát huy nhé! 💪";
+    if (correctAnswers === quizData.length) resultMessage = "Hoàn hảo! Bạn thật xuất sắc! 🎉";
+    else if (correctAnswers >= quizData.length / 2) resultMessage = "Khá lắm! Hãy tiếp tục phát huy nhé! 💪";
     else resultMessage = "Đừng nản chí! Hãy ôn tập lại và thử sức lần nữa! 📚";
 
     return (
@@ -352,13 +446,13 @@ export default function PracticePage({ onBack, initialFilters }) {
           {quizState === 'playing' && (
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
               <div className="flex justify-between items-center mb-6">
-                <span className="text-gray-500 font-bold">Câu {currentQIndex + 1} / {MOCK_QUIZ_DATA.length}</span>
+                <span className="text-gray-500 font-bold">Câu {currentQIndex + 1} / {quizData.length}</span>
                 <button onClick={() => setActiveGame(null)} className="text-gray-400 hover:text-red-500 font-bold flex items-center gap-1">
                   <X size={20}/> Thoát
                 </button>
               </div>
               <div className="w-full bg-gray-100 h-3 rounded-full mb-8 overflow-hidden">
-                <div className="bg-cyan-500 h-full transition-all duration-300" style={{ width: `${((currentQIndex) / MOCK_QUIZ_DATA.length) * 100}%` }}></div>
+                <div className="bg-cyan-500 h-full transition-all duration-300" style={{ width: `${((currentQIndex) / quizData.length) * 100}%` }}></div>
               </div>
 
               <div className="flex flex-col items-center mb-8">
@@ -444,7 +538,7 @@ export default function PracticePage({ onBack, initialFilters }) {
               <div className="flex justify-center gap-8 mb-10">
                 <div className="bg-gray-50 p-6 rounded-2xl min-w-[150px]">
                   <p className="text-gray-500 font-bold mb-1">Số câu đúng</p>
-                  <p className="text-4xl font-black text-green-600">{correctAnswers}<span className="text-2xl text-gray-400">/{MOCK_QUIZ_DATA.length}</span></p>
+                  <p className="text-4xl font-black text-green-600">{correctAnswers}<span className="text-2xl text-gray-400">/{quizData.length}</span></p>
                 </div>
                 <div className="bg-cyan-50 p-6 rounded-2xl min-w-[150px]">
                   <p className="text-cyan-700 font-bold mb-1">Tổng điểm</p>
@@ -490,7 +584,7 @@ export default function PracticePage({ onBack, initialFilters }) {
     const totalScore = quizLog.reduce((sum, log) => sum + (log.pointsEarned || 0), 0); 
     
     let resultMessage = "";
-    if (correctAnswers === MOCK_QUIZ_DATA.length) resultMessage = "Hoàn hảo! Bạn tinh mắt quá! 🎉";
+    if (correctAnswers === quizData.length) resultMessage = "Hoàn hảo! Bạn tinh mắt quá! 🎉";
     else if (matchLives === 0) resultMessage = "Rất tiếc! Bạn đã hết mạng. Hãy thử lại nhé! 💔";
     else resultMessage = "Khá lắm! Hãy tiếp tục luyện tập nhé! 💪";
 
@@ -501,13 +595,13 @@ export default function PracticePage({ onBack, initialFilters }) {
           {quizState === 'playing' && (
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
               <div className="flex justify-between items-center mb-6">
-                <span className="text-gray-500 font-bold">Tiến độ: {matchedIds.length} / {MOCK_QUIZ_DATA.length}</span>
+                <span className="text-gray-500 font-bold">Tiến độ: {matchedIds.length} / {quizData.length}</span>
                 <button onClick={() => setActiveGame(null)} className="text-gray-400 hover:text-red-500 font-bold flex items-center gap-1">
                   <X size={20}/> Thoát
                 </button>
               </div>
               <div className="w-full bg-gray-100 h-3 rounded-full mb-8 overflow-hidden">
-                <div className="bg-purple-500 h-full transition-all duration-300" style={{ width: `${(matchedIds.length / MOCK_QUIZ_DATA.length) * 100}%` }}></div>
+                <div className="bg-purple-500 h-full transition-all duration-300" style={{ width: `${(matchedIds.length / quizData.length) * 100}%` }}></div>
               </div>
 
               <div className="flex justify-between items-end mb-8 border-b border-gray-100 pb-6">
@@ -592,7 +686,7 @@ export default function PracticePage({ onBack, initialFilters }) {
               <div className="flex justify-center gap-8 mb-10">
                 <div className="bg-gray-50 p-6 rounded-2xl min-w-[150px]">
                   <p className="text-gray-500 font-bold mb-1">Số câu đúng</p>
-                  <p className="text-4xl font-black text-green-600">{correctAnswers}<span className="text-2xl text-gray-400">/{MOCK_QUIZ_DATA.length}</span></p>
+                  <p className="text-4xl font-black text-green-600">{correctAnswers}<span className="text-2xl text-gray-400">/{quizData.length}</span></p>
                 </div>
                 <div className="bg-purple-50 p-6 rounded-2xl min-w-[150px]">
                   <p className="text-purple-700 font-bold mb-1">Tổng điểm</p>
@@ -634,11 +728,11 @@ export default function PracticePage({ onBack, initialFilters }) {
 
   // GIAO DIỆN GAME NGHE - VIẾT 
   if (activeGame === 'listen') {
-    const currentQ = MOCK_QUIZ_DATA[currentQIndex];
+    const currentQ = quizData[currentQIndex];
     const correctAnswers = quizLog.filter(log => log.isCorrect).length;
     const totalScore = quizLog.reduce((sum, log) => sum + (log.pointsEarned || 0), 0); 
     
-    let resultMessage = correctAnswers === MOCK_QUIZ_DATA.length ? "Tuyệt đỉnh! Đôi tai của bạn quá nhạy bén! 🎧" : correctAnswers >= MOCK_QUIZ_DATA.length / 2 ? "Làm tốt lắm! Hãy tiếp tục luyện nghe nhé! 💪" : "Đừng nản chí! Nghe nhiều sẽ quen thôi! 📚";
+    let resultMessage = correctAnswers === quizData.length ? "Tuyệt đỉnh! Đôi tai của bạn quá nhạy bén! 🎧" : correctAnswers >= quizData.length / 2 ? "Làm tốt lắm! Hãy tiếp tục luyện nghe nhé! 💪" : "Đừng nản chí! Nghe nhiều sẽ quen thôi! 📚";
 
     return (
       <div className="min-h-screen bg-gray-50 pb-20 p-6 animate-in fade-in duration-300">
@@ -648,11 +742,11 @@ export default function PracticePage({ onBack, initialFilters }) {
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
               {/* Header */}
               <div className="flex justify-between items-center mb-6">
-                <span className="text-gray-500 font-bold">Câu {currentQIndex + 1} / {MOCK_QUIZ_DATA.length}</span>
+                <span className="text-gray-500 font-bold">Câu {currentQIndex + 1} / {quizData.length}</span>
                 <button onClick={() => setActiveGame(null)} className="text-gray-400 hover:text-red-500 font-bold flex items-center gap-1"><X size={20}/> Thoát</button>
               </div>
               <div className="w-full bg-gray-100 h-3 rounded-full mb-8 overflow-hidden">
-                <div className="bg-orange-500 h-full transition-all duration-300" style={{ width: `${((currentQIndex) / MOCK_QUIZ_DATA.length) * 100}%` }}></div>
+                <div className="bg-orange-500 h-full transition-all duration-300" style={{ width: `${((currentQIndex) / quizData.length) * 100}%` }}></div>
               </div>
 
               {/* Box câu hỏi */}
@@ -738,7 +832,7 @@ export default function PracticePage({ onBack, initialFilters }) {
               <div className="w-24 h-24 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-6"><Trophy size={48} /></div>
               <h2 className="text-3xl font-black text-gray-800 mb-2">Hoàn thành bài tập!</h2><p className="text-gray-500 mb-8">{resultMessage}</p>
               <div className="flex justify-center gap-8 mb-10">
-                <div className="bg-gray-50 p-6 rounded-2xl min-w-[150px]"><p className="text-gray-500 font-bold mb-1">Số câu đúng</p><p className="text-4xl font-black text-green-600">{correctAnswers}<span className="text-2xl text-gray-400">/{MOCK_QUIZ_DATA.length}</span></p></div>
+                <div className="bg-gray-50 p-6 rounded-2xl min-w-[150px]"><p className="text-gray-500 font-bold mb-1">Số câu đúng</p><p className="text-4xl font-black text-green-600">{correctAnswers}<span className="text-2xl text-gray-400">/{quizData.length}</span></p></div>
                 <div className="bg-orange-50 p-6 rounded-2xl min-w-[150px]"><p className="text-orange-700 font-bold mb-1">Tổng điểm</p><p className="text-4xl font-black text-orange-600">+{totalScore}</p></div>
               </div>
               <div className="flex flex-col gap-3 max-w-sm mx-auto">
@@ -855,15 +949,25 @@ export default function PracticePage({ onBack, initialFilters }) {
             )}
           </div>
         )}
+        {activeMode === 'smart' && (
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="text-lg font-bold text-cyan-950 mb-2">Ôn tập thông minh</h2>
+            <p className="text-gray-500 font-medium">
+              Hệ thống sẽ lấy danh sách từ bạn cần ôn tập để tạo bài luyện phù hợp.
+            </p>
+            {isSmartLoading && (
+              <div className="mt-4 text-sm font-bold text-gray-400">
+                Đang tải danh sách từ cần ôn...
+              </div>
+            )}
+          </div>
+        )}
 
         {/* CHỌN GAME */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-black text-cyan-950">Chọn Game</h2>
-              <button onClick={() => setShowSettings(true)} className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-full transition-colors" title="Cài đặt Game">
-                <Settings size={22} />
-              </button>
             </div>
             <div className="px-4 py-2 bg-[#84cc16]/10 text-[#65a30d] rounded-xl font-bold border border-[#84cc16]/20 transition-all">
               Sẵn sàng: {availableCount} từ vựng
@@ -943,7 +1047,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                          <div className="text-lg font-black text-yellow-600">+180</div>
                        </div>
                        <button 
-                         onClick={() => setHistoryLogView(quizLog.length > 0 ? quizLog : MOCK_QUIZ_DATA.map((q, idx) => ({ q, isCorrect: idx % 2 === 0, pointsEarned: idx % 2 === 0 ? 15 : 0 })))} 
+                        onClick={() => setHistoryLogView(quizLog.length > 0 ? quizLog : quizData.map((q, idx) => ({ q, isCorrect: idx % 2 === 0, pointsEarned: idx % 2 === 0 ? 15 : 0 })))} 
                          className="px-4 py-2 bg-white border border-gray-200 text-cyan-700 font-bold rounded-lg hover:bg-cyan-50 transition-colors text-sm"
                        >
                          Chi tiết
@@ -1003,45 +1107,7 @@ export default function PracticePage({ onBack, initialFilters }) {
 
       </div>
 
-      {/* CÀI ĐẶT GAME */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-cyan-950/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-cyan-50/50">
-              <h3 className="font-black text-xl text-cyan-900 flex items-center gap-2"><Settings size={22}/> Cài đặt Game</h3>
-              <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full"><X size={20}/></button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div>
-                <label className="flex justify-between font-bold text-gray-700 mb-2">
-                  <span>Thời gian mỗi câu (giây)</span> <span className="text-cyan-600">{gameSettings.timePerQuestion}s</span>
-                </label>
-                <input type="range" min="5" max="30" step="1" value={gameSettings.timePerQuestion} onChange={e => setGameSettings({...gameSettings, timePerQuestion: e.target.value})} className="w-full accent-cyan-600"/>
-              </div>
-
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="font-bold text-gray-700">Tự động chuyển câu (Khi đúng)</span>
-                <input type="checkbox" checked={gameSettings.autoNext} onChange={e => setGameSettings({...gameSettings, autoNext: e.target.checked})} className="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"/>
-              </label>
-
-              {gameSettings.autoNext && (
-                <div className="pl-4 border-l-2 border-cyan-200">
-                  <label className="flex justify-between font-bold text-gray-600 mb-2 text-sm">
-                    <span>Thời gian chờ chuyển (giây)</span> <span className="text-cyan-600">{gameSettings.autoNextDelay}s</span>
-                  </label>
-                  <input type="range" min="0" max="5" step="0.5" value={gameSettings.autoNextDelay} onChange={e => setGameSettings({...gameSettings, autoNextDelay: e.target.value})} className="w-full accent-cyan-500"/>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-              <button onClick={() => setShowSettings(false)} className="px-5 py-2 text-gray-600 font-bold hover:bg-gray-200 rounded-xl">Hủy</button>
-              <button onClick={() => setShowSettings(false)} className="px-6 py-2 bg-cyan-600 text-white font-bold hover:bg-cyan-700 rounded-xl shadow-md">Lưu cài đặt</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal Cài đặt Game + icon bánh răng đã được loại bỏ theo yêu cầu mới */}
 
       {/* HƯỚNG DẪN TRÒ CHƠI */}
       {instructionGame && (

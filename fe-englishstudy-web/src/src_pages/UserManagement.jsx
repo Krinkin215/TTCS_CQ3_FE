@@ -1,9 +1,10 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Menu, Trash2, CheckSquare, Square, X, Mail, Cake, Calendar, Trophy, Flame, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import SearchBar from '../src_components/SearchBar';
 import Pagination from '../src_components/Pagination';
 import ConfirmModal from '../src_components/ConfirmModal';
 import ProfileModal from '../src_components/ProfileModal';
+import { fetchAllUsers, fetchUserById, deleteUserById } from '../src_utils/services/adminUserService';
 
 const MOCK_USERS = [
   {
@@ -83,6 +84,39 @@ const MOCK_USERS = [
 export default function UserManagement() {
   const [users, setUsers] = useState(MOCK_USERS);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      setIsLoading(true);
+      try {
+        const data = await fetchAllUsers();
+        const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
+        if (!cancelled && Array.isArray(list) && list.length > 0) {
+          const mapped = list.map((u) => ({
+            id: String(u.id ?? u.userId ?? ''),
+            username: u.username ?? u.userName ?? u.name ?? '',
+            fullName: u.fullName ?? u.full_name ?? u.name ?? '',
+            email: u.email ?? '',
+            date_of_birth: u.date_of_birth ?? u.dateOfBirth ?? u.dob ?? '2000-01-01',
+            joinDate: u.joinDate ?? u.join_date ?? '01/01/2026',
+            streak: u.streak ?? u.bestStreak ?? 0,
+            totalXP: u.totalXP ?? u.totalScore ?? u.score ?? 0,
+            avatarChar: (u.fullName ?? u.username ?? 'U').slice(0, 1).toUpperCase(),
+            avatarUrl: u.avatarUrl ?? u.avatar_url ?? null
+          }));
+          setUsers(mapped);
+        }
+      } catch {
+        // fallback giữ MOCK_USERS
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, []);
 
   // Trạng thái phân trang & Sắp xếp
   const [currentPage, setCurrentPage] = useState(1);
@@ -150,9 +184,29 @@ export default function UserManagement() {
     setCurrentPage(1);
   };
 
-  const handleOpenProfile = (user) => {
+  const handleOpenProfile = async (user) => {
     setSelectedProfileUser(user);
     setIsProfileModalOpen(true);
+    try {
+      const detail = await fetchUserById(user.id);
+      if (detail) {
+        const mapped = {
+          ...user,
+          id: String(detail.id ?? detail.userId ?? user.id),
+          username: detail.username ?? detail.userName ?? user.username,
+          fullName: detail.fullName ?? detail.full_name ?? user.fullName,
+          email: detail.email ?? user.email,
+          date_of_birth: detail.date_of_birth ?? detail.dateOfBirth ?? user.date_of_birth,
+          joinDate: detail.joinDate ?? detail.join_date ?? user.joinDate,
+          streak: detail.streak ?? detail.bestStreak ?? user.streak,
+          totalXP: detail.totalXP ?? detail.totalScore ?? detail.score ?? user.totalXP,
+          avatarUrl: detail.avatarUrl ?? detail.avatar_url ?? user.avatarUrl
+        };
+        setSelectedProfileUser(mapped);
+      }
+    } catch {
+      // fallback giữ dữ liệu từ danh sách
+    }
   };
 
   const handleToggleMultiSelect = () => {
@@ -187,16 +241,23 @@ export default function UserManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (userToDelete) {
-      setUsers(users.filter(u => u.id !== userToDelete.id));
-    } else {
-      setUsers(users.filter(u => !selectedUserIds.includes(u.id)));
-      setIsMultiSelectMode(false);
-      setSelectedUserIds([]);
+  const confirmDelete = async () => {
+    try {
+      if (userToDelete) {
+        await deleteUserById(userToDelete.id);
+        setUsers(users.filter(u => u.id !== userToDelete.id));
+      } else {
+        await Promise.all(selectedUserIds.map((id) => deleteUserById(id)));
+        setUsers(users.filter(u => !selectedUserIds.includes(u.id)));
+        setIsMultiSelectMode(false);
+        setSelectedUserIds([]);
+      }
+    } catch {
+      alert('Xóa user thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsDeleteModalOpen(false);
+      setUserToDelete(null);
     }
-    setIsDeleteModalOpen(false);
-    setUserToDelete(null);
 
     // Điều chỉnh phân trang nếu cần
     const remainingItems = userToDelete ? users.length - 1 : users.length - selectedUserIds.length;
@@ -249,6 +310,11 @@ export default function UserManagement() {
 
       {/* Khung chứa bảng */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col">
+        {isLoading && (
+          <div className="px-6 py-4 text-sm font-bold text-slate-400 border-b border-slate-100">
+            Đang tải danh sách user...
+          </div>
+        )}
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>

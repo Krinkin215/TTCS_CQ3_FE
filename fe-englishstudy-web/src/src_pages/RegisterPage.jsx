@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { register as apiRegister } from '../src_utils/services/authService';
 
 
 function RegisterPage({ onNavigateToLogin }) {
@@ -71,7 +72,7 @@ function RegisterPage({ onNavigateToLogin }) {
   };
 
   // Hàm xử lý khi bấm nút Đăng ký
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault(); 
     
     // 1. Kiểm tra xem các trường có bị bỏ trống không 
@@ -87,11 +88,20 @@ function RegisterPage({ onNavigateToLogin }) {
       return;
     }
 
-    // 3. Thông báo thành công 
-    alert("Đăng ký tài khoản thành công! Mời bạn đăng nhập.");
+    try {
+      await apiRegister({
+        fullName: formData.fullName,
+        date_of_birth: formData.date_of_birth,
+        email: formData.email,
+        username: formData.username,
+        password: formData.password
+      });
 
-    // 4. Gọi lệnh chuyển về trang Đăng nhập
-    onNavigateToLogin();
+      alert("Đăng ký tài khoản thành công! Mời bạn đăng nhập.");
+      onNavigateToLogin();
+    } catch (err) {
+      alert("Đăng ký thất bại. Vui lòng thử lại hoặc kiểm tra thông tin.");
+    }
   };
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#164e63] py-8">

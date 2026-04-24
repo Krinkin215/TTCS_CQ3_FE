@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { X, ArrowLeft, Camera, Flame, Trophy, Mail, Cake, Calendar, LogOut, Settings, Save } from 'lucide-react';
+import { X, ArrowLeft, Camera, Flame, Trophy, Mail, Cake, Calendar, LogOut, Settings, Save, Lock, Eye, EyeOff } from 'lucide-react';
+import { changeMyPassword } from '../src_utils/services/userService';
 
 export default function ProfileModal({
   isOpen,
@@ -12,9 +13,21 @@ export default function ProfileModal({
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
 
+  // change password state
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPasswords, setShowPasswords] = useState({ old: false, new: false, confirm: false });
+  const [passwordError, setPasswordError] = useState('');
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
   useEffect(() => {
     if (user) setFormData(user);
-    if (!isOpen) setIsEditing(false); // Reset on close
+    if (!isOpen) {
+      setIsEditing(false);
+      setIsChangingPassword(false);
+      setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordError('');
+    }
   }, [user, isOpen]);
 
   if (!isOpen || !user) return null;
@@ -30,6 +43,36 @@ export default function ProfileModal({
   const handleSaveClick = () => {
     if (onSave) onSave(formData);
     setIsEditing(false);
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError('Vui lòng điền đầy đủ các trường.');
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Mật khẩu mới và xác nhận không khớp.');
+      return;
+    }
+    setIsSavingPassword(true);
+    try {
+      await changeMyPassword({
+        oldPassword: passwordForm.oldPassword,
+        newPassword: passwordForm.newPassword
+      });
+      alert('Đổi mật khẩu thành công!');
+      setIsChangingPassword(false);
+      setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      setPasswordError(err?.message || 'Đổi mật khẩu thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsSavingPassword(false);
+    }
   };
 
   return (
@@ -171,6 +214,13 @@ export default function ProfileModal({
                 >
                   <Settings size={20} /> Chỉnh sửa hồ sơ
                 </button>
+
+                <button 
+                  onClick={() => setIsChangingPassword(true)}
+                  className="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-full py-3.5 font-bold flex items-center justify-center gap-2 transition-colors border border-amber-100"
+                >
+                  <Lock size={20} /> Đổi mật khẩu
+                </button>
                 
                 <button 
                   onClick={onLogout}
@@ -183,6 +233,82 @@ export default function ProfileModal({
           </div>
         )}
       </div>
+
+      {/* Change Password Modal */}
+      {isChangingPassword && (
+        <div className="fixed inset-0 bg-slate-900/40 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-md p-6 relative shadow-2xl animate-in zoom-in-95 duration-200 text-gray-800">
+            <div className="flex items-center mb-6">
+              <button onClick={() => { setIsChangingPassword(false); setPasswordError(''); }} className="text-gray-500 hover:text-gray-800 mr-3">
+                <ArrowLeft size={24} />
+              </button>
+              <h2 className="text-xl font-bold text-gray-900">Đổi mật khẩu</h2>
+            </div>
+
+            {passwordError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium mb-4">
+                {passwordError}
+              </div>
+            )}
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Mật khẩu hiện tại</label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.old ? 'text' : 'password'}
+                    value={passwordForm.oldPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 text-gray-800 font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+                    placeholder="Nhập mật khẩu hiện tại"
+                  />
+                  <button type="button" onClick={() => setShowPasswords({ ...showPasswords, old: !showPasswords.old })} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showPasswords.old ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Mật khẩu mới</label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.new ? 'text' : 'password'}
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 text-gray-800 font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+                    placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
+                  />
+                  <button type="button" onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showPasswords.new ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Xác nhận mật khẩu mới</label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.confirm ? 'text' : 'password'}
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 text-gray-800 font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+                    placeholder="Nhập lại mật khẩu mới"
+                  />
+                  <button type="button" onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showPasswords.confirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleChangePassword}
+              disabled={isSavingPassword}
+              className={`w-full rounded-full py-3.5 font-bold flex items-center justify-center gap-2 transition-colors shadow-md ${isSavingPassword ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 text-white'}`}
+            >
+              {isSavingPassword ? 'Đang đổi mật khẩu...' : <><Lock size={20} /> Xác nhận đổi mật khẩu</>}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

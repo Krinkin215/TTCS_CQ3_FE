@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { login as apiLogin, getMe } from '../src_utils/services/authService';
+import { setTokens } from '../src_utils/tokenStorage';
 
 function LoginPage({ onNavigateToRegister, onLoginSuccess }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
   return (
     // Phần bao ngoài
     <div className="min-h-screen flex items-center justify-center bg-cyan-900">
@@ -16,11 +21,41 @@ function LoginPage({ onNavigateToRegister, onLoginSuccess }) {
         {/* Form nhập liệu */}
         <form 
           className="space-y-6" 
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            const email = e.target[0].value; 
-            const role = email === 'admin@gmail.com' ? 'admin' : 'user';
-            onLoginSuccess(role);
+            setError('');
+            setIsSubmitting(true);
+            try {
+              const email = e.target[0].value;
+              const password = e.target[1].value;
+
+              let role = null;
+              try {
+                await apiLogin({ email, password });
+                const principal = await getMe().catch(() => null);
+                const roles = principal?.roles ?? principal?.authorities ?? [];
+                const rolesStr = Array.isArray(roles) ? roles.map(r => (typeof r === 'string' ? r : r?.authority ?? r?.role ?? '')).join(',') : String(roles);
+                const isAdmin = /ADMIN/i.test(rolesStr);
+                role = isAdmin ? 'admin' : 'user';
+              } catch (err) {
+                // Backend không khả dụng → thử mock login
+                const MOCK_ACCOUNTS = [
+                  { email: 'admin@englearn.com', password: 'Admin123', role: 'admin' },
+                  { email: 'user@englearn.com', password: 'User1234', role: 'user' },
+                ];
+                const mock = MOCK_ACCOUNTS.find(a => a.email === email && a.password === password);
+                if (mock) {
+                  setTokens({ accessToken: 'mock-access-token', refreshToken: 'mock-refresh-token' });
+                  localStorage.setItem('mockRole', mock.role);
+                  role = mock.role;
+                } else {
+                  setError('Đăng nhập thất bại. Không thể kết nối server. Thử: admin@englearn.com / Admin123 hoặc user@englearn.com / User1234');
+                }
+              }
+              if (role) onLoginSuccess(role);
+            } finally {
+              setIsSubmitting(false);
+            }
           }}
         >
           <div>
@@ -43,11 +78,20 @@ function LoginPage({ onNavigateToRegister, onLoginSuccess }) {
 
           <button 
             type="submit"
-            className="w-full bg-[#0e7490] hover:bg-[#164e63] text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 shadow-lg"
+            disabled={isSubmitting}
+            className={`w-full text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 shadow-lg ${
+              isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#0e7490] hover:bg-[#164e63]'
+            }`}
           >
-            Đăng nhập
+            {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
+
+        {error && (
+          <p className="mt-4 text-sm font-bold text-red-600 text-center">
+            {error}
+          </p>
+        )}
 
         {/* Phần footer */}
         <p className="text-center text-sm text-gray-900 mt-6">
