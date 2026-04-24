@@ -1,16 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Home, Heart, Library, LayoutGrid, Gamepad2, Trophy, 
+import {
+  Home, Heart, Library, LayoutGrid, Gamepad2, Trophy,
   ChevronLeft, ChevronRight, Zap, BookOpen, User, Flame, ChevronDown, ChevronsUpDown,
   X, Mail, Calendar, Pencil, Download, LogOut, Cake, Camera, Save, ArrowLeft,
-  Eye, MoreVertical, FolderPlus, Search 
+  Eye, MoreVertical, FolderPlus, Search
 } from 'lucide-react';
 import ProfileModal from '../src_components/ProfileModal';
 import FavoritePage from './FavoritePage';
 import CollectionPage from './CollectionPage';
 import VocabularyPage from './VocabularyPage';
 import LeaderboardPage from './LeaderboardPage';
-import PracticePage from './PracticePage'; 
+import PracticePage from './PracticePage';
 import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
 import FlashcardLearning from '../src_components/FlashcardLearning';
@@ -73,7 +73,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       'Luyện tập': { path: '/home/practice', title: 'Luyện tập - EngLearn' },
       'Bảng xếp hạng': { path: '/home/leaderboard', title: 'Bảng xếp hạng - EngLearn' },
     };
-    
+
     const route = routeMap[activeMenu];
     if (route) {
       document.title = route.title;
@@ -85,18 +85,18 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
   useEffect(() => {
     const handlePopState = (e) => {
-       if (e.state && e.state.menu) {
-           setActiveMenu(e.state.menu);
-       } else {
-           const p = window.location.pathname;
-           if (p.includes('favorites')) setActiveMenu('Yêu thích');
-           else if (p.includes('collections')) setActiveMenu('Bộ từ vựng');
-           else if (p.includes('vocabulary')) setActiveMenu('Từ vựng');
-           else if (p.includes('topics')) setActiveMenu('Chủ đề');
-           else if (p.includes('practice')) setActiveMenu('Luyện tập');
-           else if (p.includes('leaderboard')) setActiveMenu('Bảng xếp hạng');
-           else setActiveMenu('Trang chủ');
-       }
+      if (e.state && e.state.menu) {
+        setActiveMenu(e.state.menu);
+      } else {
+        const p = window.location.pathname;
+        if (p.includes('favorites')) setActiveMenu('Yêu thích');
+        else if (p.includes('collections')) setActiveMenu('Bộ từ vựng');
+        else if (p.includes('vocabulary')) setActiveMenu('Từ vựng');
+        else if (p.includes('topics')) setActiveMenu('Chủ đề');
+        else if (p.includes('practice')) setActiveMenu('Luyện tập');
+        else if (p.includes('leaderboard')) setActiveMenu('Bảng xếp hạng');
+        else setActiveMenu('Trang chủ');
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -119,6 +119,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     joinDate: '',
     streak: 0,
     bestStreak: 0,
+    totalXP: 0,
     avatarChar: 'U',
     avatarUrl: null
   });
@@ -129,16 +130,24 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       try {
         const principal = await getMe();
         if (cancelled || !principal) return;
+        const u = principal.user || principal;
+
+        let joinDateFormatted = u.createdAt || u.created_at || u.joinDate || u.join_date || '';
+        if (joinDateFormatted && joinDateFormatted.includes('T')) {
+          joinDateFormatted = joinDateFormatted.split('T')[0];
+        }
+
         const mapped = {
-          username: principal.username ?? principal.userName ?? '',
-          fullName: principal.fullName ?? principal.full_name ?? '',
-          email: principal.email ?? '',
-          date_of_birth: principal.date_of_birth ?? principal.dateOfBirth ?? '',
-          joinDate: principal.joinDate ?? principal.join_date ?? '',
-          streak: principal.streak ?? 0,
-          bestStreak: principal.bestStreak ?? principal.best_streak ?? 0,
-          avatarChar: (principal.fullName ?? principal.username ?? 'U').slice(0, 1).toUpperCase(),
-          avatarUrl: principal.avatarUrl ?? principal.avatar_url ?? null
+          username: u.username ?? u.userName ?? principal.username ?? '',
+          fullName: u.fullName ?? u.full_name ?? '',
+          email: u.email ?? principal.username ?? '',
+          date_of_birth: u.dateOfBirth ?? u.date_of_birth ?? '',
+          joinDate: joinDateFormatted,
+          streak: u.streak?.currentStreak ?? u.streak ?? principal.streak ?? 0,
+          bestStreak: u.streak?.longestStreak ?? u.bestStreak ?? u.best_streak ?? principal.bestStreak ?? 0,
+          totalXP: u.totalXP ?? u.totalScore ?? u.score ?? principal.totalXP ?? 0,
+          avatarChar: (u.fullName ?? u.username ?? principal.username ?? 'U').slice(0, 1).toUpperCase(),
+          avatarUrl: u.avatarUrl ?? u.avatar_url ?? principal.avatarUrl ?? null
         };
         setUserData(mapped);
       } catch {
@@ -151,12 +160,12 @@ function HomePage({ onLogout, onNavigateToPractice }) {
   }, []);
 
   const [favoriteVocabDB, setFavoriteVocabDB] = useState([]);
-  const [collectionVocabDB, setCollectionVocabDB] = useState([]); 
-  
+  const [collectionVocabDB, setCollectionVocabDB] = useState([]);
+
   const [showTopicWordListModal, setShowTopicWordListModal] = useState(false);
   const [activeTopic, setActiveTopic] = useState(null);
   const [topicWords, setTopicWords] = useState([]);
-  
+
   const [isTopicWordSelectMode, setIsTopicWordSelectMode] = useState(false);
   const [selectedTopicWordIds, setSelectedTopicWordIds] = useState([]);
 
@@ -191,11 +200,11 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     const newFavorites = selectedTopicWordIds.filter(id => !favoriteVocabDB.includes(id));
     const favoritedCount = selectedTopicWordIds.length - newFavorites.length;
     setFavoriteVocabDB(prev => [...prev, ...newFavorites]);
-    
+
     let alertMsg = `KẾT QUẢ:\n✅ Đã thêm ${newFavorites.length} từ vào Yêu thích.\n`;
     if (favoritedCount > 0) alertMsg += `⚠️ Bỏ qua ${favoritedCount} từ đã có sẵn.`;
     alert(alertMsg);
-    
+
     setIsTopicWordSelectMode(false);
     setSelectedTopicWordIds([]);
   };
@@ -228,37 +237,37 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
   const topicsRef = useRef(null);
   const mainRef = useRef(null);
-  const isScrollingRef = useRef(false); 
+  const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef(null);
 
   const scrollToTopics = () => {
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     isScrollingRef.current = true;
-    
+
     topicsRef.current?.scrollIntoView({ behavior: 'smooth' });
-    
-    scrollTimeoutRef.current = setTimeout(() => { 
-      isScrollingRef.current = false; 
+
+    scrollTimeoutRef.current = setTimeout(() => {
+      isScrollingRef.current = false;
     }, 800);
   };
-  
+
   const scrollToTop = () => {
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     isScrollingRef.current = true;
-    
+
     mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    scrollTimeoutRef.current = setTimeout(() => { 
-      isScrollingRef.current = false; 
+
+    scrollTimeoutRef.current = setTimeout(() => {
+      isScrollingRef.current = false;
     }, 800);
   };
   const handleScroll = () => {
-    if (isScrollingRef.current) return; 
+    if (isScrollingRef.current) return;
     if (!mainRef.current || !topicsRef.current) return;
     const mainRect = mainRef.current.getBoundingClientRect();
     const topicsRect = topicsRef.current.getBoundingClientRect();
     const distance = topicsRect.top - mainRect.top;
-    
+
     setActiveMenu(prevMenu => {
       if (prevMenu !== 'Trang chủ' && prevMenu !== 'Chủ đề') return prevMenu;
       const targetMenu = distance <= 300 ? 'Chủ đề' : 'Trang chủ';
@@ -267,26 +276,26 @@ function HomePage({ onLogout, onNavigateToPractice }) {
   };
 
   const menuItems = [
-    { 
-      name: 'Trang chủ', 
-      icon: <Home size={22} />, 
-      active: activeMenu === 'Trang chủ', 
-      onClick: () => { setActiveMenu('Trang chủ'); scrollToTop(); } 
+    {
+      name: 'Trang chủ',
+      icon: <Home size={22} />,
+      active: activeMenu === 'Trang chủ',
+      onClick: () => { setActiveMenu('Trang chủ'); scrollToTop(); }
     },
     { name: 'Yêu thích', icon: <Heart size={22} />, active: activeMenu === 'Yêu thích', onClick: () => setActiveMenu('Yêu thích') },
     { name: 'Bộ từ vựng', icon: <Library size={22} />, active: activeMenu === 'Bộ từ vựng', onClick: () => setActiveMenu('Bộ từ vựng') },
     { name: 'Từ vựng', icon: <BookOpen size={22} />, active: activeMenu === 'Từ vựng', onClick: () => { setActiveMenu('Từ vựng'); setVocabFilter(null); } },
-    
-    { 
-      name: 'Chủ đề', 
-      icon: <LayoutGrid size={22} />, 
-      active: activeMenu === 'Chủ đề', 
-      onClick: () => { 
-        setActiveMenu('Chủ đề'); 
+
+    {
+      name: 'Chủ đề',
+      icon: <LayoutGrid size={22} />,
+      active: activeMenu === 'Chủ đề',
+      onClick: () => {
+        setActiveMenu('Chủ đề');
         setTimeout(() => {
           scrollToTopics();
-        }, 100); 
-      } 
+        }, 100);
+      }
     },
     { name: 'Luyện tập', icon: <Gamepad2 size={22} />, active: activeMenu === 'Luyện tập', onClick: () => { setPracticeInitialFilters(null); setActiveMenu('Luyện tập'); } },
     { name: 'Bảng xếp hạng', icon: <Trophy size={22} />, active: activeMenu === 'Bảng xếp hạng', onClick: () => setActiveMenu('Bảng xếp hạng') },
@@ -313,10 +322,10 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         {openMenuId === item.id && (
           <div className="absolute right-8 top-10 w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-50 text-left">
             <button onClick={() => { setOpenMenuId(null); handleOpenAddToCollection(item); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
-              <FolderPlus size={16}/> Thêm vào bộ từ
+              <FolderPlus size={16} /> Thêm vào bộ từ
             </button>
             <button onClick={() => { setOpenMenuId(null); setFavoriteVocabDB(prev => prev.includes(item.id) ? prev.filter(v => v !== item.id) : [...prev, item.id]); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex justify-between items-center">
-              Yêu thích <Heart size={16} fill={isFav ? "currentColor" : "none"} className={isFav ? "text-red-500" : "text-gray-400"}/>
+              Yêu thích <Heart size={16} fill={isFav ? "currentColor" : "none"} className={isFav ? "text-red-500" : "text-gray-400"} />
             </button>
           </div>
         )}
@@ -326,35 +335,34 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-gray-800">
-      
+
       {/* sidebar */}
-      <aside 
+      <aside
         className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-[#083344] text-white transition-all duration-300 flex flex-col relative shadow-xl z-20`}
       >
-        
-        <button 
+
+        <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="absolute -right-3 top-6 bg-[#0e7490] rounded-full p-1 text-white hover:bg-[#164e63] shadow-md"
         >
           {isSidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
         </button>
 
-        
+
         <div className="h-20 flex items-center justify-center font-extrabold text-2xl tracking-wide border-b border-[#164e63]">
           {isSidebarOpen ? <span className="text-white">Eng<span className="text-[#38bdf8]">Learn</span></span> : 'E'}
         </div>
 
-        
+
         <div className="flex-1 py-6 flex flex-col gap-2 px-3 overflow-y-auto">
           {menuItems.map((item, index) => (
-            <button 
+            <button
               key={index}
               onClick={item.onClick}
-              className={`flex items-center p-3 rounded-xl transition-colors ${
-                item.active 
-                  ? 'bg-[#164e63] text-[#38bdf8] font-semibold' 
+              className={`flex items-center p-3 rounded-xl transition-colors ${item.active
+                  ? 'bg-[#164e63] text-[#38bdf8] font-semibold'
                   : 'text-gray-300 hover:bg-[#164e63] hover:text-white'
-              } ${!isSidebarOpen && 'justify-center'}`}
+                } ${!isSidebarOpen && 'justify-center'}`}
               title={!isSidebarOpen ? item.name : ''}
             >
               <div className="flex-shrink-0">{item.icon}</div>
@@ -363,9 +371,9 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           ))}
         </div>
 
-        
+
         <div className="p-4 border-t border-[#164e63]">
-          <div 
+          <div
             className={`flex items-center cursor-pointer hover:bg-[#164e63] p-2 rounded-xl transition-colors ${!isSidebarOpen && 'justify-center'}`}
             onClick={() => setIsProfileModalOpen(true)}
           >
@@ -389,230 +397,230 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       {/* nội dung chính */}
       <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto h-screen scroll-smooth">
         {(activeMenu === 'Trang chủ' || activeMenu === 'Chủ đề') && (
-        <div className="max-w-7xl mx-auto p-8">
-          
-          
-          <div className="flex justify-end items-center mb-8 gap-4"></div>
-
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-            
-            <div 
-              onClick={() => {
-                setPracticeInitialFilters({ mode: 'smart' });
-                setActiveMenu('Luyện tập');
-              }}
-              className="bg-gradient-to-br from-[#0e7490] to-[#164e63] rounded-2xl p-6 text-white shadow-lg flex flex-col justify-between relative overflow-hidden group cursor-pointer"
-            >
-              <div className="relative z-10">
-                <h3 className="text-2xl font-bold mb-2">Ôn tập thông minh</h3>
-                <p className="text-[#bae6fd] text-sm leading-relaxed max-w-[80%]">AI đã chuẩn bị sẵn các từ vựng bạn sắp quên. Ôn tập ngay để nhớ lâu hơn!</p>
-              </div>
-              <button className="mt-6 bg-white text-[#0e7490] w-fit px-6 py-2.5 rounded-full font-bold shadow-md hover:scale-105 hover:shadow-xl transition-all z-10">
-                Bắt đầu ôn tập
-              </button>
-              <Zap className="absolute -bottom-6 -right-6 text-white opacity-10 group-hover:scale-110 transition-transform duration-500" size={120} />
-            </div>
-
-            
-            <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 flex flex-col">
-              <h3 className="text-lg font-bold text-[#083344] mb-4">Thống kê từ vựng</h3>
-              <div className="grid grid-cols-2 gap-3 flex-1">
-                
-                <div onClick={() => navigateToVocabWithFilter('Tổng từ đã học')} className="bg-blue-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
-                  <span className="text-blue-600 font-bold text-xl">—</span>
-                  <span className="text-sm text-gray-500 font-medium mt-1">Tổng từ đã học</span>
-                </div>
-                
-                <div onClick={() => navigateToVocabWithFilter('Đã thuộc')} className="bg-green-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
-                  <span className="text-green-600 font-bold text-xl">—</span>
-                  <span className="text-sm text-gray-500 font-medium mt-1">Đã thuộc (Mastered)</span>
-                </div>
-                
-                <div onClick={() => navigateToVocabWithFilter('Chưa thuộc')} className="bg-orange-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
-                  <span className="text-orange-500 font-bold text-xl">—</span>
-                  <span className="text-sm text-gray-500 font-medium mt-1 leading-tight">Chưa thuộc (Learning)</span>
-                </div>
-                
-                <div onClick={() => navigateToVocabWithFilter('Chưa học')} className="bg-gray-50 rounded-xl p-3 flex flex-col items-center justify-center border border-gray-100 text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
-                  <span className="text-gray-400 font-bold text-xl">—</span>
-                  <span className="text-sm text-gray-400 font-medium mt-1">Chưa học (New)</span>
-                </div>
-                
-              </div>
-            </div>
-
-            
-            <div className="bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-center items-center relative overflow-hidden">
-              <h3 className="text-sm font-bold mb-3 opacity-90 uppercase tracking-wider z-10 text-center">
-                Chuỗi học của bạn
-              </h3>
-
-              <div className="flex items-center gap-6 mb-6 z-10">
-                <div className="w-20 h-20 rounded-3xl bg-white/20 flex items-center justify-center shadow-inner">
-                  {currentStreak === 0 ? (
-                    <Flame size={38} fill="currentColor" className="text-white" />
-                  ) : (
-                    <div className="relative w-12 h-12 drop-shadow-sm">
-                      <Flame
-                        size={48}
-                        fill="currentColor"
-                        className="absolute inset-0 m-auto text-orange-500"
-                      />
-                      <Flame
-                        size={34}
-                        fill="currentColor"
-                        className="absolute inset-0 m-auto text-yellow-200"
-                        style={{ transform: 'translateY(2px)' }}
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="text-left">
-                  <div className={`${streakNumberClass} font-black leading-none whitespace-nowrap`}>
-                    {currentStreak === 0 ? (
-                      <span className="text-red-900 drop-shadow-sm">0</span>
-                    ) : (
-                      <span className="text-orange-300 drop-shadow-sm">{currentStreak}</span>
-                    )}
-                    <span className={`${streakUnitClass} font-bold opacity-90`}>ngày</span>
-                  </div>
-                  <div className="text-lg font-semibold opacity-95 mt-2">
-                    Kỷ lục: <span className="font-black">{bestStreak}</span> ngày
-                  </div>
-                </div>
-              </div>
+          <div className="max-w-7xl mx-auto p-8">
 
 
+            <div className="flex justify-end items-center mb-8 gap-4"></div>
 
-              <Flame className="absolute -bottom-10 -right-4 text-white opacity-10 pointer-events-none" size={150} />
-            </div>
 
-          </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
 
-          {/* truy cập nhanh */}
-          <div className="mb-10">
-            <h2 className="text-xl font-bold text-[#083344] mb-4 text-center">Truy cập nhanh</h2>
-            <div className="flex justify-center gap-4 flex-wrap">
-              <button 
+              <div
                 onClick={() => {
-                  setActiveMenu('Chủ đề');
-                  scrollToTopics();
-                }} 
-                className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-[#0e7490] hover:shadow-md transition-all group min-w-[200px]"
+                  setPracticeInitialFilters({ mode: 'smart' });
+                  setActiveMenu('Luyện tập');
+                }}
+                className="bg-gradient-to-br from-[#0e7490] to-[#164e63] rounded-2xl p-6 text-white shadow-lg flex flex-col justify-between relative overflow-hidden group cursor-pointer"
               >
-                <div className="bg-blue-100 p-3 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
-                  <BookOpen size={24} />
+                <div className="relative z-10">
+                  <h3 className="text-2xl font-bold mb-2">Ôn tập thông minh</h3>
+                  <p className="text-[#bae6fd] text-sm leading-relaxed max-w-[80%]">AI đã chuẩn bị sẵn các từ vựng bạn sắp quên. Ôn tập ngay để nhớ lâu hơn!</p>
                 </div>
-                <div className="ml-4 text-left">
-                  <p className="font-bold text-gray-800">Học bài</p>
-                  <p className="text-xs text-gray-500">Khám phá chủ đề</p>
-                </div>
-              </button>
+                <button className="mt-6 bg-white text-[#0e7490] w-fit px-6 py-2.5 rounded-full font-bold shadow-md hover:scale-105 hover:shadow-xl transition-all z-10">
+                  Bắt đầu ôn tập
+                </button>
+                <Zap className="absolute -bottom-6 -right-6 text-white opacity-10 group-hover:scale-110 transition-transform duration-500" size={120} />
+              </div>
 
-              <button 
-                onClick={() => { setPracticeInitialFilters(null); setActiveMenu('Luyện tập'); }}
-                className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-purple-500 hover:shadow-md transition-all group min-w-[200px]"
-              >
-                <div className="bg-purple-100 p-3 rounded-full text-purple-600 group-hover:scale-110 transition-transform">
-                  <Gamepad2 size={24} />
-                </div>
-                <div className="ml-4 text-left">
-                  <p className="font-bold text-gray-800">Luyện tập</p>
-                  <p className="text-xs text-gray-500">Flashcard & Game</p>
-                </div>
-              </button>
 
-              <button 
-                onClick={() => setActiveMenu('Bảng xếp hạng')}
-                className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-yellow-500 hover:shadow-md transition-all group min-w-[200px]"
-              >
-                <div className="bg-yellow-100 p-3 rounded-full text-yellow-600 group-hover:scale-110 transition-transform">
-                  <Trophy size={24} />
-                </div>
-                <div className="ml-4 text-left">
-                  <p className="font-bold text-gray-800">Xếp hạng</p>
-                  <p className="text-xs text-gray-500">Xem thành tích</p>
-                </div>
-              </button> 
-            </div>
-          </div>
+              <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 flex flex-col">
+                <h3 className="text-lg font-bold text-[#083344] mb-4">Thống kê từ vựng</h3>
+                <div className="grid grid-cols-2 gap-3 flex-1">
 
-          {/* danh sách chủ đề */}
-          <div ref={topicsRef} className="pt-8">
-            <h2 className="text-2xl font-bold text-[#083344] mb-6 border-b-2 border-gray-200 pb-2 inline-block">Chủ đề từ vựng</h2>
-            
-            {topics.length === 0 && (
-              <p className="text-gray-400 text-center py-8">Chưa có chủ đề nào. Dữ liệu sẽ tải từ server.</p>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {topics.map((topic, topicIdx) => (
-                <div key={topic.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-between min-h-[14rem]">
-                  
-                  
-                  <div>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${TOPIC_COLORS[topicIdx % TOPIC_COLORS.length]}`}>
-                      {topic.imageUrl ? (
-                        <img src={topic.imageUrl} alt={topic.title} className="w-full h-full object-contain" />
+                  <div onClick={() => navigateToVocabWithFilter('Tổng từ đã học')} className="bg-blue-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
+                    <span className="text-blue-600 font-bold text-xl">—</span>
+                    <span className="text-sm text-gray-500 font-medium mt-1">Tổng từ đã học</span>
+                  </div>
+
+                  <div onClick={() => navigateToVocabWithFilter('Đã thuộc')} className="bg-green-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
+                    <span className="text-green-600 font-bold text-xl">—</span>
+                    <span className="text-sm text-gray-500 font-medium mt-1">Đã thuộc (Mastered)</span>
+                  </div>
+
+                  <div onClick={() => navigateToVocabWithFilter('Chưa thuộc')} className="bg-orange-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
+                    <span className="text-orange-500 font-bold text-xl">—</span>
+                    <span className="text-sm text-gray-500 font-medium mt-1 leading-tight">Chưa thuộc (Learning)</span>
+                  </div>
+
+                  <div onClick={() => navigateToVocabWithFilter('Chưa học')} className="bg-gray-50 rounded-xl p-3 flex flex-col items-center justify-center border border-gray-100 text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
+                    <span className="text-gray-400 font-bold text-xl">—</span>
+                    <span className="text-sm text-gray-400 font-medium mt-1">Chưa học (New)</span>
+                  </div>
+
+                </div>
+              </div>
+
+
+              <div className="bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-center items-center relative overflow-hidden">
+                <h3 className="text-sm font-bold mb-3 opacity-90 uppercase tracking-wider z-10 text-center">
+                  Chuỗi học của bạn
+                </h3>
+
+                <div className="flex items-center gap-6 mb-6 z-10">
+                  <div className="w-20 h-20 rounded-3xl bg-white/20 flex items-center justify-center shadow-inner">
+                    {currentStreak === 0 ? (
+                      <Flame size={38} fill="currentColor" className="text-white" />
+                    ) : (
+                      <div className="relative w-12 h-12 drop-shadow-sm">
+                        <Flame
+                          size={48}
+                          fill="currentColor"
+                          className="absolute inset-0 m-auto text-orange-500"
+                        />
+                        <Flame
+                          size={34}
+                          fill="currentColor"
+                          className="absolute inset-0 m-auto text-yellow-200"
+                          style={{ transform: 'translateY(2px)' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <div className={`${streakNumberClass} font-black leading-none whitespace-nowrap`}>
+                      {currentStreak === 0 ? (
+                        <span className="text-red-900 drop-shadow-sm">0</span>
                       ) : (
-                        <span className="text-2xl font-bold">{(topic.title ?? '?').slice(0, 1)}</span>
+                        <span className="text-orange-300 drop-shadow-sm">{currentStreak}</span>
                       )}
+                      <span className={`${streakUnitClass} font-bold opacity-90`}>ngày</span>
                     </div>
-                    <h3 className="font-bold text-gray-800 mb-3 line-clamp-1" title={topic.title}>{topic.title}</h3>
-                    
-                    
-                    <div className="flex flex-col gap-2.5 mb-4">
-                      <span className="text-xs text-gray-600 font-medium bg-gray-100/80 px-3 py-1.5 rounded-lg w-fit">
-                        Số từ: {topic.totalVocab} từ
-                      </span>
-                      
-                      
-                      {topic.masteredVocab === topic.totalVocab ? (
-                        <span className="text-[11px] font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg w-fit">
-                          Đã hoàn thành
+                    <div className="text-lg font-semibold opacity-95 mt-2">
+                      Kỷ lục: <span className="font-black">{bestStreak}</span> ngày
+                    </div>
+                  </div>
+                </div>
+
+
+
+                <Flame className="absolute -bottom-10 -right-4 text-white opacity-10 pointer-events-none" size={150} />
+              </div>
+
+            </div>
+
+            {/* truy cập nhanh */}
+            <div className="mb-10">
+              <h2 className="text-xl font-bold text-[#083344] mb-4 text-center">Truy cập nhanh</h2>
+              <div className="flex justify-center gap-4 flex-wrap">
+                <button
+                  onClick={() => {
+                    setActiveMenu('Chủ đề');
+                    scrollToTopics();
+                  }}
+                  className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-[#0e7490] hover:shadow-md transition-all group min-w-[200px]"
+                >
+                  <div className="bg-blue-100 p-3 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
+                    <BookOpen size={24} />
+                  </div>
+                  <div className="ml-4 text-left">
+                    <p className="font-bold text-gray-800">Học bài</p>
+                    <p className="text-xs text-gray-500">Khám phá chủ đề</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setPracticeInitialFilters(null); setActiveMenu('Luyện tập'); }}
+                  className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-purple-500 hover:shadow-md transition-all group min-w-[200px]"
+                >
+                  <div className="bg-purple-100 p-3 rounded-full text-purple-600 group-hover:scale-110 transition-transform">
+                    <Gamepad2 size={24} />
+                  </div>
+                  <div className="ml-4 text-left">
+                    <p className="font-bold text-gray-800">Luyện tập</p>
+                    <p className="text-xs text-gray-500">Flashcard & Game</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setActiveMenu('Bảng xếp hạng')}
+                  className="flex items-center px-6 py-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-yellow-500 hover:shadow-md transition-all group min-w-[200px]"
+                >
+                  <div className="bg-yellow-100 p-3 rounded-full text-yellow-600 group-hover:scale-110 transition-transform">
+                    <Trophy size={24} />
+                  </div>
+                  <div className="ml-4 text-left">
+                    <p className="font-bold text-gray-800">Xếp hạng</p>
+                    <p className="text-xs text-gray-500">Xem thành tích</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* danh sách chủ đề */}
+            <div ref={topicsRef} className="pt-8">
+              <h2 className="text-2xl font-bold text-[#083344] mb-6 border-b-2 border-gray-200 pb-2 inline-block">Chủ đề từ vựng</h2>
+
+              {topics.length === 0 && (
+                <p className="text-gray-400 text-center py-8">Chưa có chủ đề nào. Dữ liệu sẽ tải từ server.</p>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {topics.map((topic, topicIdx) => (
+                  <div key={topic.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-between min-h-[14rem]">
+
+
+                    <div>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${TOPIC_COLORS[topicIdx % TOPIC_COLORS.length]}`}>
+                        {topic.imageUrl ? (
+                          <img src={topic.imageUrl} alt={topic.title} className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-2xl font-bold">{(topic.title ?? '?').slice(0, 1)}</span>
+                        )}
+                      </div>
+                      <h3 className="font-bold text-gray-800 mb-3 line-clamp-1" title={topic.title}>{topic.title}</h3>
+
+
+                      <div className="flex flex-col gap-2.5 mb-4">
+                        <span className="text-xs text-gray-600 font-medium bg-gray-100/80 px-3 py-1.5 rounded-lg w-fit">
+                          Số từ: {topic.totalVocab} từ
                         </span>
-                      ) : topic.masteredVocab === 0 ? (
-                        <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">
-                          Chưa học
-                        </span>
-                      ) : (
-                        <div className="flex flex-col gap-1.5 w-full pr-4 mt-1">
-                          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                            <div className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${(topic.masteredVocab / topic.totalVocab) * 100}%` }}></div>
+
+
+                        {topic.masteredVocab === topic.totalVocab ? (
+                          <span className="text-[11px] font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg w-fit">
+                            Đã hoàn thành
+                          </span>
+                        ) : topic.masteredVocab === 0 ? (
+                          <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">
+                            Chưa học
+                          </span>
+                        ) : (
+                          <div className="flex flex-col gap-1.5 w-full pr-4 mt-1">
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                              <div className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${(topic.masteredVocab / topic.totalVocab) * 100}%` }}></div>
+                            </div>
+                            <span className="text-[10px] text-gray-500 font-bold">{topic.masteredVocab}/{topic.totalVocab} đã thuộc</span>
                           </div>
-                          <span className="text-[10px] text-gray-500 font-bold">{topic.masteredVocab}/{topic.totalVocab} đã thuộc</span>
-                        </div>
-                      )}
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center gap-2">
+
+                      <button
+                        onClick={() => openTopicWordList(topic)}
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm"
+                      >
+                        <Eye size={16} /> Xem từ
+                      </button>
+
+
+                      <button
+                        onClick={() => handleOpenLearning(topic)}
+                        className="flex items-center justify-end text-[#0e7490] hover:text-white bg-cyan-50 hover:bg-[#0e7490] p-1.5 rounded-full transition-all duration-300 w-9 hover:w-[100px] relative group overflow-hidden shrink-0 shadow-sm border border-cyan-100 hover:border-transparent"
+                      >
+                        <span className="opacity-0 whitespace-nowrap group-hover:opacity-100 transition-opacity duration-300 text-xs font-bold absolute right-8">Vào học</span>
+                        <ChevronRight size={18} className="shrink-0 relative z-10" />
+                      </button>
+
                     </div>
                   </div>
-                  
-                  <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center gap-2">
-                    
-                    <button 
-                      onClick={() => openTopicWordList(topic)}
-                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm"
-                    >
-                      <Eye size={16} /> Xem từ
-                    </button>
-
-                    
-                    <button 
-                      onClick={() => handleOpenLearning(topic)}
-                      className="flex items-center justify-end text-[#0e7490] hover:text-white bg-cyan-50 hover:bg-[#0e7490] p-1.5 rounded-full transition-all duration-300 w-9 hover:w-[100px] relative group overflow-hidden shrink-0 shadow-sm border border-cyan-100 hover:border-transparent"
-                    >
-                      <span className="opacity-0 whitespace-nowrap group-hover:opacity-100 transition-opacity duration-300 text-xs font-bold absolute right-8">Vào học</span>
-                      <ChevronRight size={18} className="shrink-0 relative z-10" />
-                    </button>
-                    
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-          
-          <div className="h-40"></div>
 
-        </div>
+            <div className="h-40"></div>
+
+          </div>
         )}
 
         {activeMenu === 'Yêu thích' && <FavoritePage />}
@@ -622,20 +630,20 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         {activeMenu === 'Từ vựng' && <VocabularyPage initialFilter={vocabFilter} />}
 
         {activeMenu === 'Luyện tập' && (
-          <PracticePage 
-            initialFilters={practiceInitialFilters} 
-            onBack={() => setActiveMenu('Trang chủ')} 
+          <PracticePage
+            initialFilters={practiceInitialFilters}
+            onBack={() => setActiveMenu('Trang chủ')}
           />
         )}
 
         {activeMenu === 'Bảng xếp hạng' && <LeaderboardPage />}
-        
+
       </main>
       {/* hồ sơ người dùng */}
       <ProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        user={{...userData, streak: userData.streak, xp: userData.totalXP ?? 0, join_date: userData.joinDate}}
+        user={{ ...userData, streak: userData.streak, xp: userData.totalXP ?? 0, join_date: userData.joinDate }}
         isEditable={true}
         onSave={async (updatedData) => {
           try {
@@ -671,7 +679,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       {showTopicWordListModal && activeTopic && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-6xl w-full border border-gray-100 flex flex-col max-h-[90vh]">
-            
+
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100 shrink-0">
               <div>
                 <h2 className="text-2xl font-bold text-cyan-950 flex items-center gap-2">
@@ -681,12 +689,12 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
               <div className="flex items-center gap-4">
 
-                
+
                 <div className="relative w-56">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                  <input 
-                    type="text" 
-                    placeholder="Tìm từ vựng..." 
+                  <input
+                    type="text"
+                    placeholder="Tìm từ vựng..."
                     value={topicWordSearchTerm}
                     onChange={(e) => setTopicWordSearchTerm(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all outline-none"
@@ -696,24 +704,24 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                 {/* lọc bài học */}
                 <div className="relative">
                   <button onClick={() => setShowLessonFilter(!showLessonFilter)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 text-gray-700">
-                    Lọc bài học ({selectedLessonIds.length}/{activeTopic.lessons.length}) <ChevronDown size={16}/>
+                    Lọc bài học ({selectedLessonIds.length}/{activeTopic.lessons.length}) <ChevronDown size={16} />
                   </button>
                   {showLessonFilter && (
                     <div className="absolute top-full mt-2 right-0 w-64 bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden">
                       <div className="p-2 border-b border-gray-100">
                         <div className="relative">
-                          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
-                          <input type="text" placeholder="Tìm bài học..." value={lessonSearchTerm} onChange={e=>setLessonSearchTerm(e.target.value)} className="w-full pl-8 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-sm outline-none focus:ring-1 focus:ring-cyan-500"/>
+                          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input type="text" placeholder="Tìm bài học..." value={lessonSearchTerm} onChange={e => setLessonSearchTerm(e.target.value)} className="w-full pl-8 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-sm outline-none focus:ring-1 focus:ring-cyan-500" />
                         </div>
                       </div>
                       <div className="max-h-48 overflow-y-auto p-2 scrollbar-thin">
                         <label className="flex items-center gap-2 p-2 hover:bg-cyan-50 rounded cursor-pointer font-bold text-cyan-900 text-sm border-b border-gray-50">
-                          <input type="checkbox" checked={selectedLessonIds.length === activeTopic.lessons.length && activeTopic.lessons.length > 0} onChange={() => setSelectedLessonIds(selectedLessonIds.length === activeTopic.lessons.length ? [] : activeTopic.lessons.map(l=>l.id))} className="rounded text-cyan-600 w-4 h-4 cursor-pointer"/>
+                          <input type="checkbox" checked={selectedLessonIds.length === activeTopic.lessons.length && activeTopic.lessons.length > 0} onChange={() => setSelectedLessonIds(selectedLessonIds.length === activeTopic.lessons.length ? [] : activeTopic.lessons.map(l => l.id))} className="rounded text-cyan-600 w-4 h-4 cursor-pointer" />
                           Chọn tất cả bài học
                         </label>
                         {activeTopic.lessons.filter(l => l.name.toLowerCase().includes(lessonSearchTerm.toLowerCase())).map(lesson => (
                           <label key={lesson.id} className="flex items-center gap-2 p-2 hover:bg-cyan-50 rounded cursor-pointer text-sm font-medium text-gray-700">
-                            <input type="checkbox" checked={selectedLessonIds.includes(lesson.id)} onChange={()=>setSelectedLessonIds(prev => prev.includes(lesson.id) ? prev.filter(id => id !== lesson.id) : [...prev, lesson.id])} className="rounded text-cyan-600 w-4 h-4 cursor-pointer"/>
+                            <input type="checkbox" checked={selectedLessonIds.includes(lesson.id)} onChange={() => setSelectedLessonIds(prev => prev.includes(lesson.id) ? prev.filter(id => id !== lesson.id) : [...prev, lesson.id])} className="rounded text-cyan-600 w-4 h-4 cursor-pointer" />
                             {lesson.name}
                           </label>
                         ))}
@@ -722,7 +730,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                   )}
                 </div>
 
-                
+
                 {isTopicWordSelectMode && selectedTopicWordIds.length > 0 && (
                   <div className="flex gap-2">
                     <button onClick={() => handleOpenAddToCollection(null)} className="flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 font-medium text-sm">
@@ -733,8 +741,8 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                     </button>
                   </div>
                 )}
-                
-                <button onClick={() => { setIsTopicWordSelectMode(!isTopicWordSelectMode); if(isTopicWordSelectMode) setSelectedTopicWordIds([]); }} className={`px-4 py-2 font-bold rounded-lg shadow-sm border text-sm ${isTopicWordSelectMode ? 'bg-cyan-950 text-white border-cyan-950' : 'bg-white text-cyan-700 border-cyan-200 hover:bg-cyan-50'}`}>
+
+                <button onClick={() => { setIsTopicWordSelectMode(!isTopicWordSelectMode); if (isTopicWordSelectMode) setSelectedTopicWordIds([]); }} className={`px-4 py-2 font-bold rounded-lg shadow-sm border text-sm ${isTopicWordSelectMode ? 'bg-cyan-950 text-white border-cyan-950' : 'bg-white text-cyan-700 border-cyan-200 hover:bg-cyan-50'}`}>
                   {isTopicWordSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
                 </button>
 
@@ -744,7 +752,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <VocabTable 
+              <VocabTable
                 words={topicWords.filter(w => selectedLessonIds.includes(w.lessonId))}
                 searchTerm={topicWordSearchTerm}
                 isSelectMode={isTopicWordSelectMode}
@@ -752,10 +760,10 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                 onToggleSelect={(id) => setSelectedTopicWordIds(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id])}
                 onSelectAll={(currentWords) => {
                   const isAllSelected = currentWords.every(v => selectedTopicWordIds.includes(v.id));
-                  if (isAllSelected) setSelectedTopicWordIds(prev => prev.filter(id => !currentWords.map(w=>w.id).includes(id)));
-                  else setSelectedTopicWordIds(prev => [...new Set([...prev, ...currentWords.map(w=>w.id)])]);
+                  if (isAllSelected) setSelectedTopicWordIds(prev => prev.filter(id => !currentWords.map(w => w.id).includes(id)));
+                  else setSelectedTopicWordIds(prev => [...new Set([...prev, ...currentWords.map(w => w.id)])]);
                 }}
-                ActionColumn={TopicWordActionColumn} 
+                ActionColumn={TopicWordActionColumn}
               />
             </div>
           </div>
@@ -763,7 +771,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       )}
 
       {/* modal thêm vào bộ từ */}
-      <AddToCollectionModal 
+      <AddToCollectionModal
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}
         isBulkMode={isBulkAddMode}
@@ -777,12 +785,12 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       {showLearningModal && activeLearningTopic && (
         <div className="fixed inset-0 bg-cyan-950/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-gray-100 flex flex-col max-h-[85vh] animate-in zoom-in duration-200">
-            
-            
+
+
             <div className="flex justify-between items-center p-6 border-b border-gray-100 shrink-0 bg-cyan-50/50 rounded-t-2xl">
               <div>
                 <h2 className="text-2xl font-black text-cyan-950 flex items-center gap-3">
-                  <Gamepad2 className="text-[#0e7490]" size={28} /> 
+                  <Gamepad2 className="text-[#0e7490]" size={28} />
                   Vào học: {activeLearningTopic.title}
                 </h2>
                 <p className="text-gray-500 mt-1 font-medium">Chọn một bài học dưới đây để bắt đầu quá trình luyện tập.</p>
@@ -792,20 +800,20 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               </button>
             </div>
 
-            
+
             <div className="p-4 border-b border-gray-100 flex gap-4 bg-white shrink-0">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Tìm kiếm bài học..." 
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm bài học..."
                   value={learningSearchTerm}
                   onChange={(e) => setLearningSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all outline-none"
                 />
               </div>
               <div className="relative w-48">
-                <select 
+                <select
                   value={learningDifficultyFilter}
                   onChange={(e) => setLearningDifficultyFilter(e.target.value)}
                   className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-cyan-900 focus:ring-2 focus:ring-cyan-500 transition-all outline-none appearance-none cursor-pointer"
@@ -822,20 +830,20 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               </div>
             </div>
 
-            
+
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 scrollbar-thin">
               {activeLearningTopic.lessons
                 .filter(lesson => lesson.name.toLowerCase().includes(learningSearchTerm.toLowerCase()))
                 .filter(lesson => learningDifficultyFilter === 'all' || lesson.difficulty === parseInt(learningDifficultyFilter))
                 .map((lesson, index) => {
                   const difficultyLabels = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
-                  
+
                   return (
                     <div key={lesson.id} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-4 hover:border-cyan-400 hover:shadow-md transition-all group">
-                      
-                      
+
+
                       <div className="flex items-center justify-between gap-4">
-                        
+
                         <div className="flex items-start gap-4 flex-1">
                           <div className="w-10 h-10 rounded-full bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold border border-cyan-100 shrink-0">
                             {index + 1}
@@ -843,18 +851,18 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                           <div>
                             <h4 className="font-bold text-gray-800 text-lg group-hover:text-cyan-700 transition-colors">{lesson.name}</h4>
                             <div className="flex items-center gap-3 mt-1.5 shrink-0">
-                               <span className="text-[11px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
-                                 Độ khó: {difficultyLabels[lesson.difficulty]}
-                               </span>
+                              <span className="text-[11px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
+                                Độ khó: {difficultyLabels[lesson.difficulty]}
+                              </span>
                             </div>
                           </div>
                         </div>
 
-                        
-                        <button 
+
+                        <button
                           onClick={() => {
-                            setShowLearningModal(false); 
-                            setActiveFlashcardSession({ topic: activeLearningTopic, lesson }); 
+                            setShowLearningModal(false);
+                            setActiveFlashcardSession({ topic: activeLearningTopic, lesson });
                           }}
                           className="px-6 py-2.5 bg-white border-2 border-cyan-500 text-cyan-600 font-bold rounded-xl group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-[#0e7490] group-hover:text-white group-hover:border-transparent group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-cyan-500/30 transition-all duration-300 shrink-0"
                         >
@@ -862,26 +870,26 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                         </button>
                       </div>
 
-                      
+
                       <div className="mt-1 flex flex-col gap-1.5 w-full pr-1">
-                          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                            <div 
-                              className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500" 
-                              style={{ width: `${(lesson.masteredCount / lesson.wordCount) * 100}%` }}
-                            ></div>
-                          </div>
-                          <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold">
-                             <span>Số lượng: {lesson.wordCount} từ</span>
-                             <span className={lesson.masteredCount === lesson.wordCount ? 'text-green-600' : ''}>
-                                {lesson.masteredCount}/{lesson.wordCount} đã thuộc
-                             </span>
-                          </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${(lesson.masteredCount / lesson.wordCount) * 100}%` }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold">
+                          <span>Số lượng: {lesson.wordCount} từ</span>
+                          <span className={lesson.masteredCount === lesson.wordCount ? 'text-green-600' : ''}>
+                            {lesson.masteredCount}/{lesson.wordCount} đã thuộc
+                          </span>
+                        </div>
                       </div>
 
                     </div>
                   );
-              })}
-              
+                })}
+
               {activeLearningTopic.lessons.filter(lesson => lesson.name.toLowerCase().includes(learningSearchTerm.toLowerCase())).length === 0 && (
                 <div className="text-center py-10 text-gray-400">
                   <p>Không tìm thấy bài học nào phù hợp với bộ lọc.</p>
@@ -895,12 +903,12 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
       {/* flashcard */}
       {activeFlashcardSession && (
-        <FlashcardLearning 
+        <FlashcardLearning
           topic={activeFlashcardSession.topic}
-          lesson={activeFlashcardSession.lesson}  
+          lesson={activeFlashcardSession.lesson}
           onExit={() => {
             setActiveFlashcardSession(null);
-            setShowLearningModal(true); 
+            setShowLearningModal(true);
           }}
           onNextLesson={(nextLesson) => setActiveFlashcardSession({ topic: activeFlashcardSession.topic, lesson: nextLesson })}
           onPrevLesson={(prevLesson) => setActiveFlashcardSession({ topic: activeFlashcardSession.topic, lesson: prevLesson })}
@@ -916,7 +924,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         />
       )}
 
-    </div> 
+    </div>
   );
 }
 export default HomePage;

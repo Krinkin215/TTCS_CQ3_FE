@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LoginPage from './src_pages/LoginPage';
 import RegisterPage from './src_pages/RegisterPage';
 import HomePage from './src_pages/HomePage';
-import PracticePage from './src_pages/PracticePage'; 
+import PracticePage from './src_pages/PracticePage';
 import AdminHomePage from './src_pages/AdminHomePage';
 import { getMe, logout as doLogout } from './src_utils/services/authService';
 import { getAccessToken } from './src_utils/tokenStorage';
@@ -34,7 +34,14 @@ function App() {
         setUserRole(isAdmin ? 'admin' : 'user');
         setCurrentPage('home');
       } catch {
-        doLogout();
+        // Backend không khả dụng → kiểm tra mock role
+        const mockRole = localStorage.getItem('mockRole');
+        if (mockRole === 'admin' || mockRole === 'user') {
+          setUserRole(mockRole);
+          setCurrentPage('home');
+        } else {
+          doLogout();
+        }
       } finally {
         setIsBootstrapping(false);
       }
@@ -95,12 +102,12 @@ function App() {
 
           {/* 3. HIỂN THỊ TRANG CHỦ CHO USER */}
           {currentPage === 'home' && userRole === 'user' && (
-            <HomePage onLogout={() => { doLogout(); setCurrentPage('login'); }} />
+            <HomePage onLogout={() => { doLogout(); localStorage.removeItem('mockRole'); setCurrentPage('login'); }} />
           )}
 
           {/* 4. HIỂN THỊ TRANG CHỦ RIÊNG BIỆT CHO ADMIN */}
           {currentPage === 'home' && userRole === 'admin' && (
-            <AdminHomePage onLogout={() => { doLogout(); setCurrentPage('login'); }} />
+            <AdminHomePage onLogout={() => { doLogout(); localStorage.removeItem('mockRole'); setCurrentPage('login'); }} />
           )}
         </>
       )}

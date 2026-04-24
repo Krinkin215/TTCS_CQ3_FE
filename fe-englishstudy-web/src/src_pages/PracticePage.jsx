@@ -10,6 +10,7 @@ import VocabResultList from '../src_components/VocabResultList';
 import { playAudio } from '../src_utils/audio';
 import { initGame, finishGame } from '../src_utils/services/practiceService';
 import { fetchVocabReview } from '../src_utils/services/userService';
+import { fetchTopics } from '../src_utils/services/topicService';
 
 
 const STATUS_OPTIONS = [
@@ -18,7 +19,7 @@ const STATUS_OPTIONS = [
 
 
 export default function PracticePage({ onBack, initialFilters }) {
-  const [activeMode, setActiveMode] = useState('collection'); 
+  const [activeMode, setActiveMode] = useState('topic'); 
   const [activeTab, setActiveTab] = useState('history'); 
   const [instructionGame, setInstructionGame] = useState(null); 
 
@@ -94,6 +95,22 @@ export default function PracticePage({ onBack, initialFilters }) {
       setSelectedStatuses([]); 
     }
   }, [initialFilters]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadTopics = async () => {
+      try {
+        const res = await fetchTopics();
+        let list = Array.isArray(res) ? res : (res?.data ?? res?.items ?? []);
+        list = list.map(t => ({ ...t, name: t.title }));
+        if (!cancelled && Array.isArray(list)) setTopics(list);
+      } catch (err) {
+        if (!cancelled) setTopics([]);
+      }
+    };
+    loadTopics();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

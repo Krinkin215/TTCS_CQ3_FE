@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ArrowLeft, Camera, Flame, Trophy, Mail, Cake, Calendar, LogOut, Settings, Save, Lock, Eye, EyeOff } from 'lucide-react';
 import { changeMyPassword } from '../src_utils/services/userService';
 
@@ -63,7 +63,8 @@ export default function ProfileModal({
     try {
       await changeMyPassword({
         oldPassword: passwordForm.oldPassword,
-        newPassword: passwordForm.newPassword
+        newPassword: passwordForm.newPassword,
+        retypePassword: passwordForm.confirmPassword
       });
       alert('Đổi mật khẩu thành công!');
       setIsChangingPassword(false);
@@ -78,8 +79,8 @@ export default function ProfileModal({
   return (
     <div className="fixed inset-0 bg-slate-900/40 z-[999] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-[2rem] w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 text-gray-800">
-        
-        
+
+
         {!isEditing && (
           <button onClick={onClose} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 transition-colors">
             <X size={24} />
@@ -114,43 +115,43 @@ export default function ProfileModal({
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tên người dùng</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={formData.username || ''}
-                  onChange={(e) => setFormData({...formData, username: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 transition-all"
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Họ và tên</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={formData.fullName || ''}
-                  onChange={(e) => setFormData({...formData, fullName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 transition-all"
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Email</label>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   value={formData.email || ''}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 transition-all"
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ngày sinh</label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={formData.date_of_birth || ''}
-                  onChange={(e) => setFormData({...formData, date_of_birth: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 transition-all cursor-pointer"
                 />
               </div>
             </div>
 
-            <button 
+            <button
               onClick={handleSaveClick}
               className="w-full bg-cyan-600 hover:bg-cyan-700 text-white rounded-full py-3.5 font-bold flex items-center justify-center gap-2 transition-colors shadow-md"
             >
@@ -171,25 +172,25 @@ export default function ProfileModal({
               <p className="text-sm font-medium text-gray-500 mt-1">{user.fullName || user.username}</p>
             </div>
 
-            
+
             <div className="grid grid-cols-2 gap-3 mb-5">
               <div className="bg-orange-50 border border-orange-100 rounded-2xl p-3 flex flex-col items-center justify-center shadow-sm">
                 <div className="flex items-center text-orange-500 mb-1">
                   <Flame size={18} className="mr-1" />
                   <span className="text-xs font-bold uppercase tracking-wider">Chuỗi học</span>
                 </div>
-                <span className="text-xl font-black text-orange-600">{user.streak || 2} ngày</span>
+                <span className="text-xl font-black text-orange-600">{user.streak ?? 0} ngày</span>
               </div>
               <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-3 flex flex-col items-center justify-center shadow-sm">
                 <div className="flex items-center text-yellow-600 mb-1">
                   <Trophy size={18} className="mr-1" />
                   <span className="text-xs font-bold uppercase tracking-wider">Tổng điểm</span>
                 </div>
-                <span className="text-xl font-black text-yellow-700">{user.xp || '1,250'} XP</span>
+                <span className="text-xl font-black text-yellow-700">{user.totalXP ?? 0} XP</span>
               </div>
             </div>
 
-            
+
             <div className="bg-slate-50 border border-gray-100 rounded-2xl p-4 mb-5 space-y-3 shadow-sm">
               <div className="flex items-center text-gray-700">
                 <Mail size={16} className="text-cyan-600 w-6" />
@@ -199,30 +200,30 @@ export default function ProfileModal({
                 <Cake size={16} className="text-cyan-600 w-6" />
                 <span className="text-sm">Ngày sinh: <span className="font-semibold text-gray-900 ml-1">{user.date_of_birth || 'Chưa cập nhật'}</span></span>
               </div>
-              <div className="flex items-center text-gray-700">
+              {/* <div className="flex items-center text-gray-700">
                 <Calendar size={16} className="text-cyan-600 w-6" />
-                <span className="text-sm">Ngày tham gia: <span className="font-semibold text-gray-900 ml-1">{user.join_date || 'Chưa cập nhật'}</span></span>
-              </div>
+                <span className="text-sm">Ngày tham gia: <span className="font-semibold text-gray-900 ml-1">{user.joinDate || 'Chưa cập nhật'}</span></span>
+              </div> */}
             </div>
 
-            
+
             {isEditable && (
               <div className="space-y-3">
-                <button 
+                <button
                   onClick={() => setIsEditing(true)}
                   className="w-full bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-full py-3.5 font-bold flex items-center justify-center gap-2 transition-colors border border-cyan-100"
                 >
                   <Settings size={20} /> Chỉnh sửa hồ sơ
                 </button>
 
-                <button 
+                <button
                   onClick={() => setIsChangingPassword(true)}
                   className="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-full py-3.5 font-bold flex items-center justify-center gap-2 transition-colors border border-amber-100"
                 >
                   <Lock size={20} /> Đổi mật khẩu
                 </button>
-                
-                <button 
+
+                <button
                   onClick={onLogout}
                   className="w-full bg-white hover:bg-red-50 text-red-500 rounded-full py-3.5 font-bold flex items-center justify-center gap-2 transition-colors border border-gray-200"
                 >
