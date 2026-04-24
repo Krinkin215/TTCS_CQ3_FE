@@ -34,14 +34,7 @@ function App() {
         setUserRole(isAdmin ? 'admin' : 'user');
         setCurrentPage('home');
       } catch {
-        // Backend không khả dụng → kiểm tra mock role
-        const mockRole = localStorage.getItem('mockRole');
-        if (mockRole === 'admin' || mockRole === 'user') {
-          setUserRole(mockRole);
-          setCurrentPage('home');
-        } else {
-          doLogout();
-        }
+        doLogout();
       } finally {
         setIsBootstrapping(false);
       }
@@ -102,12 +95,12 @@ function App() {
 
           {/* 3. HIỂN THỊ TRANG CHỦ CHO USER */}
           {currentPage === 'home' && userRole === 'user' && (
-            <HomePage onLogout={() => { doLogout(); localStorage.removeItem('mockRole'); setCurrentPage('login'); }} />
+            <HomePage onLogout={() => { doLogout(); setCurrentPage('login'); }} />
           )}
 
           {/* 4. HIỂN THỊ TRANG CHỦ RIÊNG BIỆT CHO ADMIN */}
           {currentPage === 'home' && userRole === 'admin' && (
-            <AdminHomePage onLogout={() => { doLogout(); localStorage.removeItem('mockRole'); setCurrentPage('login'); }} />
+            <AdminHomePage onLogout={() => { doLogout(); setCurrentPage('login'); }} />
           )}
         </>
       )}

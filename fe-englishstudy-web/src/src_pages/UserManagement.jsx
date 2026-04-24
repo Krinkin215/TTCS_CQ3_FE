@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Menu, Trash2, CheckSquare, Square, X, Mail, Cake, Calendar, Trophy, Flame, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import SearchBar from '../src_components/SearchBar';
 import Pagination from '../src_components/Pagination';
@@ -6,83 +6,10 @@ import ConfirmModal from '../src_components/ConfirmModal';
 import ProfileModal from '../src_components/ProfileModal';
 import { fetchAllUsers, fetchUserById, deleteUserById } from '../src_utils/services/adminUserService';
 
-const MOCK_USERS = [
-  {
-    id: '1',
-    username: 'pmd1506',
-    fullName: 'Phạm Minh Đức',
-    email: 'pmducc1506@gmail.com',
-    date_of_birth: '2004-06-15',
-    joinDate: '02/03/2026',
-    streak: 2,
-    totalXP: 1250,
-    avatarChar: 'P',
-    avatarUrl: null
-  },
-  {
-    id: '2',
-    username: 'nguyenvana',
-    fullName: 'Nguyễn Văn A',
-    email: 'nva@example.com',
-    date_of_birth: '1999-01-01',
-    joinDate: '10/01/2026',
-    streak: 5,
-    totalXP: 3400,
-    avatarChar: 'N',
-    avatarUrl: null
-  },
-  {
-    id: '3',
-    username: 'tranthib',
-    fullName: 'Trần Thị B',
-    email: 'ttb@example.com',
-    date_of_birth: '2002-12-20',
-    joinDate: '15/02/2026',
-    streak: 0,
-    totalXP: 800,
-    avatarChar: 'T',
-    avatarUrl: null
-  },
-  {
-    id: '4',
-    username: 'lequangk',
-    fullName: 'Lê Quang K',
-    email: 'lequangk@example.com',
-    date_of_birth: '1995-05-10',
-    joinDate: '20/03/2026',
-    streak: 12,
-    totalXP: 5600,
-    avatarChar: 'L',
-    avatarUrl: null
-  },
-  {
-    id: '5',
-    username: 'hoangminht',
-    fullName: 'Hoàng Minh T',
-    email: 'hm_t@example.com',
-    date_of_birth: '2000-08-25',
-    joinDate: '05/04/2026',
-    streak: 1,
-    totalXP: 250,
-    avatarChar: 'H',
-    avatarUrl: null
-  },
-  ...Array.from({ length: 35 }).map((_, i) => ({
-    id: `${i + 6}`,
-    username: `student_${i + 6}`,
-    fullName: `Học viên ${i + 6}`,
-    email: `student${i + 6}@example.com`,
-    date_of_birth: `2005-01-${String((i % 28) + 1).padStart(2, '0')}`,
-    joinDate: `${String((i % 28) + 1).padStart(2, '0')}/04/2026`,
-    streak: i % 5,
-    totalXP: i * 50 + 100,
-    avatarChar: 'H',
-    avatarUrl: null
-  }))
-];
+
 
 export default function UserManagement() {
-  const [users, setUsers] = useState(MOCK_USERS);
+  const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -109,7 +36,7 @@ export default function UserManagement() {
           setUsers(mapped);
         }
       } catch {
-        // fallback giữ MOCK_USERS
+        // API lỗi, sẽ hiển thị mảng rỗng
       } finally {
         if (!cancelled) setIsLoading(false);
       }

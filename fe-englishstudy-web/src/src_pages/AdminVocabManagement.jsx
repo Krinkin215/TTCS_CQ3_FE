@@ -7,21 +7,6 @@ import FilterDropdown from '../src_components/FilterDropdown';
 import { adminImportVocabulariesCsv } from '../src_utils/services/vocabService';
 import { createVocabulary, updateVocabulary, deleteVocabulary } from '../src_utils/services/vocabService';
 
-const ADMIN_USER_ID = 1;
-
-const MOCK_VOCABULARIES = [
-  { id: 1, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', word_type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', level: 4, created_by: ADMIN_USER_ID, topic: 'Kinh doanh (Business)', lesson: 'Bài học 1' },
-  { id: 2, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', word_type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', level: 3, created_by: ADMIN_USER_ID, topic: 'Công nghệ (Technology)', lesson: 'Bài học 2' },
-  { id: 3, word: 'Fascinating', pronunciation: '/ˈfæs.ən.eɪ.tɪŋ/', word_type: 'Tính từ', meaning: 'Hấp dẫn, lôi cuốn', example: 'I found the whole movie fascinating.', level: 4, created_by: ADMIN_USER_ID, topic: 'Du lịch (Travel)', lesson: 'Bài học 1' },
-  { id: 4, word: 'Accomplish', pronunciation: '/əˈkʌm.plɪʃ/', word_type: 'Động từ', meaning: 'Hoàn thành, đạt được', example: 'The students accomplished the task in less than ten minutes.', level: 5, created_by: ADMIN_USER_ID, topic: 'Kinh doanh (Business)', lesson: 'Bài học 3' },
-];
-
-const MOCK_TOPICS_DATA = [
-  { id: 1, name: 'Động vật (Animals)', lessons: [{ id: 11, name: 'Bài học 1' }, { id: 12, name: 'Bài học 2' }] },
-  { id: 2, name: 'Công nghệ (Technology)', lessons: [{ id: 21, name: 'Bài học 2' }] },
-  { id: 3, name: 'Kinh doanh (Business)', lessons: [{ id: 31, name: 'Bài học 1' }, { id: 32, name: 'Bài học 3' }] },
-  { id: 4, name: 'Du lịch (Travel)', lessons: [{ id: 41, name: 'Bài học 1' }, { id: 42, name: 'Bài học 4' }] }
-];
 
 const FILTER_OPTIONS = {
   types: ['Danh từ', 'Động từ', 'Tính từ', 'Trạng từ'],
@@ -34,7 +19,8 @@ export default function AdminVocabManagement() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [vocabularies, setVocabularies] = useState(MOCK_VOCABULARIES);
+  const [vocabularies, setVocabularies] = useState([]);
+  const [topicsData, setTopicsData] = useState([]);
 
   // modal thêm từ mới
   const [showAddWordModal, setShowAddWordModal] = useState(false);
@@ -102,15 +88,11 @@ export default function AdminVocabManagement() {
     }
 
     if (activeFilters.topics.length > 0) {
-      const topicObj = MOCK_TOPICS_DATA.find(t => t.name === word.topic);
-      if (!topicObj || !activeFilters.topics.includes(topicObj.id)) return false;
+      if (!activeFilters.topics.includes(word.topicId ?? null)) return false;
     }
 
     if (activeFilters.lessons.length > 0) {
-      const topicObj = MOCK_TOPICS_DATA.find(t => t.name === word.topic);
-      if (!topicObj) return false;
-      const lessonObj = topicObj.lessons.find(l => l.name === word.lesson);
-      if (!lessonObj || !activeFilters.lessons.includes(lessonObj.id)) return false;
+      if (!activeFilters.lessons.includes(word.lessonId ?? null)) return false;
     }
 
     return true;
@@ -406,7 +388,7 @@ export default function AdminVocabManagement() {
                 <input type="text" placeholder="Tìm chủ đề..." value={filterSearch.topics} onChange={(e) => setFilterSearch({ ...filterSearch, topics: e.target.value })} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
               </div>
             </div>
-            {MOCK_TOPICS_DATA.filter(t => t.name.toLowerCase().includes(filterSearch.topics.toLowerCase())).map(topic => (
+            {topicsData.filter(t => t.name.toLowerCase().includes(filterSearch.topics.toLowerCase())).map(topic => (
               <label key={topic.id} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
                 <input
                   type="checkbox"
@@ -437,7 +419,7 @@ export default function AdminVocabManagement() {
                     <input type="text" placeholder="Tìm bài học..." value={filterSearch.lessons} onChange={(e) => setFilterSearch({ ...filterSearch, lessons: e.target.value })} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
                   </div>
                 </div>
-                {MOCK_TOPICS_DATA
+                {topicsData
                   .filter(t => activeFilters.topics.includes(t.id))
                   .flatMap(t => t.lessons)
                   .filter(l => l.name.toLowerCase().includes(filterSearch.lessons.toLowerCase()))

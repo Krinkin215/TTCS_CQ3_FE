@@ -7,40 +7,7 @@ import FilterDropdown from '../src_components/FilterDropdown';
 import { downloadVocabImportTemplate, importVocabulariesCsv } from '../src_utils/services/vocabService';
 import { createVocabulary } from '../src_utils/services/vocabService';
 
-const CURRENT_USER_ID = 5;
-const ADMIN_USER_ID = 1;
 
-const MOCK_VOCABULARIES = [
-  { id: 1, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', word_type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', level: 4, created_by: ADMIN_USER_ID },
-  { id: 2, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', word_type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', level: 3, created_by: ADMIN_USER_ID },
-  { id: 3, word: 'Apple', pronunciation: '/ˈæp.əl/', word_type: 'Danh từ', meaning: 'Quả táo', example: 'I eat an apple every day.', level: 1, created_by: CURRENT_USER_ID },
-  { id: 4, word: 'Fascinating', pronunciation: '/ˈfæs.ən.eɪ.tɪŋ/', word_type: 'Tính từ', meaning: 'Hấp dẫn, lôi cuốn', example: 'I found the whole movie fascinating.', level: 4, created_by: ADMIN_USER_ID },
-  { id: 5, word: 'Accomplish', pronunciation: '/əˈkʌm.plɪʃ/', word_type: 'Động từ', meaning: 'Hoàn thành, đạt được', example: 'The students accomplished the task in less than ten minutes.', level: 5, created_by: ADMIN_USER_ID },
-  { id: 6, word: 'Benevolent', pronunciation: '/bəˈnev.əl.ənt/', word_type: 'Tính từ', meaning: 'Nhân từ, rộng lượng', example: 'He was a benevolent old man.', level: 5, created_by: ADMIN_USER_ID },
-  { id: 7, word: 'Crucial', pronunciation: '/ˈkruː.ʃəl/', word_type: 'Tính từ', meaning: 'Quan trọng, cốt yếu', example: 'Her work has been crucial to the project.', level: 4, created_by: ADMIN_USER_ID },
-  { id: 8, word: 'Diligent', pronunciation: '/ˈdɪl.ɪ.dʒənt/', word_type: 'Tính từ', meaning: 'Siêng năng, cần cù', example: 'He is a diligent student.', level: 4, created_by: ADMIN_USER_ID },
-  { id: 9, word: 'Eloquent', pronunciation: '/ˈel.ə.kwənt/', word_type: 'Tính từ', meaning: 'Có tài hùng biện', example: 'She made an eloquent appeal for action.', level: 5, created_by: ADMIN_USER_ID },
-  { id: 10, word: 'Genuine', pronunciation: '/ˈdʒen.ju.ɪn/', word_type: 'Tính từ', meaning: 'Thành thật, chân chính', example: 'He is a very genuine person.', level: 4, created_by: ADMIN_USER_ID },
-  { id: 11, word: 'Harmony', pronunciation: '/ˈhɑː.mə.ni/', word_type: 'Danh từ', meaning: 'Sự hài hòa, hòa thuận', example: 'We must ensure that tourism develops in harmony with the environment.', level: 4, created_by: ADMIN_USER_ID },
-  { id: 12, word: 'Inevitable', pronunciation: '/ɪˈnev.ɪ.tə.bəl/', word_type: 'Tính từ', meaning: 'Không thể tránh khỏi', example: 'The accident was the inevitable consequence of carelessness.', level: 5, created_by: ADMIN_USER_ID },
-  { id: 13, word: 'Joyful', pronunciation: '/ˈdʒɔɪ.fəl/', word_type: 'Tính từ', meaning: 'Vui vẻ, hân hoan', example: 'Christmas is a joyful occasion for children.', level: 2, created_by: CURRENT_USER_ID },
-  { id: 14, word: 'Keen', pronunciation: '/kiːn/', word_type: 'Tính từ', meaning: 'Say mê, nhiệt tình', example: 'They were very keen to start work.', level: 3, created_by: ADMIN_USER_ID },
-  { id: 15, word: 'Lucid', pronunciation: '/ˈluː.sɪd/', word_type: 'Tính từ', meaning: 'Rõ ràng, dễ hiểu', example: 'She gave a clear and lucid account of her plans.', level: 6, created_by: ADMIN_USER_ID },
-];
-
-const MOCK_COLLECTIONS = [
-  { id: 0, name: 'Từ vựng của tôi' },
-  { id: 1, name: 'Từ vựng luyện thi TOEIC' },
-  { id: 2, name: 'Communication English' },
-  { id: 3, name: 'Từ khó nhớ - A1/A2' },
-];
-
-const MOCK_TOPICS = [
-  { id: 1, name: 'Động vật (Animals)' },
-  { id: 2, name: 'Công nghệ (Technology)' },
-  { id: 3, name: 'Kinh doanh (Business)' },
-  { id: 4, name: 'Du lịch (Travel)' }
-];
 
 const FILTER_OPTIONS = {
   statuses: ['Đã thuộc', 'Đã học', 'Chưa thuộc', 'Chưa học'],
@@ -63,9 +30,11 @@ function VocabularyPage({ initialFilter }) {
   const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
 
-  const [vocabularies, setVocabularies] = useState(MOCK_VOCABULARIES);
+  const [vocabularies, setVocabularies] = useState([]);
   const [collectionVocabDB, setCollectionVocabDB] = useState([]);
-  const [favoriteVocabDB, setFavoriteVocabDB] = useState([1, 3]);
+  const [favoriteVocabDB, setFavoriteVocabDB] = useState([]);
+  const [collections, setCollections] = useState([]);
+  const [topicsList, setTopicsList] = useState([]);
 
 
   // modal thêm từ mới
@@ -158,30 +127,17 @@ function VocabularyPage({ initialFilter }) {
 
   const filteredVocabularies = vocabularies.filter(word => {
     if (activeFilters.types.length > 0 && !activeFilters.types.includes(word.word_type)) return false;
-    // Chuyển cấp độ chuỗi sang số để so sánh đúng với word.level (số nguyên)
     if (activeFilters.levels.length > 0) {
       const levelInts = activeFilters.levels.map(l => LEVEL_STR_TO_INT[l]).filter(Boolean);
       if (!levelInts.includes(word.level)) return false;
     }
 
-    let mockStatus = 'Chưa học';
-    if (word.isFavorite) {
-      mockStatus = 'Đã thuộc';
-    } else if (word.id % 3 === 0) {
-      mockStatus = 'Đã học';
-    } else if (word.id % 2 === 0) {
-      mockStatus = 'Chưa thuộc';
-    }
-
-    if (activeFilters.statuses.length > 0 && !activeFilters.statuses.includes(mockStatus)) return false;
+    const wordStatus = word.status ?? 'Chưa học';
+    if (activeFilters.statuses.length > 0 && !activeFilters.statuses.includes(wordStatus)) return false;
 
     if (activeFilters.collections.length > 0) {
       const wColls = word.collectionIds || [];
-      const isMatch = activeFilters.collections.some(id => {
-        if (id === 0) return word.created_by === CURRENT_USER_ID || wColls.includes(0);
-
-        return wColls.includes(id);
-      });
+      const isMatch = activeFilters.collections.some(id => wColls.includes(id));
       if (!isMatch) return false;
     }
     if (activeFilters.topics.length > 0) {
@@ -406,7 +362,7 @@ function VocabularyPage({ initialFilter }) {
 
 
   // Modal Thêm vào bộ từ
-  const modalFilteredCollections = MOCK_COLLECTIONS.filter(c =>
+  const modalFilteredCollections = collections.filter(c =>
     c.name.toLowerCase().includes(modalSearchTerm.toLowerCase())
   );
 
@@ -649,7 +605,7 @@ function VocabularyPage({ initialFilter }) {
                 <input type="text" placeholder="Tìm bộ từ..." value={filterSearch.collections} onChange={(e) => setFilterSearch({ ...filterSearch, collections: e.target.value })} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
               </div>
             </div>
-            {MOCK_COLLECTIONS.filter(c => c.name.toLowerCase().includes(filterSearch.collections.toLowerCase())).map(coll => (
+            {collections.filter(c => c.name.toLowerCase().includes(filterSearch.collections.toLowerCase())).map(coll => (
               <label key={coll.id} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
                 <input
                   type="checkbox"
@@ -673,7 +629,7 @@ function VocabularyPage({ initialFilter }) {
                 <input type="text" placeholder="Tìm chủ đề..." value={filterSearch.topics} onChange={(e) => setFilterSearch({ ...filterSearch, topics: e.target.value })} className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-cyan-500 outline-none" />
               </div>
             </div>
-            {MOCK_TOPICS.filter(t => t.name.toLowerCase().includes(filterSearch.topics.toLowerCase())).map(topic => (
+            {topicsList.filter(t => t.name.toLowerCase().includes(filterSearch.topics.toLowerCase())).map(topic => (
               <label key={topic.id} className="flex items-center gap-3 px-4 py-2 hover:bg-cyan-50 cursor-pointer transition-colors">
                 <input
                   type="checkbox"
@@ -762,7 +718,7 @@ function VocabularyPage({ initialFilter }) {
         isBulkMode={isBulkAddMode}
         wordToAdd={wordToAdd}
         selectedCount={selectedIds.length}
-        collections={MOCK_COLLECTIONS}
+        collections={collections}
         onConfirm={handleConfirmAddToCollections}
       />
 

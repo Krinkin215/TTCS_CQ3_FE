@@ -12,22 +12,10 @@ import { initGame, finishGame } from '../src_utils/services/practiceService';
 import { fetchVocabReview } from '../src_utils/services/userService';
 
 
-const MOCK_COLLECTIONS = [
-  { id: 1, name: 'Từ vựng TOEIC' }, { id: 2, name: 'Giao tiếp hàng ngày' }, { id: 3, name: 'Từ vựng của tôi' }
-];
-const MOCK_TOPICS = [
-  { id: 1, name: 'Animals (Động vật)', lessons: [{id: 11, name: 'Pets', wordCount: 20, difficulty: 1}, {id: 12, name: 'Wild Animals', wordCount: 25, difficulty: 2}] },
-  { id: 2, name: 'Technology (Công nghệ)', lessons: [{id: 21, name: 'Hardware', wordCount: 30, difficulty: 3}, {id: 22, name: 'Software', wordCount: 30, difficulty: 4}] }
-];
 const STATUS_OPTIONS = [
-  { id: 'NEW', name: 'Chưa học' }, { id: 'LEARNING', name: 'Đang học' }, { id: 'MASTERED', name: 'Đã thuộc' }, 
+  { id: 'NEW', name: 'Chưa học' }, { id: 'LEARNING', name: 'Đang học' }, { id: 'MASTERED', name: 'Đã thuộc' },
 ];
-const DEFAULT_QUIZ_DATA = [
-  { id: 1, word: 'Sightseeing', pronunciation: '/ˈsaɪtˌsiː.ɪŋ/', type: 'Danh từ', meaning: 'Sự tham quan', example: 'We did a bit of sightseeing in London.', options: ['Sự tham quan', 'Sự mệt mỏi', 'Mua sắm', 'Nấu ăn'], correct: 0, isFavorite: false, status: 'NEW' },
-  { id: 2, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', options: ['Lười biếng', 'Nhiệt tình, hăng hái', 'Tức giận', 'Buồn bã'], correct: 1, isFavorite: true, status: 'MASTERED' },
-  { id: 3, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', options: ['Che giấu', 'Phá hủy', 'Bỏ qua', 'Xác định, quyết định'], correct: 3, isFavorite: false, status: 'LEARNING' },
-  { id: 4, word: 'Fascinating', pronunciation: '/ˈfæs.ən.eɪ.tɪŋ/', type: 'Tính từ', meaning: 'Hấp dẫn, lôi cuốn', example: 'I found the whole movie fascinating.', options: ['Tẻ nhạt', 'Hấp dẫn, lôi cuốn', 'Đáng sợ', 'Kinh tởm'], correct: 1, isFavorite: false, status: 'NEW' },
-];
+
 
 export default function PracticePage({ onBack, initialFilters }) {
   const [activeMode, setActiveMode] = useState('collection'); 
@@ -39,6 +27,9 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [selectedLessons, setSelectedLessons] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [wordCount, setWordCount] = useState(20);
+
+  const [collections, setCollections] = useState([]);
+  const [topics, setTopics] = useState([]);
 
   const [smartReviewWords, setSmartReviewWords] = useState([]);
   const [isSmartLoading, setIsSmartLoading] = useState(false);
@@ -67,11 +58,9 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [hintsUsed, setHintsUsed] = useState(0);
   const [revealedIndices, setRevealedIndices] = useState([]);
 
-  const [quizData, setQuizData] = useState(DEFAULT_QUIZ_DATA);
+  const [quizData, setQuizData] = useState([]);
   const [hasSubmittedResult, setHasSubmittedResult] = useState(false);
-  const [favoriteIds, setFavoriteIds] = useState(
-    DEFAULT_QUIZ_DATA.filter(q => q.isFavorite).map(q => q.id)
-  );
+  const [favoriteIds, setFavoriteIds] = useState([]);
   const [historyLogView, setHistoryLogView] = useState(null); 
   const feedbackRef = useRef(null);
 
@@ -128,13 +117,13 @@ export default function PracticePage({ onBack, initialFilters }) {
   }, [activeMode]);
 
   const availableLessons = useMemo(() => {
-    return MOCK_TOPICS.filter(t => selectedTopics.includes(t.id)).flatMap(t => t.lessons);
-  }, [selectedTopics]);
+    return topics.filter(t => selectedTopics.includes(t.id)).flatMap(t => t.lessons ?? []);
+  }, [selectedTopics, topics]);
 
   const availableCount = useMemo(() => {
     let total = 0;
     if (activeMode === 'collection') {
-      const selected = MOCK_COLLECTIONS.filter(c => selectedCollections.includes(c.id));
+      const selected = collections.filter(c => selectedCollections.includes(c.id));
       total = selected.reduce((sum, c) => sum + (c.wordCount || 50), 0);
     } else if (activeMode === 'topic') {
       const selected = availableLessons.filter(l => selectedLessons.includes(l.id));
@@ -146,7 +135,7 @@ export default function PracticePage({ onBack, initialFilters }) {
       total = Math.floor(total * (selectedStatuses.length / 3));
     }
     return total;
-  }, [activeMode, selectedCollections, selectedLessons, selectedStatuses, availableLessons, smartReviewWords.length]);
+  }, [activeMode, selectedCollections, selectedLessons, selectedStatuses, availableLessons, smartReviewWords.length, collections]);
 
   const avgDifficulty = useMemo(() => {
     if (activeMode === 'topic' && selectedLessons.length > 0) {
@@ -287,10 +276,10 @@ export default function PracticePage({ onBack, initialFilters }) {
             setQuizData(mapped);
             setFavoriteIds([]);
           } else {
-            setQuizData(DEFAULT_QUIZ_DATA);
+            setQuizData([]);
           }
         } catch {
-          setQuizData(DEFAULT_QUIZ_DATA);
+          setQuizData([]);
         } finally {
           setActiveGame(gameId);
           handleRetryGame(gameId);

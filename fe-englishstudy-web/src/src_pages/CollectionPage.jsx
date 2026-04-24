@@ -9,17 +9,10 @@ import FilterDropdown from '../src_components/FilterDropdown';
 import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp, MoreVertical, Heart, FolderPlus, ChevronRight, Filter } from 'lucide-react';
 
 const COLLECTION_NAME_LIMIT = 50;
-const MOCK_COLLECTIONS = [
-  { id: 0, name: 'Từ vựng của tôi', wordCount: 12, masteredVocab: 4 },
-  { id: 1, name: 'Từ vựng luyện thi TOEIC', wordCount: 150, masteredVocab: 150 },
-  { id: 2, name: 'Communication English (Part 1)', wordCount: 85, masteredVocab: 30 },
-  { id: 3, name: 'Từ khó nhớ - A1/A2', wordCount: 42, masteredVocab: 0 },
-  { id: 4, name: 'Chuyên ngành Công nghệ thông tin', wordCount: 210, masteredVocab: 80 },
-  { id: 5, name: 'Luyện nghe IELTS Listening', wordCount: 98, masteredVocab: 98 },
-];
+
 
 function CollectionPage({ onNavigateToPractice }) {
-  const [collections, setCollections] = useState(MOCK_COLLECTIONS);
+  const [collections, setCollections] = useState([]);
 
   // chọn nhiều
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -292,6 +285,7 @@ function CollectionPage({ onNavigateToPractice }) {
   };
 
 
+
   const openDeleteModal = (collection) => {
     setCollectionToDelete(collection);
     setShowDeleteModal(true);
@@ -303,24 +297,9 @@ function CollectionPage({ onNavigateToPractice }) {
     setCollectionToDelete(null);
   };
 
-
   const openWordList = (collection) => {
     setActiveCollection(collection);
-    const baseMockWords = [
-      { word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', word_type: 'Tính từ', level: 4, meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer when the team score.' },
-      { word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', word_type: 'Động từ', level: 5, meaning: 'Xác định, quyết định', example: 'Your attitude, not your aptitude, determines your altitude.' },
-      { word: 'Apple', pronunciation: '/ˈæp.əl/', word_type: 'Danh từ', level: 1, meaning: 'Quả táo', example: 'An apple a day keeps the doctor away.' }
-    ];
-    const generatedWords = Array.from({ length: collection.wordCount }).map((_, index) => {
-      const baseWord = baseMockWords[index % baseMockWords.length];
-      return {
-        ...baseWord,
-        id: 1000 + index,
-        word: index >= baseMockWords.length ? `${baseWord.word} ${index + 1}` : baseWord.word
-      };
-    });
-
-    setCollectionWords(generatedWords);
+    setCollectionWords([]); // sẽ load từ API
     setShowWordListModal(true);
     setIsWordSelectMode(false);
     setSelectedWordIds([]);
@@ -329,6 +308,8 @@ function CollectionPage({ onNavigateToPractice }) {
     setSelectedWordTypes([]);
     setShowWordFilterDropdown(false);
   };
+
+
 
   const closeWordList = () => {
     setShowWordListModal(false);

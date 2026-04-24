@@ -2,26 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Trophy, Flame, Medal, Award, Crown, Star } from 'lucide-react';
 import { fetchLeaderboard } from '../src_utils/services/leaderboardService';
 
-const CURRENT_USER_ID = 5;
-
-const generateMockUsers = () => {
-  const users = Array.from({ length: 50 }).map((_, i) => ({
-    id: i + 1,
-    username: i + 1 === CURRENT_USER_ID ? 'Phạm Minh Đức (Bạn)' : `Người dùng ${i + 1}`,
-    email: i + 1 === CURRENT_USER_ID ? 'pmducc1506@gmail.com' : `user${i + 1}@student.ptit.edu.vn`,
-    avatarUrl: `https://i.pravatar.cc/150?u=${i + 10}`,
-    // "Tất cả": tổng điểm tích lũy + streak cao nhất
-    totalScoreAll: Math.floor(Math.random() * 15000) + 500,
-    bestStreakAll: Math.floor(Math.random() * 120) + 1,
-    // "Ngày": điểm số user làm được trong ngày + streak hiện tại tới ngày hôm đó
-    scoreInDay: Math.floor(Math.random() * 800),
-    streakInDay: Math.floor(Math.random() * 30),
-    isCurrentUser: i + 1 === CURRENT_USER_ID
-  }));
-  return users;
-};
-
-const MOCK_DATA = generateMockUsers();
 
 function LeaderboardPage({ isAdmin = false }) {
   const [timeFilter, setTimeFilter] = useState('day'); 
@@ -46,7 +26,7 @@ function LeaderboardPage({ isAdmin = false }) {
             bestStreakAll: timeFilter === 'all' ? u.streak : 0,
             scoreInDay: timeFilter === 'day' ? u.score : 0,
             streakInDay: timeFilter === 'day' ? u.streak : 0,
-            isCurrentUser: u.id === CURRENT_USER_ID,
+            isCurrentUser: u.isCurrentUser ?? false,
             rank: u.rank
           }));
           setServerUsers(mapped);
@@ -65,7 +45,7 @@ function LeaderboardPage({ isAdmin = false }) {
 
   // SẮP XẾP VÀ XẾP HẠNG
   const rankedUsers = useMemo(() => {
-    const base = serverUsers && serverUsers.length > 0 ? serverUsers : MOCK_DATA;
+    const base = serverUsers && serverUsers.length > 0 ? serverUsers : [];
     const sorted = [...base];
 
     const getScore = (u) => (timeFilter === 'day' ? u.scoreInDay : u.totalScoreAll);

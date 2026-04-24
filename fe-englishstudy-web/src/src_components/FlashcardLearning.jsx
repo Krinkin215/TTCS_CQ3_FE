@@ -8,14 +8,6 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
   const [localWords, setLocalWords] = React.useState([]);
   
   React.useEffect(() => {
-    const baseMockWords = [
-      { word: 'Sightseeing', pronunciation: '/ˈsaɪtˌsiː.ɪŋ/', word_type: 'NOUN', meaning: 'Sự tham quan', example: 'We did a bit of sightseeing in London.', isFavorite: false, status: 'LEARNING' },
-      { word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', word_type: 'ADJ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', isFavorite: true, status: 'MASTERED' },
-      { word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', word_type: 'VERB', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', isFavorite: false, status: 'LEARNING' },
-      { word: 'Fascinating', pronunciation: '/ˈfæs.ən.eɪ.tɪŋ/', word_type: 'ADJ', meaning: 'Hấp dẫn, lôi cuốn', example: 'I found the whole movie fascinating.', isFavorite: false, status: 'MASTERED' },
-      { word: 'Accomplish', pronunciation: '/əˈkʌm.plɪʃ/', word_type: 'VERB', meaning: 'Hoàn thành, đạt được', example: 'The students accomplished the task in less than ten minutes.', isFavorite: true, status: 'LEARNING' }
-    ];
-    
     const run = async () => {
       // ưu tiên load vocab thật theo lesson nếu có
       if (!collection && lesson?.id) {
@@ -34,23 +26,16 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
               status: w.status ?? 'LEARNING'
             }));
             setLocalWords(mapped);
-            setCurrentIndex(0);
-            setIsFinished(false);
-            setIsFlipped(false);
-            return;
+          } else {
+             setLocalWords([]);
           }
         } catch {
-          // fallback mock
+             setLocalWords([]);
         }
+      } else {
+         setLocalWords([]);
       }
-
-      const count = collection ? collection.wordCount : (lesson?.wordCount || 5);
-      const parentId = collection ? collection.id : lesson?.id;
-      const generated = Array.from({ length: count }).map((_, index) => {
-        const baseWord = baseMockWords[index % baseMockWords.length];
-        return { ...baseWord, id: `${parentId}-${index}`, word: index >= baseMockWords.length ? `${baseWord.word} ${index + 1}` : baseWord.word };
-      });
-      setLocalWords(generated);
+      
       setCurrentIndex(0);
       setIsFinished(false);
       setIsFlipped(false);

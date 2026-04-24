@@ -10,38 +10,11 @@ import { fetchTopics, fetchTopicById, createTopic as apiCreateTopic, updateTopic
 import { fetchLessons, fetchLessonById, createLesson as apiCreateLesson, updateLesson as apiUpdateLesson, deleteLesson as apiDeleteLesson } from '../src_utils/services/lessonService';
 import { updateVocabulary, deleteVocabulary, fetchVocabularyById } from '../src_utils/services/vocabService';
 
-const ADMIN_USER_ID = 1;
 
-
-const MOCK_TOPICS_DATA = [
-  {
-    id: 1, title: 'Animals (Động vật)', totalVocab: 45, color: 'bg-green-100 text-green-700', imageUrl: 'https://cdn-icons-png.flaticon.com/512/616/616408.png',
-    lessons: [{ id: 11, name: 'Pets (Thú cưng)' }, { id: 12, name: 'Wild Animals (Động vật hoang dã)' }]
-  },
-  {
-    id: 2, title: 'Technology (Công nghệ)', totalVocab: 60, color: 'bg-blue-100 text-blue-700', imageUrl: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png',
-    lessons: [{ id: 21, name: 'Hardware (Phần cứng)' }, { id: 22, name: 'Software (Phần mềm)' }]
-  },
-  {
-    id: 3, title: 'Travel (Du lịch)', totalVocab: 35, color: 'bg-yellow-100 text-yellow-700', imageUrl: 'https://cdn-icons-png.flaticon.com/512/2060/2060284.png',
-    lessons: [{ id: 31, name: 'At the Airport (Tại sân bay)' }, { id: 32, name: 'Hotel (Khách sạn)' }]
-  },
-  {
-    id: 4, title: 'Business (Kinh doanh)', totalVocab: 80, color: 'bg-purple-100 text-purple-700', imageUrl: 'https://cdn-icons-png.flaticon.com/512/2933/2933116.png',
-    lessons: [{ id: 41, name: 'Meetings (Hội họp)' }, { id: 42, name: 'Negotiations (Đàm phán)' }]
-  },
-];
-
-const MOCK_WORDS = [
-  { id: 1, word: 'Vocab 1', pronunciation: '/vəʊˈkæb/', word_type: 'Danh từ', meaning: 'Nghĩa của từ 1', example: 'This is an example.', level: 1, topicId: 1, lessonId: 11, lessonName: 'Pets (Thú cưng)' },
-  { id: 2, word: 'Vocab 2', pronunciation: '/vəʊˈkæb/', word_type: 'Động từ', meaning: 'Nghĩa của từ 2', example: 'This is an example.', level: 2, topicId: 1, lessonId: 12, lessonName: 'Wild Animals (Động vật hoang dã)' },
-  { id: 3, word: 'Vocab 3', pronunciation: '/vəʊˈkæb/', word_type: 'Tính từ', meaning: 'Nghĩa của từ 3', example: 'This is an example.', level: 3, topicId: 1, lessonId: 11, lessonName: 'Pets (Thú cưng)' },
-  { id: 4, word: 'Vocab 4', pronunciation: '/vəʊˈkæb/', word_type: 'Danh từ', meaning: 'Nghĩa của từ 4', example: 'This is an example.', level: 4, topicId: 2, lessonId: 21, lessonName: 'Hardware (Phần cứng)' },
-];
 
 export default function AdminTopicManagement() {
-  const [topics, setTopics] = useState(MOCK_TOPICS_DATA);
-  const [allWords, setAllWords] = useState(MOCK_WORDS);
+  const [topics, setTopics] = useState([]);
+  const [allWords, setAllWords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -84,7 +57,7 @@ export default function AdminTopicManagement() {
           setTopics(mappedTopics);
         }
       } catch {
-        // fallback giữ MOCK
+        // API lỗi, hiển thị danh sách rỗng
       } finally {
         if (!cancelled) setIsLoading(false);
       }

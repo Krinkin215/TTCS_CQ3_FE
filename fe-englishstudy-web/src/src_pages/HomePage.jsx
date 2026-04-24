@@ -17,45 +17,13 @@ import FlashcardLearning from '../src_components/FlashcardLearning';
 import { getMe } from '../src_utils/services/authService';
 import { updateMyProfile } from '../src_utils/services/userService';
 
-const MOCK_COLLECTIONS = [
-  { id: 1, name: 'Từ vựng luyện thi TOEIC' },
-  { id: 2, name: 'Communication English' },
-  { id: 3, name: 'Từ khó nhớ - A1/A2' }
-];
-
-const MOCK_TOPICS_DATA = [
-  { 
-    id: 1, title: 'Animals (Động vật)', totalVocab: 45, masteredVocab: 45, color: 'bg-green-100 text-green-700', 
-    lessons: [
-      {id: 11, name: 'Pets (Thú cưng)', wordCount: 20, masteredCount: 20, difficulty: 1}, 
-      {id: 12, name: 'Wild Animals (Động vật hoang dã)', wordCount: 25, masteredCount: 25, difficulty: 2} 
-    ],
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/616/616408.png' 
-  },
-  { 
-    id: 2, title: 'Technology (Công nghệ)', totalVocab: 60, masteredVocab: 24, color: 'bg-blue-100 text-blue-700', 
-    lessons: [
-      {id: 21, name: 'Hardware (Phần cứng)', wordCount: 30, masteredCount: 15, difficulty: 3}, 
-      {id: 22, name: 'Software (Phần mềm)', wordCount: 30, masteredCount: 9, difficulty: 4}   
-    ],
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png' 
-  },
-  { 
-    id: 3, title: 'Travel (Du lịch)', totalVocab: 35, masteredVocab: 0, color: 'bg-yellow-100 text-yellow-700', 
-    lessons: [
-      {id: 31, name: 'At the Airport (Tại sân bay)', wordCount: 15, masteredCount: 0, difficulty: 2}, 
-      {id: 32, name: 'Hotel (Khách sạn)', wordCount: 20, masteredCount: 0, difficulty: 3}     
-    ],
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2060/2060284.png' 
-  }, 
-  { 
-    id: 4, title: 'Business (Kinh doanh)', totalVocab: 80, masteredVocab: 15, color: 'bg-purple-100 text-purple-700', 
-    lessons: [
-      {id: 41, name: 'Meetings (Hội họp)', wordCount: 40, masteredCount: 10, difficulty: 4},
-      {id: 42, name: 'Negotiations (Đàm phán)', wordCount: 40, masteredCount: 5, difficulty: 5}
-    ],
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2933/2933116.png' 
-  },
+const TOPIC_COLORS = [
+  'bg-green-100 text-green-700',
+  'bg-blue-100 text-blue-700',
+  'bg-yellow-100 text-yellow-700',
+  'bg-purple-100 text-purple-700',
+  'bg-red-100 text-red-700',
+  'bg-indigo-100 text-indigo-700',
 ];
 
 function HomePage({ onLogout, onNavigateToPractice }) {
@@ -80,12 +48,8 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     setShowLearningModal(true);
   };
 
-  // streak và lịch
-  // NOTE: trước đây có modal lịch streak. Theo yêu cầu mới, UI chỉ hiển thị streak trực tiếp ở khung cam.
-  
-  // Mock: dữ liệu streak liên tiếp để dễ xem UI (>= 1)
-  // Lưu ý: logic streak hiện tại vẫn tính "đến hôm nay", nên mock này sẽ làm streak > 0.
-  const MOCK_STUDIED_DATES = []; // sẽ được gán sau khi có `today` + `formatDateKey`
+  const [topics, setTopics] = useState([]);
+  const [collections, setCollections] = useState([]);
 
   const getInitialMenu = () => {
     const path = window.location.pathname;
@@ -148,12 +112,14 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
 
   const [userData, setUserData] = useState({
-    username: 'pmd1506',
-    fullName: 'Phạm Minh Đức',
-    email: 'pmducc1506@gmail.com',
-    date_of_birth: '2004-06-15', 
-    joinDate: '02/03/2026',
-    avatarChar: 'P',
+    username: '',
+    fullName: '',
+    email: '',
+    date_of_birth: '',
+    joinDate: '',
+    streak: 0,
+    bestStreak: 0,
+    avatarChar: 'U',
     avatarUrl: null
   });
 
@@ -164,17 +130,19 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         const principal = await getMe();
         if (cancelled || !principal) return;
         const mapped = {
-          username: principal.username ?? principal.userName ?? userData.username,
-          fullName: principal.fullName ?? principal.full_name ?? userData.fullName,
-          email: principal.email ?? userData.email,
-          date_of_birth: principal.date_of_birth ?? principal.dateOfBirth ?? userData.date_of_birth,
-          joinDate: principal.joinDate ?? principal.join_date ?? userData.joinDate,
+          username: principal.username ?? principal.userName ?? '',
+          fullName: principal.fullName ?? principal.full_name ?? '',
+          email: principal.email ?? '',
+          date_of_birth: principal.date_of_birth ?? principal.dateOfBirth ?? '',
+          joinDate: principal.joinDate ?? principal.join_date ?? '',
+          streak: principal.streak ?? 0,
+          bestStreak: principal.bestStreak ?? principal.best_streak ?? 0,
           avatarChar: (principal.fullName ?? principal.username ?? 'U').slice(0, 1).toUpperCase(),
           avatarUrl: principal.avatarUrl ?? principal.avatar_url ?? null
         };
         setUserData(mapped);
       } catch {
-        // ignore (fallback mock)
+        // ignore — state rỗng, UI sẽ hiển thị trạng thái trống
       }
     };
     run();
@@ -182,7 +150,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [favoriteVocabDB, setFavoriteVocabDB] = useState([2000, 2002]); 
+  const [favoriteVocabDB, setFavoriteVocabDB] = useState([]);
   const [collectionVocabDB, setCollectionVocabDB] = useState([]); 
   
   const [showTopicWordListModal, setShowTopicWordListModal] = useState(false);
@@ -202,19 +170,9 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
   const openTopicWordList = (topic) => {
     setActiveTopic(topic);
-    const allLessonIds = topic.lessons.map(l => l.id);
-    setSelectedLessonIds(allLessonIds); 
-    
-    const generatedWords = Array.from({ length: topic.totalVocab }).map((_, index) => {
-      const lesson = topic.lessons[index % topic.lessons.length];
-      return {
-        id: 2000 + index, word: `Vocab ${index + 1}`, pronunciation: '/vəʊˈkæb/', word_type: 'Danh từ', 
-        meaning: `Nghĩa của từ ${index + 1}`, level: (index % 6) + 1, example: 'This is an example.',
-        lessonId: lesson.id, lessonName: lesson.name
-      };
-    });
-
-    setTopicWords(generatedWords);
+    const allLessonIds = (topic.lessons ?? []).map(l => l.id);
+    setSelectedLessonIds(allLessonIds);
+    setTopicWords([]); // sẽ được load từ API
     setShowTopicWordListModal(true);
     setIsTopicWordSelectMode(false);
     setSelectedTopicWordIds([]);
@@ -335,60 +293,8 @@ function HomePage({ onLogout, onNavigateToPractice }) {
   ];
 
 
-  const today = new Date();
-
-  const formatDateKey = (dateObj) =>
-    `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-
-  // Gán mock dates sau khi có formatter
-  MOCK_STUDIED_DATES.push(
-    ...Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      return formatDateKey(d);
-    })
-  );
-
-  // Streak hiện tại 
-  // Nếu hôm nay chưa học thì streak = 0 
-  const getCurrentStreak = () => {
-    const todayKey = formatDateKey(today);
-    if (!MOCK_STUDIED_DATES.includes(todayKey)) return 0;
-
-    let streak = 0;
-    const checkDate = new Date(today);
-    while (true) {
-      const key = formatDateKey(checkDate);
-      if (!MOCK_STUDIED_DATES.includes(key)) break;
-      streak++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-    return streak;
-  };
-
-  // Streak cao nhất (max consecutive days)
-  const getBestStreak = () => {
-    if (MOCK_STUDIED_DATES.length === 0) return 0;
-    const sorted = [...MOCK_STUDIED_DATES].sort(); // YYYY-MM-DD
-    let best = 1;
-    let current = 1;
-    for (let i = 1; i < sorted.length; i++) {
-      const prev = new Date(sorted[i - 1]);
-      const curr = new Date(sorted[i]);
-      prev.setDate(prev.getDate() + 1);
-      if (formatDateKey(prev) === formatDateKey(curr)) {
-        current++;
-        best = Math.max(best, current);
-      } else {
-        current = 1;
-      }
-    }
-    return best;
-  };
-
-  const currentStreak = getCurrentStreak();
-  const bestStreak = getBestStreak();
-  const lastStudyDate = MOCK_STUDIED_DATES.length > 0 ? [...MOCK_STUDIED_DATES].sort().at(-1) : null;
+  const currentStreak = userData.streak ?? 0;
+  const bestStreak = userData.bestStreak ?? 0;
 
   const streakDigits = String(currentStreak).length;
   const streakNumberClass = streakDigits >= 3 ? 'text-5xl' : 'text-6xl';
@@ -514,22 +420,22 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               <div className="grid grid-cols-2 gap-3 flex-1">
                 
                 <div onClick={() => navigateToVocabWithFilter('Tổng từ đã học')} className="bg-blue-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
-                  <span className="text-blue-600 font-bold text-xl">120</span>
+                  <span className="text-blue-600 font-bold text-xl">—</span>
                   <span className="text-sm text-gray-500 font-medium mt-1">Tổng từ đã học</span>
                 </div>
                 
                 <div onClick={() => navigateToVocabWithFilter('Đã thuộc')} className="bg-green-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
-                  <span className="text-green-600 font-bold text-xl">85</span>
+                  <span className="text-green-600 font-bold text-xl">—</span>
                   <span className="text-sm text-gray-500 font-medium mt-1">Đã thuộc (Mastered)</span>
                 </div>
                 
                 <div onClick={() => navigateToVocabWithFilter('Chưa thuộc')} className="bg-orange-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
-                  <span className="text-orange-500 font-bold text-xl">35</span>
+                  <span className="text-orange-500 font-bold text-xl">—</span>
                   <span className="text-sm text-gray-500 font-medium mt-1 leading-tight">Chưa thuộc (Learning)</span>
                 </div>
                 
                 <div onClick={() => navigateToVocabWithFilter('Chưa học')} className="bg-gray-50 rounded-xl p-3 flex flex-col items-center justify-center border border-gray-100 text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all">
-                  <span className="text-gray-400 font-bold text-xl">500+</span>
+                  <span className="text-gray-400 font-bold text-xl">—</span>
                   <span className="text-sm text-gray-400 font-medium mt-1">Chưa học (New)</span>
                 </div>
                 
@@ -577,11 +483,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                 </div>
               </div>
 
-              {lastStudyDate && (
-                <div className="z-10 text-sm font-bold opacity-90">
-                  Ngày học gần nhất: {lastStudyDate}
-                </div>
-              )}
+
 
               <Flame className="absolute -bottom-10 -right-4 text-white opacity-10 pointer-events-none" size={150} />
             </div>
@@ -640,18 +542,21 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           <div ref={topicsRef} className="pt-8">
             <h2 className="text-2xl font-bold text-[#083344] mb-6 border-b-2 border-gray-200 pb-2 inline-block">Chủ đề từ vựng</h2>
             
+            {topics.length === 0 && (
+              <p className="text-gray-400 text-center py-8">Chưa có chủ đề nào. Dữ liệu sẽ tải từ server.</p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {MOCK_TOPICS_DATA.map((topic) => (
+              {topics.map((topic, topicIdx) => (
                 <div key={topic.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-between min-h-[14rem]">
                   
                   
                   <div>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${topic.color}`}>
-                      <img 
-                        src={topic.imageUrl} 
-                        alt={topic.title} 
-                        className="w-full h-full object-contain" 
-                      />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${TOPIC_COLORS[topicIdx % TOPIC_COLORS.length]}`}>
+                      {topic.imageUrl ? (
+                        <img src={topic.imageUrl} alt={topic.title} className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-2xl font-bold">{(topic.title ?? '?').slice(0, 1)}</span>
+                      )}
                     </div>
                     <h3 className="font-bold text-gray-800 mb-3 line-clamp-1" title={topic.title}>{topic.title}</h3>
                     
@@ -730,7 +635,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       <ProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        user={{...userData, streak: 2, xp: '1,250', join_date: '01/01/2026'}}
+        user={{...userData, streak: userData.streak, xp: userData.totalXP ?? 0, join_date: userData.joinDate}}
         isEditable={true}
         onSave={async (updatedData) => {
           try {
@@ -864,7 +769,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
         isBulkMode={isBulkAddMode}
         wordToAdd={wordToAdd}
         selectedCount={selectedTopicWordIds.length}
-        collections={MOCK_COLLECTIONS}  
+        collections={collections}
         onConfirm={handleConfirmAddToCollections}
       />
 

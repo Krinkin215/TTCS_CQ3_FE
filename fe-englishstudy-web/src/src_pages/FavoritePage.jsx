@@ -1,28 +1,16 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Volume2, MoreVertical, FolderPlus, Trash2, Search, X } from 'lucide-react';
 import VocabTable from '../src_components/VocabTable';
 import AddToCollectionModal from '../src_components/AddToCollectionModal';
 import SearchBar from '../src_components/SearchBar';
 
-const CURRENT_USER_ID = 5; 
-const ADMIN_USER_ID = 1;
-
-const MOCK_FAVORITES = [
-  { id: 1, word: 'Enthusiastic', pronunciation: '/ɪnˌθjuː.ziˈæs.tɪk/', word_type: 'Tính từ', meaning: 'Nhiệt tình, hăng hái', example: 'The crowd gave an enthusiastic cheer.', level: 4, created_by: ADMIN_USER_ID },
-  { id: 2, word: 'Determine', pronunciation: '/dɪˈtɜː.mɪn/', word_type: 'Động từ', meaning: 'Xác định, quyết định', example: 'Your attitude determines your altitude.', level: 3, created_by: ADMIN_USER_ID },
-  { id: 3, word: 'Apple', pronunciation: '/ˈæp.əl/', word_type: 'Danh từ', meaning: 'Quả táo', example: 'I eat an apple every day.', level: 1, created_by: CURRENT_USER_ID },
-];
 
 const ITEMS_PER_PAGE = 10;
 
-const MOCK_COLLECTIONS = [
-  { id: 1, name: 'Từ vựng luyện thi TOEIC' },
-  { id: 2, name: 'Communication English' },
-  { id: 3, name: 'Từ khó nhớ - A1/A2' },
-];
 
 function FavoritePage() {
-  const [favorites, setFavorites] = useState(MOCK_FAVORITES);
+  const [favorites, setFavorites] = useState([]);
+  const [collections, setCollections] = useState([]);
   
 
   const [isSelectMode, setIsSelectMode] = useState(false); 
@@ -39,7 +27,7 @@ function FavoritePage() {
   const [selectedCollectionIds, setSelectedCollectionIds] = useState([]); 
   const [collectionVocabDB, setCollectionVocabDB] = useState([]);
 
-  const modalFilteredCollections = MOCK_COLLECTIONS.filter(c =>
+  const modalFilteredCollections = collections.filter(c =>
     c.name.toLowerCase().includes(modalSearchTerm.toLowerCase())
   );
 
@@ -261,7 +249,7 @@ function FavoritePage() {
         isBulkMode={isBulkAddMode}
         wordToAdd={wordToAdd}
         selectedCount={selectedIds.length}
-        collections={MOCK_COLLECTIONS}
+        collections={collections}
         onConfirm={handleConfirmAddToCollections}
       />
 

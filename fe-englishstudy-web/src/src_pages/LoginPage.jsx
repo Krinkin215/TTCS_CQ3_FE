@@ -38,19 +38,7 @@ function LoginPage({ onNavigateToRegister, onLoginSuccess }) {
                 const isAdmin = /ADMIN/i.test(rolesStr);
                 role = isAdmin ? 'admin' : 'user';
               } catch (err) {
-                // Backend không khả dụng → thử mock login
-                const MOCK_ACCOUNTS = [
-                  { email: 'admin@englearn.com', password: 'Admin123', role: 'admin' },
-                  { email: 'user@englearn.com', password: 'User1234', role: 'user' },
-                ];
-                const mock = MOCK_ACCOUNTS.find(a => a.email === email && a.password === password);
-                if (mock) {
-                  setTokens({ accessToken: 'mock-access-token', refreshToken: 'mock-refresh-token' });
-                  localStorage.setItem('mockRole', mock.role);
-                  role = mock.role;
-                } else {
-                  setError('Đăng nhập thất bại. Không thể kết nối server. Thử: admin@englearn.com / Admin123 hoặc user@englearn.com / User1234');
-                }
+                setError('Đăng nhập thất bại. Vui lòng kiểm tra email, mật khẩu hoặc kết nối đến server.');
               }
               if (role) onLoginSuccess(role);
             } finally {
