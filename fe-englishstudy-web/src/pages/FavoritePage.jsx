@@ -1,8 +1,9 @@
+import { toast } from 'react-hot-toast';
 import React, { useState, useEffect } from 'react';
 import { Volume2, MoreVertical, FolderPlus, Trash2, Search, X } from 'lucide-react';
-import VocabTable from '../src_components/VocabTable';
-import AddToCollectionModal from '../src_components/AddToCollectionModal';
-import SearchBar from '../src_components/SearchBar';
+import VocabTable from '../components/VocabTable';
+import AddToCollectionModal from '../components/AddToCollectionModal';
+import SearchBar from '../components/SearchBar';
 
 
 const ITEMS_PER_PAGE = 10;
@@ -13,16 +14,13 @@ function FavoritePage() {
   const [collections, setCollections] = useState([]);
   
 
-  const [isSelectMode, setIsSelectMode] = useState(false); 
-  const [selectedIds, setSelectedIds] = useState([]); 
   const [openExampleId, setOpenExampleId] = useState(null); 
 
   const [searchTerm, setSearchTerm] = useState(''); 
   
   // modal thêm vào bộ từ
   const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
-  const [wordToAdd, setWordToAdd] = useState(null); 
-  const [isBulkAddMode, setIsBulkAddMode] = useState(false); 
+  const [wordToAdd, setWordToAdd] = useState(null);
   const [modalSearchTerm, setModalSearchTerm] = useState(''); 
   const [selectedCollectionIds, setSelectedCollectionIds] = useState([]); 
   const [collectionVocabDB, setCollectionVocabDB] = useState([]);
@@ -31,14 +29,8 @@ function FavoritePage() {
     c.name.toLowerCase().includes(modalSearchTerm.toLowerCase())
   );
 
-  const handleOpenAddToCollectionModal = (word = null) => {
-    if (word) {
-      setWordToAdd(word);
-      setIsBulkAddMode(false); 
-    } else {
-      setWordToAdd(null);
-      setIsBulkAddMode(true);  
-    }
+  const handleOpenAddToCollectionModal = (word) => {
+    setWordToAdd(word);
     setSelectedCollectionIds([]); 
     setModalSearchTerm('');       
     setShowAddToCollectionModal(true);
@@ -60,7 +52,7 @@ function FavoritePage() {
     let addedCount = 0;
     let duplicateCount = 0;
     
-    const wordIdsToProcess = isBulkAddMode ? selectedIds : [wordToAdd.id];
+    const wordIdsToProcess = [wordToAdd.id];
     const newDB = [...collectionVocabDB];
 
     wordIdsToProcess.forEach(wId => {
@@ -81,21 +73,13 @@ function FavoritePage() {
     if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} lượt từ vào các bộ.\n`;
     if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} lượt (Vì từ đã tồn tại sẵn trong bộ được chọn).`;
     
-    alert(alertMsg);
+    toast.error(alertMsg);
 
     setShowAddToCollectionModal(false);
-    if (isBulkAddMode) {
-      setIsSelectMode(false);
-      setSelectedIds([]);
-    }
   };
 
 
-  const toggleSelect = (id) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
+
 
 
   const playAudio = (word) => {
@@ -109,12 +93,7 @@ function FavoritePage() {
   };
 
 
-  const handleRemoveBulk = () => {
-    if (selectedIds.length === 0) return;
-    setFavorites(favorites.filter(item => !selectedIds.includes(item.id)));
-    setSelectedIds([]); 
-    setIsSelectMode(false); 
-  };
+
 
 
   const filteredFavorites = favorites.filter(item => 
@@ -122,16 +101,7 @@ function FavoritePage() {
   );
 
 
-  const handleSelectAllCurrentPage = (currentWords) => {
-    const isAllCurrentSelected = currentWords.every(v => selectedIds.includes(v.id));
-    if (isAllCurrentSelected && currentWords.length > 0) {
-      const currentIds = currentWords.map(v => v.id);
-      setSelectedIds(prev => prev.filter(id => !currentIds.includes(id)));
-    } else {
-      const newIds = currentWords.map(v => v.id).filter(id => !selectedIds.includes(id));
-      setSelectedIds(prev => [...prev, ...newIds]);
-    }
-  };
+
 
   const FavoriteActionColumn = ({ item }) => {
     const [openMenuId, setOpenMenuId] = useState(null); 
@@ -186,59 +156,13 @@ function FavoritePage() {
             className="w-64"
           />
 
-          {isSelectMode && (
-            <>
-              
-              <button 
-                onClick={() => handleOpenAddToCollectionModal(null)}
-                disabled={selectedIds.length === 0}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-lg shadow-sm font-medium transition-colors ${
-                  selectedIds.length > 0
-                    ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
-                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                }`}
-              >
-                <FolderPlus size={18} /> Thêm vào...
-              </button>
 
-              
-              <button 
-                onClick={handleRemoveBulk}
-                disabled={selectedIds.length === 0}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-lg shadow-sm font-medium transition-colors ${
-                  selectedIds.length > 0 
-                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer' 
-                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                }`}
-              >
-                <Trash2 size={18} /> Bỏ yêu thích ({selectedIds.length})
-              </button>
-            </>
-          )}
-          
-          <button 
-            onClick={() => {
-              setIsSelectMode(!isSelectMode);
-              if (isSelectMode) setSelectedIds([]); 
-            }}
-            className={`px-5 py-2 font-bold rounded-lg shadow-sm transition-colors ${
-              isSelectMode 
-                ? 'bg-[#164e63] text-white' 
-                : 'bg-[#0e7490] hover:bg-[#164e63] text-white'
-            }`}
-          >
-            {isSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
-          </button>
         </div>
       </div>
 
       <VocabTable 
         words={favorites}
         searchTerm={searchTerm}
-        isSelectMode={isSelectMode}
-        selectedIds={selectedIds}
-        onToggleSelect={toggleSelect}
-        onSelectAll={handleSelectAllCurrentPage}
         ActionColumn={FavoriteActionColumn} 
       />
 
@@ -246,9 +170,7 @@ function FavoritePage() {
       <AddToCollectionModal 
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}
-        isBulkMode={isBulkAddMode}
         wordToAdd={wordToAdd}
-        selectedCount={selectedIds.length}
         collections={collections}
         onConfirm={handleConfirmAddToCollections}
       />

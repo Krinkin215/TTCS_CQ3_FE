@@ -1,16 +1,17 @@
+import { toast } from 'react-hot-toast';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Gamepad2, BookOpen, Brain, HelpCircle, 
   History, BarChart2, Search, CheckSquare, X, Play, Clock, 
   RotateCcw, Target, Trophy, Flame, ChevronRight, Volume2, Heart, ArrowLeft, CheckCircle2, XCircle, ArrowRight, Lightbulb
 } from 'lucide-react';
-import StatusBadge from '../src_components/StatusBadge';
-import FilterBox from '../src_components/FilterBox';
-import VocabResultList from '../src_components/VocabResultList';
-import { playAudio } from '../src_utils/audio';
-import { initGame, finishGame } from '../src_utils/services/practiceService';
-import { fetchVocabReview } from '../src_utils/services/userService';
-import { fetchTopics } from '../src_utils/services/topicService';
+import StatusBadge from '../components/StatusBadge';
+import FilterBox from '../components/FilterBox';
+import VocabResultList from '../components/VocabResultList';
+import { playAudio } from '../utils/audio';
+import { initGame, finishGame } from '../utils/services/practiceService';
+import { fetchVocabReview } from '../utils/services/userService';
+import { fetchTopics } from '../utils/services/topicService';
 
 
 const STATUS_OPTIONS = [
@@ -244,17 +245,17 @@ export default function PracticePage({ onBack, initialFilters }) {
   const handleStartGame = (gameId) => {
     // Kiểm tra bộ lọc cho chế độ "Bộ từ vựng"
     if (activeMode === 'collection' && selectedCollections.length === 0) {
-      alert("Vui lòng chọn ít nhất một Bộ từ vựng để bắt đầu ôn tập!");
+      toast.error("Vui lòng chọn ít nhất một Bộ từ vựng để bắt đầu ôn tập!");
       return;
     }
     // Kiểm tra bộ lọc cho chế độ "Chủ đề"
     if (activeMode === 'topic' && (selectedTopics.length === 0 || selectedLessons.length === 0)) {
-      alert("Vui lòng chọn ít nhất một Chủ đề và một Bài học để bắt đầu ôn tập!");
+      toast.error("Vui lòng chọn ít nhất một Chủ đề và một Bài học để bắt đầu ôn tập!");
       return;
     }
     // Kiểm tra số lượng từ vựng sẵn sàng
     if (availableCount === 0) {
-      alert("Không có từ vựng nào thỏa mãn điều kiện lọc. Vui lòng chọn lại!");
+      toast.error("Không có từ vựng nào thỏa mãn điều kiện lọc. Vui lòng chọn lại!");
       return;
     }
 
@@ -303,7 +304,7 @@ export default function PracticePage({ onBack, initialFilters }) {
         }
       })();
     } else {
-      alert("Tính năng này đang được phát triển!");
+      toast.error("Tính năng này đang được phát triển!");
     }
   };
 
@@ -904,7 +905,7 @@ export default function PracticePage({ onBack, initialFilters }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {activeMode === 'collection' ? (
                 <>
-                  <FilterBox title="Chọn Bộ từ vựng" options={MOCK_COLLECTIONS} selectedIds={selectedCollections} onChange={setSelectedCollections} placeholder="Tìm bộ từ..." />
+                  <FilterBox title="Chọn Bộ từ vựng" options={collections} selectedIds={selectedCollections} onChange={setSelectedCollections} placeholder="Tìm bộ từ..." />
                   <FilterBox title="Trạng thái từ vựng" options={STATUS_OPTIONS} selectedIds={selectedStatuses} onChange={setSelectedStatuses} placeholder="Tìm trạng thái..." />
                   <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 flex flex-col justify-center items-center">
                     <label className="font-bold text-cyan-900 mb-4">Số lượng từ muốn ôn (Tối thiểu 20)</label>
@@ -921,7 +922,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                 </>
               ) : (
                 <>
-                  <FilterBox title="Chọn Chủ đề" options={MOCK_TOPICS} selectedIds={selectedTopics} onChange={setSelectedTopics} placeholder="Tìm chủ đề..." />
+                  <FilterBox title="Chọn Chủ đề" options={topics} selectedIds={selectedTopics} onChange={setSelectedTopics} placeholder="Tìm chủ đề..." />
                   <FilterBox title="Chọn Bài học" options={availableLessons} selectedIds={selectedLessons} onChange={setSelectedLessons} placeholder="Tìm bài học..." />
                   <div className="space-y-6">
                     <FilterBox title="Trạng thái từ vựng" options={STATUS_OPTIONS} selectedIds={selectedStatuses} onChange={setSelectedStatuses} placeholder="Tìm trạng thái..." />
@@ -1017,97 +1018,47 @@ export default function PracticePage({ onBack, initialFilters }) {
           </div>
         </div>
 
-        {/* LỊCH SỬ & THỐNG KÊ */}
+        {/* LỊCH SỬ CHƠI */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="flex border-b border-gray-100">
-            <button onClick={() => setActiveTab('history')} className={`flex-1 flex items-center justify-center gap-2 py-4 font-bold text-lg transition-colors ${activeTab === 'history' ? 'border-b-2 border-cyan-600 text-cyan-700 bg-cyan-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <div className="flex-1 flex items-center justify-center gap-2 py-4 font-bold text-lg border-b-2 border-cyan-600 text-cyan-700 bg-cyan-50/30">
               <History size={20} /> Lịch sử chơi
-            </button>
-            <button onClick={() => setActiveTab('stats')} className={`flex-1 flex items-center justify-center gap-2 py-4 font-bold text-lg transition-colors ${activeTab === 'stats' ? 'border-b-2 border-cyan-600 text-cyan-700 bg-cyan-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>
-              <BarChart2 size={20} /> Thống kê
-            </button>
+            </div>
           </div>
 
           <div className="p-6">
-            {activeTab === 'history' ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center"><CheckSquare size={24}/></div>
-                      <div>
-                        <h4 className="font-bold text-cyan-950">Trắc nghiệm từ vựng</h4>
-                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                          <span className="flex items-center gap-1"><Clock size={12}/> 14:30 - 14:45 (Hôm nay)</span>
-                        </div>
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center"><CheckSquare size={24}/></div>
+                    <div>
+                      <h4 className="font-bold text-cyan-950">Trắc nghiệm từ vựng</h4>
+                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                        <span className="flex items-center gap-1"><Clock size={12}/> 14:30 - 14:45 (Hôm nay)</span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                       <div className="text-center">
-                         <div className="text-sm font-bold text-green-600">18 Đúng</div>
-                         <div className="text-sm font-bold text-red-500">2 Sai</div>
-                       </div>
-                       <div className="w-px h-8 bg-gray-200"></div>
-                       <div className="text-center w-20">
-                         <div className="text-xs text-gray-500 uppercase font-bold">Điểm</div>
-                         <div className="text-lg font-black text-yellow-600">+180</div>
-                       </div>
-                       <button 
-                        onClick={() => setHistoryLogView(quizLog.length > 0 ? quizLog : quizData.map((q, idx) => ({ q, isCorrect: idx % 2 === 0, pointsEarned: idx % 2 === 0 ? 15 : 0 })))} 
-                         className="px-4 py-2 bg-white border border-gray-200 text-cyan-700 font-bold rounded-lg hover:bg-cyan-50 transition-colors text-sm"
-                       >
-                         Chi tiết
-                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-8">
-                <div className="grid grid-cols-4 gap-6">
-                  {[
-                    { label: 'Số lượt chơi', value: '42', icon: Play, color: 'text-blue-600', bg: 'bg-blue-50' },
-                    { label: 'Độ chính xác', value: '85%', icon: Target, color: 'text-green-600', bg: 'bg-green-50' },
-                    { label: 'Tổng điểm', value: '4,520', icon: Trophy, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-                    { label: 'Kỷ lục cao nhất', value: '450', icon: Flame, color: 'text-orange-600', bg: 'bg-orange-50' }
-                  ].map((stat, i) => (
-                    <div key={i} className="p-5 border border-gray-100 rounded-2xl bg-white shadow-sm flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${stat.bg} ${stat.color}`}>
-                        <stat.icon size={24} />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-gray-400">{stat.label}</div>
-                        <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
-                      </div>
-                    </div>
-                  ))}
+                  <div className="flex items-center gap-6">
+                     <div className="text-center">
+                       <div className="text-sm font-bold text-green-600">18 Đúng</div>
+                       <div className="text-sm font-bold text-red-500">2 Sai</div>
+                     </div>
+                     <div className="w-px h-8 bg-gray-200"></div>
+                     <div className="text-center w-20">
+                       <div className="text-xs text-gray-500 uppercase font-bold">Điểm</div>
+                       <div className="text-lg font-black text-yellow-600">+180</div>
+                     </div>
+                     <button 
+                      onClick={() => setHistoryLogView(quizLog.length > 0 ? quizLog : quizData.map((q, idx) => ({ q, isCorrect: idx % 2 === 0, pointsEarned: idx % 2 === 0 ? 15 : 0 })))} 
+                        className="px-4 py-2 bg-white border border-gray-200 text-cyan-700 font-bold rounded-lg hover:bg-cyan-50 transition-colors text-sm"
+                      >
+                        Chi tiết
+                      </button>
+                  </div>
                 </div>
-                
-                <div>
-                  <h3 className="font-bold text-lg text-cyan-900 mb-4">Chi tiết theo Trò chơi</h3>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50 border-y border-gray-200 text-gray-500 text-sm">
-                        <th className="py-3 px-4 font-bold">Trò chơi</th>
-                        <th className="py-3 px-4 font-bold text-center">Số lượt</th>
-                        <th className="py-3 px-4 font-bold text-center">Độ chính xác</th>
-                        <th className="py-3 px-4 font-bold text-center">Tổng điểm</th>
-                        <th className="py-3 px-4 font-bold text-center">Điểm cao nhất</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-gray-100 hover:bg-gray-50/50">
-                        <td className="py-4 px-4 font-bold text-cyan-900 flex items-center gap-2"><CheckSquare size={18} className="text-blue-500"/> Trắc nghiệm</td>
-                        <td className="py-4 px-4 text-center font-medium">25</td>
-                        <td className="py-4 px-4 text-center font-bold text-green-600">88%</td>
-                        <td className="py-4 px-4 text-center font-bold text-yellow-600">2,500</td>
-                        <td className="py-4 px-4 text-center font-bold text-orange-500">250</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         </div>
 

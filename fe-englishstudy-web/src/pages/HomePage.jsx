@@ -1,3 +1,4 @@
+import { toast } from 'react-hot-toast';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Home, Heart, Library, LayoutGrid, Gamepad2, Trophy,
@@ -5,17 +6,17 @@ import {
   X, Mail, Calendar, Pencil, Download, LogOut, Cake, Camera, Save, ArrowLeft,
   Eye, MoreVertical, FolderPlus, Search
 } from 'lucide-react';
-import ProfileModal from '../src_components/ProfileModal';
+import ProfileModal from '../components/ProfileModal';
 import FavoritePage from './FavoritePage';
 import CollectionPage from './CollectionPage';
 import VocabularyPage from './VocabularyPage';
 import LeaderboardPage from './LeaderboardPage';
 import PracticePage from './PracticePage';
-import VocabTable from '../src_components/VocabTable';
-import AddToCollectionModal from '../src_components/AddToCollectionModal';
-import FlashcardLearning from '../src_components/FlashcardLearning';
-import { getMe } from '../src_utils/services/authService';
-import { updateMyProfile } from '../src_utils/services/userService';
+import VocabTable from '../components/VocabTable';
+import AddToCollectionModal from '../components/AddToCollectionModal';
+import FlashcardLearning from '../components/FlashcardLearning';
+import { getMe } from '../utils/services/authService';
+import { updateMyProfile } from '../utils/services/userService';
 
 const TOPIC_COLORS = [
   'bg-green-100 text-green-700',
@@ -145,6 +146,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           joinDate: joinDateFormatted,
           streak: u.streak?.currentStreak ?? u.streak ?? principal.streak ?? 0,
           bestStreak: u.streak?.longestStreak ?? u.bestStreak ?? u.best_streak ?? principal.bestStreak ?? 0,
+          lastStudyDate: u.streak?.lastStudyDate ?? u.lastStudyDate ?? u.last_study_date ?? u.lastActiveDate ?? u.last_active_date ?? '',
           totalXP: u.totalXP ?? u.totalScore ?? u.score ?? principal.totalXP ?? 0,
           avatarChar: (u.fullName ?? u.username ?? principal.username ?? 'U').slice(0, 1).toUpperCase(),
           avatarUrl: u.avatarUrl ?? u.avatar_url ?? principal.avatarUrl ?? null
@@ -166,8 +168,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
   const [activeTopic, setActiveTopic] = useState(null);
   const [topicWords, setTopicWords] = useState([]);
 
-  const [isTopicWordSelectMode, setIsTopicWordSelectMode] = useState(false);
-  const [selectedTopicWordIds, setSelectedTopicWordIds] = useState([]);
+
 
   const [showLessonFilter, setShowLessonFilter] = useState(false);
   const [lessonSearchTerm, setLessonSearchTerm] = useState('');
@@ -175,7 +176,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
   const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
   const [wordToAdd, setWordToAdd] = useState(null);
-  const [isBulkAddMode, setIsBulkAddMode] = useState(false);
+
 
   const openTopicWordList = (topic) => {
     setActiveTopic(topic);
@@ -183,8 +184,6 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     setSelectedLessonIds(allLessonIds);
     setTopicWords([]); // sẽ được load từ API
     setShowTopicWordListModal(true);
-    setIsTopicWordSelectMode(false);
-    setSelectedTopicWordIds([]);
     setShowLessonFilter(false);
     setTopicWordSearchTerm('');
   };
@@ -194,30 +193,14 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     setActiveTopic(null);
   };
 
-  const unfavoritedTopicWordCount = selectedTopicWordIds.filter(id => !favoriteVocabDB.includes(id)).length;
-  const handleBulkFavoriteTopic = () => {
-    if (selectedTopicWordIds.length === 0) return;
-    const newFavorites = selectedTopicWordIds.filter(id => !favoriteVocabDB.includes(id));
-    const favoritedCount = selectedTopicWordIds.length - newFavorites.length;
-    setFavoriteVocabDB(prev => [...prev, ...newFavorites]);
-
-    let alertMsg = `KẾT QUẢ:\n✅ Đã thêm ${newFavorites.length} từ vào Yêu thích.\n`;
-    if (favoritedCount > 0) alertMsg += `⚠️ Bỏ qua ${favoritedCount} từ đã có sẵn.`;
-    alert(alertMsg);
-
-    setIsTopicWordSelectMode(false);
-    setSelectedTopicWordIds([]);
-  };
-
-  const handleOpenAddToCollection = (word = null) => {
+  const handleOpenAddToCollection = (word) => {
     setWordToAdd(word);
-    setIsBulkAddMode(!word);
     setShowAddToCollectionModal(true);
   };
 
   const handleConfirmAddToCollections = (targetCollectionIds) => {
     let added = 0, duplicate = 0;
-    const wordIdsToProcess = isBulkAddMode ? selectedTopicWordIds : [wordToAdd.id];
+    const wordIdsToProcess = [wordToAdd.id];
     const newDB = [...collectionVocabDB];
 
     wordIdsToProcess.forEach(wId => {
@@ -230,9 +213,8 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       });
     });
     setCollectionVocabDB(newDB);
-    alert(`KẾT QUẢ:\n✅ Đã thêm ${added} lượt từ.\n⚠️ Bỏ qua ${duplicate} lượt trùng lặp.`);
+    toast.error(`KẾT QUẢ:\n✅ Đã thêm ${added} lượt từ.\n⚠️ Bỏ qua ${duplicate} lượt trùng lặp.`);
     setShowAddToCollectionModal(false);
-    if (isBulkAddMode) { setIsTopicWordSelectMode(false); setSelectedTopicWordIds([]); }
   };
 
   const topicsRef = useRef(null);
@@ -491,7 +473,14 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                   </div>
                 </div>
 
-
+                <div className="text-sm opacity-80 z-10 text-center flex items-center justify-center gap-1.5">
+                  <span>Ngày học gần nhất:</span>
+                  <span className="font-bold">
+                    {userData.lastStudyDate
+                      ? new Date(userData.lastStudyDate).toLocaleDateString('vi-VN')
+                      : 'Chưa có dữ liệu'}
+                  </span>
+                </div>
 
                 <Flame className="absolute -bottom-10 -right-4 text-white opacity-10 pointer-events-none" size={150} />
               </div>
@@ -555,10 +544,10 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {topics.map((topic, topicIdx) => (
-                  <div key={topic.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-between min-h-[14rem]">
+                <div key={topic.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-between min-h-[14rem]">
 
 
-                    <div>
+                    <div className={topic.totalVocab > 0 ? "cursor-pointer" : ""} onClick={() => { if (topic.totalVocab > 0) handleOpenLearning(topic); }}>
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${TOPIC_COLORS[topicIdx % TOPIC_COLORS.length]}`}>
                         {topic.imageUrl ? (
                           <img src={topic.imageUrl} alt={topic.title} className="w-full h-full object-contain" />
@@ -601,15 +590,6 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                         className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm"
                       >
                         <Eye size={16} /> Xem từ
-                      </button>
-
-
-                      <button
-                        onClick={() => handleOpenLearning(topic)}
-                        className="flex items-center justify-end text-[#0e7490] hover:text-white bg-cyan-50 hover:bg-[#0e7490] p-1.5 rounded-full transition-all duration-300 w-9 hover:w-[100px] relative group overflow-hidden shrink-0 shadow-sm border border-cyan-100 hover:border-transparent"
-                      >
-                        <span className="opacity-0 whitespace-nowrap group-hover:opacity-100 transition-opacity duration-300 text-xs font-bold absolute right-8">Vào học</span>
-                        <ChevronRight size={18} className="shrink-0 relative z-10" />
                       </button>
 
                     </div>
@@ -731,20 +711,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                 </div>
 
 
-                {isTopicWordSelectMode && selectedTopicWordIds.length > 0 && (
-                  <div className="flex gap-2">
-                    <button onClick={() => handleOpenAddToCollection(null)} className="flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 font-medium text-sm">
-                      <FolderPlus size={16} /> Thêm vào...
-                    </button>
-                    <button onClick={handleBulkFavoriteTopic} disabled={unfavoritedTopicWordCount === 0} className={`flex items-center gap-2 px-3 py-2 border rounded-lg shadow-sm font-medium text-sm ${unfavoritedTopicWordCount > 0 ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'}`}>
-                      <Heart size={16} fill={unfavoritedTopicWordCount > 0 ? "currentColor" : "none"} /> Yêu thích ({unfavoritedTopicWordCount})
-                    </button>
-                  </div>
-                )}
 
-                <button onClick={() => { setIsTopicWordSelectMode(!isTopicWordSelectMode); if (isTopicWordSelectMode) setSelectedTopicWordIds([]); }} className={`px-4 py-2 font-bold rounded-lg shadow-sm border text-sm ${isTopicWordSelectMode ? 'bg-cyan-950 text-white border-cyan-950' : 'bg-white text-cyan-700 border-cyan-200 hover:bg-cyan-50'}`}>
-                  {isTopicWordSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
-                </button>
 
                 <div className="w-px h-8 bg-gray-200 mx-1"></div>
                 <button onClick={closeTopicWordList} className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-full"><X size={24} /></button>
@@ -755,14 +722,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               <VocabTable
                 words={topicWords.filter(w => selectedLessonIds.includes(w.lessonId))}
                 searchTerm={topicWordSearchTerm}
-                isSelectMode={isTopicWordSelectMode}
-                selectedIds={selectedTopicWordIds}
-                onToggleSelect={(id) => setSelectedTopicWordIds(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id])}
-                onSelectAll={(currentWords) => {
-                  const isAllSelected = currentWords.every(v => selectedTopicWordIds.includes(v.id));
-                  if (isAllSelected) setSelectedTopicWordIds(prev => prev.filter(id => !currentWords.map(w => w.id).includes(id)));
-                  else setSelectedTopicWordIds(prev => [...new Set([...prev, ...currentWords.map(w => w.id)])]);
-                }}
+
                 ActionColumn={TopicWordActionColumn}
               />
             </div>
@@ -774,9 +734,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       <AddToCollectionModal
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}
-        isBulkMode={isBulkAddMode}
         wordToAdd={wordToAdd}
-        selectedCount={selectedTopicWordIds.length}
         collections={collections}
         onConfirm={handleConfirmAddToCollections}
       />

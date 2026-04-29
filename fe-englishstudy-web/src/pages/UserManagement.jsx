@@ -1,10 +1,11 @@
+import { toast } from 'react-hot-toast';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Menu, Trash2, CheckSquare, Square, X, Mail, Cake, Calendar, Trophy, Flame, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
-import SearchBar from '../src_components/SearchBar';
-import Pagination from '../src_components/Pagination';
-import ConfirmModal from '../src_components/ConfirmModal';
-import ProfileModal from '../src_components/ProfileModal';
-import { fetchAllUsers, fetchUserById, deleteUserById } from '../src_utils/services/adminUserService';
+import SearchBar from '../components/SearchBar';
+import Pagination from '../components/Pagination';
+import ConfirmModal from '../components/ConfirmModal';
+import ProfileModal from '../components/ProfileModal';
+import { fetchAllUsers, fetchUserById, deleteUserById } from '../utils/services/adminUserService';
 
 
 
@@ -50,9 +51,7 @@ export default function UserManagement() {
   const [sortOrder, setSortOrder] = useState(null);
   const itemsPerPage = 10;
 
-  // Trạng thái lựa chọn
-  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
+
 
   // Trạng thái modal
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -136,32 +135,6 @@ export default function UserManagement() {
     }
   };
 
-  const handleToggleMultiSelect = () => {
-    setIsMultiSelectMode(!isMultiSelectMode);
-    setSelectedUserIds([]);
-  };
-
-  const handleToggleSelectUser = (userId) => {
-    setSelectedUserIds(prev =>
-      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
-    );
-  };
-
-  const handleSelectAll = () => {
-    const paginatedIds = paginatedUsers.map(u => u.id);
-    const areAllCurrentPageSelected = paginatedIds.length > 0 && paginatedIds.every(id => selectedUserIds.includes(id));
-
-    if (areAllCurrentPageSelected) {
-      // Bỏ chọn trang hiện tại
-      setSelectedUserIds(prev => prev.filter(id => !paginatedIds.includes(id)));
-    } else {
-      // Chọn trang hiện tại (thêm vào các lựa chọn đã có)
-      setSelectedUserIds(prev => {
-        const newSelection = new Set([...prev, ...paginatedIds]);
-        return Array.from(newSelection);
-      });
-    }
-  };
 
   const handleDeleteClick = (user = null) => {
     setUserToDelete(user);
@@ -173,21 +146,16 @@ export default function UserManagement() {
       if (userToDelete) {
         await deleteUserById(userToDelete.id);
         setUsers(users.filter(u => u.id !== userToDelete.id));
-      } else {
-        await Promise.all(selectedUserIds.map((id) => deleteUserById(id)));
-        setUsers(users.filter(u => !selectedUserIds.includes(u.id)));
-        setIsMultiSelectMode(false);
-        setSelectedUserIds([]);
       }
     } catch {
-      alert('Xóa user thất bại. Vui lòng thử lại.');
+      toast.error('Xóa user thất bại. Vui lòng thử lại.');
     } finally {
       setIsDeleteModalOpen(false);
       setUserToDelete(null);
     }
 
     // Điều chỉnh phân trang nếu cần
-    const remainingItems = userToDelete ? users.length - 1 : users.length - selectedUserIds.length;
+    const remainingItems = userToDelete ? users.length - 1 : users.length;
     const newTotalPages = Math.ceil(remainingItems / itemsPerPage) || 1;
     if (currentPage > newTotalPages) {
       setCurrentPage(newTotalPages);
@@ -210,28 +178,6 @@ export default function UserManagement() {
             placeholder="Tìm kiếm tài khoản, email..."
             className="w-full sm:w-72"
           />
-
-          {/* Nút xóa đã chọn */}
-          {isMultiSelectMode && selectedUserIds.length > 0 && (
-            <button
-              onClick={() => handleDeleteClick(null)}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors whitespace-nowrap"
-            >
-              <Trash2 size={18} />
-              Xóa ({selectedUserIds.length})
-            </button>
-          )}
-
-          {/* Nút chuyển đổi chọn nhiều */}
-          <button
-            onClick={handleToggleMultiSelect}
-            className={`px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all whitespace-nowrap border ${isMultiSelectMode
-              ? 'bg-slate-800 text-white hover:bg-slate-900 border-transparent'
-              : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
-              }`}
-          >
-            {isMultiSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
-          </button>
         </div>
       </div>
 
@@ -270,30 +216,16 @@ export default function UserManagement() {
                 </th>
                 <th className="py-4 px-6 w-24 text-center">Profile</th>
                 <th className="py-4 px-6 w-24 text-center">
-                  {isMultiSelectMode ? (
-                    <button
-                      onClick={handleSelectAll}
-                      className="text-cyan-600 hover:text-cyan-800 transition-colors flex justify-center w-full"
-                    >
-                      {paginatedUsers.length > 0 && paginatedUsers.every(u => selectedUserIds.includes(u.id)) ? (
-                        <CheckSquare size={20} className="text-cyan-600" />
-                      ) : (
-                        <Square size={20} />
-                      )}
-                    </button>
-                  ) : (
-                    'Xóa'
-                  )}
+                  Xóa
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginatedUsers.length > 0 ? (
                 paginatedUsers.map((user, index) => {
-                  const isSelected = selectedUserIds.includes(user.id);
                   const stt = index + 1 + (currentPage - 1) * itemsPerPage;
                   return (
-                    <tr key={user.id} className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-cyan-50/50' : ''}`}>
+                    <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-4 px-6 text-center text-slate-500 font-bold">
                         {stt}
                       </td>
@@ -322,18 +254,6 @@ export default function UserManagement() {
                         </button>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        {isMultiSelectMode ? (
-                          <button
-                            onClick={() => handleToggleSelectUser(user.id)}
-                            className="p-2 transition-colors mx-auto block text-slate-400 hover:text-cyan-600"
-                          >
-                            {isSelected ? (
-                              <CheckSquare size={20} className="text-cyan-600" />
-                            ) : (
-                              <Square size={20} />
-                            )}
-                          </button>
-                        ) : (
                           <button
                             onClick={() => handleDeleteClick(user)}
                             className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors mx-auto block"
@@ -341,7 +261,6 @@ export default function UserManagement() {
                           >
                             <Trash2 size={20} />
                           </button>
-                        )}
                       </td>
                     </tr>
                   );
@@ -387,10 +306,7 @@ export default function UserManagement() {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Xác nhận xóa"
-        message={userToDelete
-          ? `Bạn có chắc chắn muốn xóa tài khoản "${userToDelete.username}" không? Hành động này không thể hoàn tác.`
-          : `Bạn có chắc chắn muốn xóa ${selectedUserIds.length} tài khoản đã chọn không? Hành động này không thể hoàn tác.`
-        }
+        message={`Bạn có chắc chắn muốn xóa tài khoản "${userToDelete?.username}" không? Hành động này không thể hoàn tác.`}
         isDanger={true}
       />
 

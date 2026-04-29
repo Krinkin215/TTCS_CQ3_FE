@@ -6,6 +6,7 @@ function normalizeEntry(entry) {
   const user = entry.user ?? entry.account ?? entry.principal ?? entry;
   const id = user.id ?? user.userId ?? user.user_id ?? entry.userId ?? entry.user_id;
   const username = user.username ?? user.name ?? user.fullName ?? user.full_name ?? '';
+  const fullName = user.fullName ?? user.full_name ?? user.name ?? username;
   const email = user.email ?? '';
   const avatarUrl = user.avatarUrl ?? user.avatar_url ?? user.avatar ?? '';
 
@@ -16,6 +17,7 @@ function normalizeEntry(entry) {
   return {
     id: id ?? username ?? email,
     username,
+    fullName,
     email,
     avatarUrl,
     score: Number(score) || 0,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { XCircle, CheckCircle2, Volume2, Heart } from 'lucide-react';
 import StatusBadge from './StatusBadge';
-import { playAudio } from '../src_utils/audio';
+import { playAudio } from '../utils/audio';
 
 export default function VocabResultList({ logs, favoriteIds, onToggleFavorite }) {
   if (!logs || logs.length === 0) return null;

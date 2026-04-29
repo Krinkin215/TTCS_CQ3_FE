@@ -1,11 +1,13 @@
-import React, { useState, useRef } from 'react';
+import { toast } from 'react-hot-toast';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, Filter, Plus, Upload, ChevronDown, Trash2, Edit2, FileSpreadsheet, MoreVertical } from 'lucide-react';
-import VocabTable from '../src_components/VocabTable';
-import SearchBar from '../src_components/SearchBar';
-import ConfirmModal from '../src_components/ConfirmModal';
-import FilterDropdown from '../src_components/FilterDropdown';
-import { adminImportVocabulariesCsv } from '../src_utils/services/vocabService';
-import { createVocabulary, updateVocabulary, deleteVocabulary } from '../src_utils/services/vocabService';
+import VocabTable from '../components/VocabTable';
+import SearchBar from '../components/SearchBar';
+import ConfirmModal from '../components/ConfirmModal';
+import FilterDropdown from '../components/FilterDropdown';
+import { adminImportVocabulariesCsv } from '../utils/services/vocabService';
+import { createVocabulary, updateVocabulary, deleteVocabulary } from '../utils/services/vocabService';
+import { fetchTopics, fetchTopicVocabularies } from '../utils/services/topicService';
 
 
 const FILTER_OPTIONS = {
@@ -15,12 +17,47 @@ const FILTER_OPTIONS = {
 
 export default function AdminVocabManagement() {
 
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
+
   const [searchTerm, setSearchTerm] = useState('');
 
   const [vocabularies, setVocabularies] = useState([]);
   const [topicsData, setTopicsData] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadData = async () => {
+      try {
+        const topicsRes = await fetchTopics();
+        const loadedTopics = Array.isArray(topicsRes) ? topicsRes : (topicsRes?.items ?? topicsRes?.data ?? []);
+
+        if (!cancelled) {
+          const formattedTopics = loadedTopics.map(t => ({ ...t, name: t.title || t.name }));
+          setTopicsData(formattedTopics);
+
+          // Lấy vocabularies cho từng topic
+          const vocabPromises = formattedTopics.map(t => fetchTopicVocabularies(t.id).catch(() => []));
+          const vocabResults = await Promise.all(vocabPromises);
+
+          let allVocabs = [];
+          vocabResults.forEach((res, idx) => {
+            const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
+            const topicId = formattedTopics[idx].id;
+            const topicName = formattedTopics[idx].name;
+            const mapped = list.map(v => ({ ...v, topicId, topic: topicName }));
+            allVocabs = [...allVocabs, ...mapped];
+          });
+
+          if (!cancelled) {
+            setVocabularies(allVocabs);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
+      }
+    };
+    loadData();
+    return () => { cancelled = true; };
+  }, []);
 
   // modal thêm từ mới
   const [showAddWordModal, setShowAddWordModal] = useState(false);
@@ -124,7 +161,7 @@ export default function AdminVocabManagement() {
     const wordsToProcess = draftWords.filter(w => w.word.trim() !== '');
 
     if (wordsToProcess.length === 0) {
-      alert("⚠️ Vui lòng nhập ít nhất 1 từ vựng!");
+      toast.error("⚠️ Vui lòng nhập ít nhất 1 từ vựng!");
       return;
     }
 
@@ -139,7 +176,7 @@ export default function AdminVocabManagement() {
     );
 
     if (hasIncompleteRow) {
-      alert("⚠️ LỖI: Vui lòng điền ĐẦY ĐỦ tất cả các cột (Chủ đề, Bài học, Từ vựng, Phiên âm, Nghĩa, Ví dụ) cho các từ bạn muốn lưu!");
+      toast.error("⚠️ LỖI: Vui lòng điền ĐẦY ĐỦ tất cả các cột (Chủ đề, Bài học, Từ vựng, Phiên âm, Nghĩa, Ví dụ) cho các từ bạn muốn lưu!");
       return;
     }
 
@@ -198,7 +235,7 @@ export default function AdminVocabManagement() {
     if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} từ (Đã có sẵn trong hệ thống).\n`;
     if (formatErrorCount > 0) alertMsg += `❌ Lỗi định dạng: ${formatErrorCount} từ (Có chứa số/kí tự lạ hoặc phiên âm thiếu dấu / /).\n`;
 
-    alert(alertMsg);
+    toast.error(alertMsg);
 
     if (addedCount > 0) forceCloseAddModal();
   };
@@ -216,29 +253,16 @@ export default function AdminVocabManagement() {
         const topicId = draftWords?.[0]?.topicId ?? activeFilters?.topics?.[0];
         const lessonId = draftWords?.[0]?.lessonId ?? activeFilters?.lessons?.[0];
         await adminImportVocabulariesCsv(file, { topicId, lessonId });
-        alert(`Đã import file: ${file.name}`);
+        toast.error(`Đã import file: ${file.name}`);
       }
     } catch {
-      alert('Import file thất bại. Vui lòng kiểm tra quyền admin và định dạng CSV.');
+      toast.error('Import file thất bại. Vui lòng kiểm tra quyền admin và định dạng CSV.');
     } finally {
       e.target.value = null;
     }
   };
 
-  const toggleSelect = (id) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
-  };
 
-  const handleSelectAllCurrentPage = (currentWords) => {
-    const isAllCurrentSelected = currentWords.every(v => selectedIds.includes(v.id));
-    if (isAllCurrentSelected && currentWords.length > 0) {
-      const currentIds = currentWords.map(v => v.id);
-      setSelectedIds(prev => prev.filter(id => !currentIds.includes(id)));
-    } else {
-      const newIds = currentWords.map(v => v.id).filter(id => !selectedIds.includes(id));
-      setSelectedIds(prev => [...prev, ...newIds]);
-    }
-  };
 
 
   const handleOpenEditModal = (wordsToEdit) => {
@@ -270,7 +294,7 @@ export default function AdminVocabManagement() {
     }
 
     if (emptyCount > 0 || formatErrorCount > 0 || duplicateCount > 0) {
-      alert(`LỖI KIỂM TRA DỮ LIỆU:\n\n${emptyCount > 0 ? `- Có ${emptyCount} từ bị bỏ trống Từ tiếng Anh hoặc Nghĩa.\n` : ''}${formatErrorCount > 0 ? `- Có ${formatErrorCount} từ sai định dạng (Từ chỉ chứa chữ cái, Phiên âm phải bọc trong / /).\n` : ''}${duplicateCount > 0 ? `- Có ${duplicateCount} từ bị trùng lặp với từ khác trong hệ thống.\n` : ''}\nVui lòng kiểm tra và sửa lại!`);
+      toast.error(`LỖI KIỂM TRA DỮ LIỆU:\n\n${emptyCount > 0 ? `- Có ${emptyCount} từ bị bỏ trống Từ tiếng Anh hoặc Nghĩa.\n` : ''}${formatErrorCount > 0 ? `- Có ${formatErrorCount} từ sai định dạng (Từ chỉ chứa chữ cái, Phiên âm phải bọc trong / /).\n` : ''}${duplicateCount > 0 ? `- Có ${duplicateCount} từ bị trùng lặp với từ khác trong hệ thống.\n` : ''}\nVui lòng kiểm tra và sửa lại!`);
       return;
     }
 
@@ -297,10 +321,8 @@ export default function AdminVocabManagement() {
       return edited ? edited : cw;
     }));
 
-    alert("✅ Đã cập nhật thông tin từ vựng thành công!");
+    toast.success("✅ Đã cập nhật thông tin từ vựng thành công!");
     setShowEditWordModal(false);
-    setIsSelectMode(false);
-    setSelectedIds([]);
   };
 
   const handleOpenDeleteModal = (word = null) => {
@@ -309,16 +331,10 @@ export default function AdminVocabManagement() {
   };
 
   const confirmDelete = async () => {
+    if (!wordToDelete) return;
     try {
-      if (wordToDelete) {
-        await deleteVocabulary(wordToDelete.id).catch(() => {});
-        setVocabularies(vocabularies.filter(v => v.id !== wordToDelete.id));
-      } else {
-        await Promise.all(selectedIds.map((id) => deleteVocabulary(id).catch(() => {})));
-        setVocabularies(vocabularies.filter(v => !selectedIds.includes(v.id)));
-        setIsSelectMode(false);
-        setSelectedIds([]);
-      }
+      await deleteVocabulary(wordToDelete.id).catch(() => { });
+      setVocabularies(vocabularies.filter(v => v.id !== wordToDelete.id));
     } finally {
       setShowDeleteModal(false);
       setWordToDelete(null);
@@ -475,52 +491,11 @@ export default function AdminVocabManagement() {
         </div>
 
         <div className="flex gap-3 items-center">
-          {!isSelectMode && (
-            <button
-              onClick={() => setShowAddWordModal(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-sm transition-colors mr-2"
-            >
-              <Plus size={20} /> Thêm từ
-            </button>
-          )}
-
-          {isSelectMode && (
-            <>
-              <button
-                onClick={() => handleOpenEditModal(vocabularies.filter(w => selectedIds.includes(w.id)))}
-                disabled={selectedIds.length === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${selectedIds.length > 0
-                  ? 'bg-white text-cyan-700 border-cyan-300 hover:bg-cyan-50 cursor-pointer'
-                  : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                  }`}
-              >
-                <Edit2 size={18} /> Chỉnh sửa ({selectedIds.length})
-              </button>
-
-              <button
-                onClick={() => handleOpenDeleteModal(null)}
-                disabled={selectedIds.length === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${selectedIds.length > 0
-                  ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer'
-                  : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                  }`}
-              >
-                <Trash2 size={18} /> Xóa ({selectedIds.length})
-              </button>
-            </>
-          )}
-
           <button
-            onClick={() => {
-              setIsSelectMode(!isSelectMode);
-              if (isSelectMode) setSelectedIds([]);
-            }}
-            className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-colors ${isSelectMode
-              ? 'bg-[#164e63] text-white'
-              : 'bg-[#0e7490] hover:bg-[#164e63] text-white'
-              }`}
+            onClick={() => setShowAddWordModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-sm transition-colors mr-2"
           >
-            {isSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
+            <Plus size={20} /> Thêm từ
           </button>
         </div>
       </div>
@@ -529,10 +504,6 @@ export default function AdminVocabManagement() {
       <VocabTable
         words={filteredVocabularies}
         searchTerm={searchTerm}
-        isSelectMode={isSelectMode}
-        selectedIds={selectedIds}
-        onToggleSelect={toggleSelect}
-        onSelectAll={handleSelectAllCurrentPage}
         ActionColumn={AdminActionColumn}
         showTopicColumn={true}
         showLessonColumn={true}
@@ -562,10 +533,9 @@ export default function AdminVocabManagement() {
                   {showImportDropdown && (
                     <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 shadow-xl rounded-xl py-2 z-50">
                       <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600" /> Nhập file CSV (.csv)</button>
-                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600" /> Nhập file Excel (.xlsx)</button>
                     </div>
                   )}
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".csv" />
                 </div>
               </div>
             </div>
@@ -601,7 +571,7 @@ export default function AdminVocabManagement() {
                             className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-700 bg-white"
                           >
                             <option value="">-- Chọn --</option>
-                            {MOCK_TOPICS_DATA.map(t => (
+                            {topicsData.map(t => (
                               <option key={t.id} value={t.name}>{t.name}</option>
                             ))}
                           </select>
@@ -609,7 +579,7 @@ export default function AdminVocabManagement() {
 
                         <td className="p-3">
                           {(() => {
-                            const selectedTopic = MOCK_TOPICS_DATA.find(t => t.name === word.topic);
+                            const selectedTopic = topicsData.find(t => t.name === word.topic);
                             const availableLessons = selectedTopic ? selectedTopic.lessons : [];
                             return (
                               <select
@@ -771,11 +741,7 @@ export default function AdminVocabManagement() {
         onConfirm={confirmDelete}
         title="Xác nhận xóa khỏi hệ thống?"
         message={
-          wordToDelete ? (
-            <span className="flex flex-wrap items-center gap-1.5">Bạn có chắc chắn muốn xóa từ <strong>"{wordToDelete.word}"</strong> vĩnh viễn khỏi hệ thống không?</span>
-          ) : (
-            <span className="flex flex-wrap items-center gap-1.5">Bạn có chắc chắn muốn xóa <strong className="text-red-600">{selectedIds.length} từ vựng</strong> đã chọn vĩnh viễn khỏi hệ thống không?</span>
-          )
+          <span className="flex flex-wrap items-center gap-1.5">Bạn có chắc chắn muốn xóa từ <strong>"{wordToDelete?.word}"</strong> vĩnh viễn khỏi hệ thống không?</span>
         }
         confirmText="Xóa ngay"
         cancelText="Hủy"

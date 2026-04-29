@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import Pagination from './Pagination';
-import { playAudio } from '../src_utils/audio';
+import { playAudio } from '../utils/audio';
 
 const ITEMS_PER_PAGE = 10;
 

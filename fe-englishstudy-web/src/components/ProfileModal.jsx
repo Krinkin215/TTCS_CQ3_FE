@@ -1,3 +1,4 @@
+import { toast } from 'react-hot-toast';
 import React, { useState, useEffect } from "react";
 import {
   X,
@@ -18,7 +19,7 @@ import {
 import {
   changeMyPassword,
   uploadMyAvatar,
-} from "../src_utils/services/userService";
+} from "../utils/services/userService";
 
 export default function ProfileModal({
   isOpen,
@@ -101,7 +102,7 @@ export default function ProfileModal({
       setIsEditing(false);
       setAvatarFile(null);
     } catch (err) {
-      alert("Lỗi khi cập nhật hồ sơ: " + (err?.message || "Vui lòng thử lại"));
+      toast.error("Lỗi khi cập nhật hồ sơ: " + (err?.message || "Vui lòng thử lại"));
     }
   };
 
@@ -130,7 +131,7 @@ export default function ProfileModal({
         newPassword: passwordForm.newPassword,
         retypePassword: passwordForm.confirmPassword,
       });
-      alert("Đổi mật khẩu thành công!");
+      toast.success("Đổi mật khẩu thành công!");
       setIsChangingPassword(false);
       setPasswordForm({
         oldPassword: "",
@@ -278,11 +279,8 @@ export default function ProfileModal({
                 )}
               </div>
               <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-                {user.username}
-              </h2>
-              <p className="text-sm font-medium text-gray-500 mt-1">
                 {user.fullName || user.username}
-              </p>
+              </h2>
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-5">

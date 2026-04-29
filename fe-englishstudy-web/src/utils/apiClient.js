@@ -74,6 +74,19 @@ export async function apiRequest(path, options = {}) {
     const refreshed = await refreshAuth();
     if (refreshed?.accessToken) {
       return apiRequest(path, { ...options, retryOn401: false });
+    } else {
+      // Nếu refresh token thất bại, chuyển hướng về trang đăng nhập
+      clearTokens();
+      window.location.href = '/login';
+      throw new Error('Phiên đăng nhập đã hết hạn');
+    }
+  }
+
+  // Xử lý lỗi 401/403 khi không retry hoặc retry cũng thất bại
+  if (res.status === 401 || res.status === 403) {
+    clearTokens();
+    if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+      window.location.href = '/login';
     }
   }
 

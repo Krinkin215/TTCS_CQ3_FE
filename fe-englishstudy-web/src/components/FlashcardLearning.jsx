@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, X, ChevronLeft, ChevronRight, CheckCircle2, Gamepad2, RotateCcw, ArrowLeft, ArrowRight, Heart } from 'lucide-react';
-import { playAudio as playGlobalAudio } from '../src_utils/audio';
-import { fetchLessonVocabularies } from '../src_utils/services/lessonService';
-import { saveVocabProgress } from '../src_utils/services/userService';
+import { playAudio as playGlobalAudio } from '../utils/audio';
+import { fetchLessonVocabularies } from '../utils/services/lessonService';
+import { saveVocabProgress } from '../utils/services/userService';
 
 export default function FlashcardLearning({ topic, lesson, collection, onExit, onNextLesson, onPrevLesson, onPractice }) {
   const [localWords, setLocalWords] = React.useState([]);

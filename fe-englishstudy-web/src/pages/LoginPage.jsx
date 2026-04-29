@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { login as apiLogin, getMe } from '../src_utils/services/authService';
-import { setTokens } from '../src_utils/tokenStorage';
+import { login as apiLogin, getMe } from '../utils/services/authService';
+import { setTokens } from '../utils/tokenStorage';
 
 function LoginPage({ onNavigateToRegister, onLoginSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);

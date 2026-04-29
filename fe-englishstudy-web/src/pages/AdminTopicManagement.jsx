@@ -1,14 +1,15 @@
+import { toast } from 'react-hot-toast';
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, Filter, Plus, Edit2, Trash2, BookOpen, Eye, Check, ChevronRight, Copy, FolderInput, LogOut, MoreVertical, Gamepad2, ChevronDown, Settings, AlertTriangle, Upload } from 'lucide-react';
-import VocabTable from '../src_components/VocabTable';
-import SearchBar from '../src_components/SearchBar';
-import ConfirmModal from '../src_components/ConfirmModal';
-import ModalWrapper from '../src_components/ModalWrapper';
-import FilterDropdown from '../src_components/FilterDropdown';
-import { fetchTopics, fetchTopicById, createTopic as apiCreateTopic, updateTopic as apiUpdateTopic, deleteTopic as apiDeleteTopic, fetchTopicVocabularies, importTopicVocabularies } from '../src_utils/services/topicService';
-import { fetchLessons, fetchLessonById, createLesson as apiCreateLesson, updateLesson as apiUpdateLesson, deleteLesson as apiDeleteLesson } from '../src_utils/services/lessonService';
-import { updateVocabulary, deleteVocabulary, fetchVocabularyById } from '../src_utils/services/vocabService';
+import VocabTable from '../components/VocabTable';
+import SearchBar from '../components/SearchBar';
+import ConfirmModal from '../components/ConfirmModal';
+import ModalWrapper from '../components/ModalWrapper';
+import FilterDropdown from '../components/FilterDropdown';
+import { fetchTopics, fetchTopicById, createTopic as apiCreateTopic, updateTopic as apiUpdateTopic, deleteTopic as apiDeleteTopic, fetchTopicVocabularies, importTopicVocabularies } from '../utils/services/topicService';
+import { fetchLessons, fetchLessonById, createLesson as apiCreateLesson, updateLesson as apiUpdateLesson, deleteLesson as apiDeleteLesson } from '../utils/services/lessonService';
+import { updateVocabulary, deleteVocabulary, fetchVocabularyById } from '../utils/services/vocabService';
 
 
 
@@ -66,9 +67,7 @@ export default function AdminTopicManagement() {
     return () => { cancelled = true; };
   }, []);
 
-  // chọn nhiều chủ đỀ
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedTopicIds, setSelectedTopicIds] = useState([]);
+
 
   // Modals Quản lý Chủ đề
   const [showCreateTopicModal, setShowCreateTopicModal] = useState(false);
@@ -101,8 +100,7 @@ export default function AdminTopicManagement() {
   // state từ vựng trong modal
   const [modalWords, setModalWords] = useState([]);
   const [wordSearchTerm, setWordSearchTerm] = useState('');
-  const [isWordSelectMode, setIsWordSelectMode] = useState(false);
-  const [selectedWordIds, setSelectedWordIds] = useState([]);
+
 
   // lọc bài học trong modal chủ đỀ
   const [selectedLessonFilters, setSelectedLessonFilters] = useState([]);
@@ -181,11 +179,9 @@ export default function AdminTopicManagement() {
       const edited = editingWords.find(ew => ew.id === cw.id);
       return edited ? edited : cw;
     }));
-    alert('Đã lưu thay đổi từ vựng!');
+    toast.error('Đã lưu thay đổi từ vựng!');
     setShowEditWordModal(false);
     setEditingWords([]);
-    setIsWordSelectMode(false);
-    setSelectedWordIds([]);
   };
 
   // CÁC HÀM XỬ LÝ CHỦ ĐỀ 
@@ -194,24 +190,15 @@ export default function AdminTopicManagement() {
     totalVocab: allWords.filter(w => w.topicId === t.id).length
   }));
 
-  const toggleTopicSelect = (id) => {
-    setSelectedTopicIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
 
   const handleDeleteTopicConfirm = async () => {
+    if (!topicToDelete) return;
     try {
-      if (topicToDelete) {
-        await apiDeleteTopic(topicToDelete.id);
-        setTopics(topics.filter(t => t.id !== topicToDelete.id));
-        setTopicToDelete(null);
-      } else {
-        await Promise.all(selectedTopicIds.map((id) => apiDeleteTopic(id)));
-        setTopics(topics.filter(t => !selectedTopicIds.includes(t.id)));
-        setSelectedTopicIds([]);
-        setIsSelectMode(false);
-      }
+      await apiDeleteTopic(topicToDelete.id);
+      setTopics(topics.filter(t => t.id !== topicToDelete.id));
+      setTopicToDelete(null);
     } catch {
-      alert('Xóa chủ đề thất bại. Vui lòng thử lại.');
+      toast.error('Xóa chủ đề thất bại. Vui lòng thử lại.');
     } finally {
       setShowConfirmDeleteTopic(false);
     }
@@ -235,7 +222,7 @@ export default function AdminTopicManagement() {
       setNewTopicImageTab('url');
       setShowCreateTopicModal(false);
     } catch {
-      alert('Tạo chủ đề thất bại.');
+      toast.error('Tạo chủ đề thất bại.');
     }
   };
 
@@ -256,7 +243,7 @@ export default function AdminTopicManagement() {
       setNewTopicName('');
       setShowEditTopicModal(false);
     } catch {
-      alert('Cập nhật chủ đề thất bại.');
+      toast.error('Cập nhật chủ đề thất bại.');
     }
   };
 
@@ -280,7 +267,7 @@ export default function AdminTopicManagement() {
       setNewLessonDifficulty(1);
       setShowCreateLessonModal(false);
     } catch {
-      alert('Tạo bài học thất bại.');
+      toast.error('Tạo bài học thất bại.');
     }
   };
 
@@ -290,7 +277,7 @@ export default function AdminTopicManagement() {
     if (!file || !activeTopic) return;
     try {
       await importTopicVocabularies(activeTopic.id, file);
-      alert(`Đã import CSV vào chủ đề "${activeTopic.title}" thành công!`);
+      toast.success(`Đã import CSV vào chủ đề "${activeTopic.title}" thành công!`);
       // reload words for this topic
       const words = await fetchTopicVocabularies(activeTopic.id);
       const list = Array.isArray(words) ? words : (words?.items ?? words?.data ?? []);
@@ -309,7 +296,7 @@ export default function AdminTopicManagement() {
         })));
       }
     } catch {
-      alert('Import CSV thất bại. Vui lòng kiểm tra định dạng file.');
+      toast.error('Import CSV thất bại. Vui lòng kiểm tra định dạng file.');
     } finally {
       e.target.value = null;
     }
@@ -361,7 +348,7 @@ export default function AdminTopicManagement() {
       setShowEditLessonModal(false);
       setEditingLesson(null);
     } catch {
-      alert('Cập nhật bài học thất bại.');
+      toast.error('Cập nhật bài học thất bại.');
     }
   };
 
@@ -385,7 +372,7 @@ export default function AdminTopicManagement() {
         }
       }
     } catch {
-      alert('Xóa bài học thất bại.');
+      toast.error('Xóa bài học thất bại.');
     } finally {
       setShowConfirmDeleteLesson(false);
       setLessonToDelete(null);
@@ -420,8 +407,6 @@ export default function AdminTopicManagement() {
     setSelectedLessonFilters([]);
     setShowLessonFilterDropdown(false);
     setWordSearchTerm('');
-    setIsWordSelectMode(false);
-    setSelectedWordIds([]);
     setShowTopicWordsModal(true);
   };
 
@@ -435,34 +420,18 @@ export default function AdminTopicManagement() {
     setActiveTopic(topic);
     setModalWords(allWords.filter(w => w.lessonId === lesson.id));
     setWordSearchTerm('');
-    setIsWordSelectMode(false);
-    setSelectedWordIds([]);
     setShowTopicLessonsModal(false);
     setShowLessonWordsModal(true);
   };
 
-  // CÁC HÀM XỬ LÝ TỪ VỰNG 
-  const toggleWordSelect = (id) => {
-    setSelectedWordIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-  const handleWordSelectAll = (currentWordsOnPage) => {
-    const allSelected = currentWordsOnPage.every(w => selectedWordIds.includes(w.id));
-    if (allSelected) {
-      setSelectedWordIds(selectedWordIds.filter(id => !currentWordsOnPage.some(w => w.id === id)));
-    } else {
-      const newIds = currentWordsOnPage.map(w => w.id).filter(id => !selectedWordIds.includes(id));
-      setSelectedWordIds([...selectedWordIds, ...newIds]);
-    }
-  };
+  // CÁC HÀM XỬ LÝ TỪ VỰNG
 
   const handleDeleteWordConfirm = async () => {
-    const deletedIds = wordToDelete ? [wordToDelete.id] : selectedWordIds;
-    await Promise.all(deletedIds.map((id) => deleteVocabulary(id).catch(() => {})));
-    setAllWords(prev => prev.filter(w => !deletedIds.includes(w.id)));
-    setModalWords(prev => prev.filter(w => !deletedIds.includes(w.id)));
+    if (!wordToDelete) return;
+    await deleteVocabulary(wordToDelete.id).catch(() => {});
+    setAllWords(prev => prev.filter(w => w.id !== wordToDelete.id));
+    setModalWords(prev => prev.filter(w => w.id !== wordToDelete.id));
     setWordToDelete(null);
-    setSelectedWordIds([]);
-    setIsWordSelectMode(false);
     setShowConfirmDeleteWord(false);
   };
 
@@ -491,10 +460,8 @@ export default function AdminTopicManagement() {
     setModalWords(prev => prev.filter(w => !wordIdsToMove.includes(w.id)));
 
     setShowMoveWordModal(false);
-    setSelectedWordIds([]);
-    setIsWordSelectMode(false);
     setMovingWords([]);
-    alert('Đã di chuyển thành công!');
+    toast.success('Đã di chuyển thành công!');
   };
 
   // cột action cho bảng từ vựng trong modal chủ đề
@@ -571,26 +538,9 @@ export default function AdminTopicManagement() {
           <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Tìm kiếm chủ đề..." className="flex-1" />
         </div>
         <div className="flex gap-3 items-center">
-          {isSelectMode ? (
-            <>
-              <span className="text-sm font-bold text-cyan-800">Đã chọn {selectedTopicIds.length}</span>
-              <button onClick={() => setIsSelectMode(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors text-sm">Hủy</button>
-              {selectedTopicIds.length > 0 && (
-                <button onClick={() => { setTopicToDelete(null); setShowConfirmDeleteTopic(true); }} className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl flex items-center gap-2 text-sm transition-colors">
-                  <Trash2 size={16} /> Xóa ({selectedTopicIds.length})
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <button onClick={() => setIsSelectMode(true)} className="px-4 py-2.5 bg-white border border-gray-200 hover:border-cyan-400 text-gray-700 font-bold rounded-xl flex items-center gap-2 transition-colors">
-                <Check size={18} /> Chọn nhiều
-              </button>
-              <button onClick={() => setShowCreateTopicModal(true)} className="px-5 py-2.5 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-lg shadow-cyan-500/30 transition-all flex items-center gap-2">
-                <Plus size={18} /> Tạo chủ đề
-              </button>
-            </>
-          )}
+          <button onClick={() => setShowCreateTopicModal(true)} className="px-5 py-2.5 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-lg shadow-cyan-500/30 transition-all flex items-center gap-2">
+            <Plus size={18} /> Tạo chủ đề
+          </button>
         </div>
       </div>
 
@@ -606,52 +556,34 @@ export default function AdminTopicManagement() {
           {filteredTopics.map((topic) => (
             <div key={topic.id} className="relative bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all flex flex-col justify-between min-h-[14rem] group">
 
-              {/* checkbox chọn nhiều hoặc nút xóa */}
-              <div className="absolute top-4 right-4 z-10">
-                {isSelectMode ? (
-                  <input
-                    type="checkbox"
-                    checked={selectedTopicIds.includes(topic.id)}
-                    onChange={() => toggleTopicSelect(topic.id)}
-                    className="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
-                  />
-                ) : (
-                  <button
-                    onClick={() => { setTopicToDelete(topic); setShowConfirmDeleteTopic(true); }}
-                    className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                )}
-              </div>
 
-              <div>
+
+              <div className="cursor-pointer" onClick={() => openTopicLessons(topic)}>
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${topic.color}`}>
                   <img src={topic.imageUrl} alt={topic.title} className="w-full h-full object-contain" />
                 </div>
                 {/* tiêu đề và nút sửa */}
                 <div className="flex items-center gap-1.5 mb-3 pr-10">
                   <h3 className="font-bold text-gray-800 line-clamp-1">{topic.title}</h3>
-                  {!isSelectMode && (
-                    <button
-                      onClick={async () => {
-                        setEditingTopic(topic);
-                        setNewTopicName(topic.title);
-                        setShowEditTopicModal(true);
-                        try {
-                          const detail = await fetchTopicById(topic.id);
-                          if (detail) {
-                            setNewTopicName(detail.title ?? detail.name ?? topic.title);
-                            setNewTopicImage(detail.imageUrl ?? detail.image_url ?? topic.imageUrl ?? '');
-                            setEditingTopic({ ...topic, title: detail.title ?? detail.name ?? topic.title, imageUrl: detail.imageUrl ?? detail.image_url ?? topic.imageUrl });
-                          }
-                        } catch {}
-                      }}
-                      className="shrink-0 p-1 text-gray-300 hover:text-cyan-600 hover:bg-cyan-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      <Edit2 size={15} />
-                    </button>
-                  )}
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setEditingTopic(topic);
+                      setNewTopicName(topic.title);
+                      setShowEditTopicModal(true);
+                      try {
+                        const detail = await fetchTopicById(topic.id);
+                        if (detail) {
+                          setNewTopicName(detail.title ?? detail.name ?? topic.title);
+                          setNewTopicImage(detail.imageUrl ?? detail.image_url ?? topic.imageUrl ?? '');
+                          setEditingTopic({ ...topic, title: detail.title ?? detail.name ?? topic.title, imageUrl: detail.imageUrl ?? detail.image_url ?? topic.imageUrl });
+                        }
+                      } catch {}
+                    }}
+                    className="shrink-0 p-1 text-gray-300 hover:text-cyan-600 hover:bg-cyan-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    <Edit2 size={15} />
+                  </button>
                 </div>
                 <div className="flex flex-col gap-2.5 mb-4">
                   <span className="text-xs text-gray-600 font-medium bg-gray-100/80 px-3 py-1.5 rounded-lg w-fit">
@@ -661,11 +593,14 @@ export default function AdminTopicManagement() {
               </div>
 
               <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center gap-2">
-                <button onClick={() => openTopicWords(topic)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm">
+                <button onClick={(e) => { e.stopPropagation(); openTopicWords(topic); }} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm">
                   <Eye size={16} /> Xem từ
                 </button>
-                <button onClick={() => openTopicLessons(topic)} className="flex items-center justify-center text-[#0e7490] hover:text-white bg-cyan-50 hover:bg-[#0e7490] px-4 py-2 rounded-lg transition-all duration-300 shadow-sm border border-cyan-100 hover:border-transparent font-semibold text-sm">
-                  Bài học
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTopicToDelete(topic); setShowConfirmDeleteTopic(true); }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-red-500 hover:bg-red-50 border border-red-100 transition-colors shrink-0 shadow-sm"
+                >
+                  <Trash2 size={16} /> Xóa
                 </button>
               </div>
             </div>
@@ -869,29 +804,15 @@ export default function AdminTopicManagement() {
             </button>
             <input type="file" ref={topicCsvFileRef} onChange={handleTopicCsvImport} className="hidden" accept=".csv" />
 
-            {/* chọn nhiều */}
-            {!isWordSelectMode ? (
-              <button onClick={() => setIsWordSelectMode(true)} className="px-4 py-2 border border-cyan-200 text-cyan-700 font-bold rounded-xl hover:bg-cyan-50 text-sm">Chọn nhiều</button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button onClick={() => setIsWordSelectMode(false)} className="px-4 py-2 border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl text-sm">Hủy</button>
-                {selectedWordIds.length > 0 && (
-                  <>
-                    <button onClick={() => { setEditingWords(modalWords.filter(w => selectedWordIds.includes(w.id))); setShowEditWordModal(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={18} /></button>
-                    <button onClick={() => openMoveModal(modalWords.filter(w => selectedWordIds.includes(w.id)))} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-lg"><FolderInput size={18} /></button>
-                    <button onClick={() => setShowConfirmDeleteWord(true)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button>
-                  </>
-                )}
-              </div>
-            )}
+
             <div className="w-px h-6 bg-gray-200 mx-1"></div>
             <button onClick={() => setShowTopicWordsModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full"><X size={24} /></button>
           </div>
         </div>
         <div className="p-6 overflow-y-auto bg-gray-50/30 flex-1">
           <VocabTable
-            words={finalTopicWords} searchTerm={wordSearchTerm} isSelectMode={isWordSelectMode} selectedIds={selectedWordIds}
-            onToggleSelect={toggleWordSelect} onSelectAll={handleWordSelectAll} ActionColumn={TopicActionColumn}
+            words={finalTopicWords} searchTerm={wordSearchTerm}
+            ActionColumn={TopicActionColumn}
             showTopicColumn={false} showLessonColumn={true}
           />
         </div>
@@ -970,29 +891,15 @@ export default function AdminTopicManagement() {
               <SearchBar value={wordSearchTerm} onChange={(e) => setWordSearchTerm(e.target.value)} placeholder="Tìm từ vựng..." />
             </div>
 
-            {/* chọn nhiều */}
-            {!isWordSelectMode ? (
-              <button onClick={() => setIsWordSelectMode(true)} className="px-4 py-2 border border-cyan-200 text-cyan-700 font-bold rounded-xl hover:bg-cyan-50 text-sm">Chọn nhiều</button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button onClick={() => setIsWordSelectMode(false)} className="px-4 py-2 border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl text-sm">Hủy</button>
-                {selectedWordIds.length > 0 && (
-                  <>
-                    <button onClick={() => { setEditingWords(modalWords.filter(w => selectedWordIds.includes(w.id))); setShowEditWordModal(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={18} /></button>
-                    <button onClick={() => openMoveModal(modalWords.filter(w => selectedWordIds.includes(w.id)))} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-lg"><FolderInput size={18} /></button>
-                    <button onClick={() => setShowConfirmDeleteWord(true)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button>
-                  </>
-                )}
-              </div>
-            )}
+
             <div className="w-px h-6 bg-gray-200 mx-1"></div>
             <button onClick={() => setShowLessonWordsModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full"><X size={24} /></button>
           </div>
         </div>
         <div className="p-6 overflow-y-auto bg-gray-50/30 flex-1">
           <VocabTable
-            words={modalWords} searchTerm={wordSearchTerm} isSelectMode={isWordSelectMode} selectedIds={selectedWordIds}
-            onToggleSelect={toggleWordSelect} onSelectAll={handleWordSelectAll} ActionColumn={LessonActionColumn}
+            words={modalWords} searchTerm={wordSearchTerm}
+            ActionColumn={LessonActionColumn}
             showTopicColumn={false} showLessonColumn={false}
           />
         </div>
@@ -1056,7 +963,7 @@ export default function AdminTopicManagement() {
         onClose={() => setShowConfirmDeleteTopic(false)}
         onConfirm={handleDeleteTopicConfirm}
         title="Xóa chủ đề"
-        message={topicToDelete ? `Bạn có chắc chắn muốn xóa chủ đề "${topicToDelete.title}" và TOÀN BỘ từ vựng bên trong không? Hành động này không thể hoàn tác.` : `Bạn có chắc chắn muốn xóa ${selectedTopicIds.length} chủ đề đã chọn cùng TOÀN BỘ từ vựng bên trong không?`}
+        message={`Bạn có chắc chắn muốn xóa chủ đề "${topicToDelete?.title}" và TOÀN BỘ từ vựng bên trong không? Hành động này không thể hoàn tác.`}
         confirmText="Xóa vĩnh viễn"
         isDanger={true}
       />
@@ -1066,7 +973,7 @@ export default function AdminTopicManagement() {
         onClose={() => setShowConfirmDeleteWord(false)}
         onConfirm={handleDeleteWordConfirm}
         title="Xóa từ vựng"
-        message={wordToDelete ? `Bạn có chắc chắn muốn xóa từ "${wordToDelete.word}" khỏi hệ thống không?` : `Bạn có chắc chắn muốn xóa ${selectedWordIds.length} từ vựng đã chọn khỏi hệ thống không?`}
+        message={`Bạn có chắc chắn muốn xóa từ "${wordToDelete?.word}" khỏi hệ thống không?`}
         confirmText="Xóa vĩnh viễn"
         isDanger={true}
       />

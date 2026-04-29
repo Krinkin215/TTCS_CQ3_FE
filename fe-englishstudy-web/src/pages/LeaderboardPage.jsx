@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Trophy, Flame, Medal, Award, Crown, Star } from 'lucide-react';
-import { fetchLeaderboard } from '../src_utils/services/leaderboardService';
+import { fetchLeaderboard } from '../utils/services/leaderboardService';
 
 
 function LeaderboardPage({ isAdmin = false }) {
@@ -20,12 +20,12 @@ function LeaderboardPage({ isAdmin = false }) {
           const mapped = data.map((u) => ({
             id: u.id,
             username: u.username,
+            fullName: u.fullName ?? u.full_name ?? u.username,
             email: u.email,
             avatarUrl: u.avatarUrl || `https://i.pravatar.cc/150?u=${String(u.id)}`,
             totalScoreAll: timeFilter === 'all' ? u.score : 0,
-            bestStreakAll: timeFilter === 'all' ? u.streak : 0,
             scoreInDay: timeFilter === 'day' ? u.score : 0,
-            streakInDay: timeFilter === 'day' ? u.streak : 0,
+            streak: u.streak || 0,
             isCurrentUser: u.isCurrentUser ?? false,
             rank: u.rank
           }));
@@ -49,20 +49,14 @@ function LeaderboardPage({ isAdmin = false }) {
     const sorted = [...base];
 
     const getScore = (u) => (timeFilter === 'day' ? u.scoreInDay : u.totalScoreAll);
-    const getStreak = (u) => (timeFilter === 'day' ? u.streakInDay : u.bestStreakAll);
 
-    // Sắp xếp theo Tiêu chí (phụ thuộc filter thời gian)
-    sorted.sort((a, b) => {
-      if (sortBy === 'score') return getScore(b) - getScore(a);
-      return getStreak(b) - getStreak(a);
-    });
+    sorted.sort((a, b) => getScore(b) - getScore(a));
 
     // Gán hạng (Rank)
     return sorted.map((user, index) => ({
       ...user,
       rank: user.rank ?? index + 1,
-      _displayScore: getScore(user),
-      _displayStreak: getStreak(user)
+      _displayScore: getScore(user)
     }));
   }, [timeFilter, sortBy]);
 
@@ -99,27 +93,23 @@ function LeaderboardPage({ isAdmin = false }) {
         
         <div className={`w-full ${height} ${bgColor} border rounded-t-2xl shadow-lg flex flex-col items-center p-4 text-center transition-all hover:-translate-y-2`}>
           <h3 className={`font-bold truncate w-full mt-2 ${isFirst ? 'text-lg text-yellow-900' : 'text-base text-gray-800'}`}>
-            {user.username}
+            {user.fullName}
           </h3>
           
           <div className="mt-auto w-full flex flex-col gap-1.5 items-center border-t border-black/10 pt-2.5">
             
-            {/* 1. Hiển thị Tổng Điểm */}
-            <div className={`flex items-center gap-1.5 w-full justify-center px-2 py-1 rounded-lg ${sortBy === 'score' ? 'bg-yellow-500/15' : ''}`}>
-              <Trophy size={sortBy === 'score' ? 18 : 14} className={sortBy === 'score' ? 'text-yellow-600' : 'text-gray-400'} />
-              <span className={`font-black ${sortBy === 'score' ? 'text-xl text-yellow-700' : 'text-sm text-gray-500'}`}>
+            {/* Hiển thị Tổng Điểm */}
+            <div className="flex items-center gap-1.5 w-full justify-center px-2 py-1 rounded-lg bg-yellow-500/15">
+              <Trophy size={18} className="text-yellow-600" />
+              <span className="font-black text-xl text-yellow-700">
                 {user._displayScore.toLocaleString()}
               </span>
-              {sortBy === 'score' && <span className="text-xs text-yellow-600 font-bold">điểm</span>}
+              <span className="text-xs text-yellow-600 font-bold">điểm</span>
             </div>
-
-            {/* 2. Hiển thị Streak Lửa */}
-            <div className={`flex items-center gap-1.5 w-full justify-center px-2 py-1 rounded-lg ${sortBy === 'streak' ? 'bg-orange-500/15' : ''}`}>
-              <Flame size={sortBy === 'streak' ? 18 : 14} className={sortBy === 'streak' ? 'text-orange-500' : 'text-gray-400'} />
-              <span className={`font-black ${sortBy === 'streak' ? 'text-xl text-orange-600' : 'text-sm text-gray-500'}`}>
-                {user._displayStreak}
-              </span>
-              {sortBy === 'streak' && <span className="text-xs text-orange-500 font-bold">ngày</span>}
+            {/* Hiển thị Chuỗi (Streak) */}
+            <div className="flex items-center gap-1.5 w-full justify-center text-orange-600 font-bold mt-1">
+              <Flame size={16} className="fill-orange-500 text-orange-500" />
+              <span className="text-sm">{user.streak} <span className="text-xs font-medium">ngày</span></span>
             </div>
 
           </div>
@@ -161,24 +151,7 @@ function LeaderboardPage({ isAdmin = false }) {
           </div>
         </div>
 
-        {/* Nút Toggle Chuyển đổi Xếp hạng */}
-        <div className="flex bg-gray-100 p-1.5 rounded-2xl w-[400px] shadow-inner relative border border-gray-200">
-          <div className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white rounded-xl shadow-md transition-all duration-300 ease-in-out ${sortBy === 'score' ? 'left-1.5' : 'left-[calc(50%+4.5px)]'}`}></div>
-          
-          <button 
-            onClick={() => setSortBy('score')}
-            className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl text-sm font-black z-10 transition-colors ${sortBy === 'score' ? 'text-yellow-600' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            <Trophy size={18} className={sortBy === 'score' ? 'animate-pulse' : ''} /> TỔNG ĐIỂM
-          </button>
-          
-          <button 
-            onClick={() => setSortBy('streak')}
-            className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl text-sm font-black z-10 transition-colors ${sortBy === 'streak' ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            <Flame size={18} className={sortBy === 'streak' ? 'animate-pulse' : ''}/> STREAK
-          </button>
-        </div>
+
 
         {isLoading && (
           <div className="text-sm font-bold text-gray-400">
@@ -202,14 +175,14 @@ function LeaderboardPage({ isAdmin = false }) {
           <div className="w-16 text-center">Hạng</div>
           <div className="flex-1 pl-4">Người dùng</div>
           
-          {/* Cột 3: Sẽ là cột không được chọn  */}
-          <div className={`w-32 text-center ${sortBy === 'score' ? 'text-gray-400' : ''}`}>
-            {sortBy === 'score' ? 'Streak' : 'Tổng điểm'}
+          {/* Cột Chuỗi (Streak) */}
+          <div className="w-24 text-center text-orange-600">
+            Chuỗi
           </div>
           
-          {/* Cột 4: Nằm ngoài cùng, là cột đang được chọn */}
-          <div className={`w-32 text-center ${sortBy === 'score' ? 'text-yellow-600' : 'text-orange-500'}`}>
-            {sortBy === 'score' ? 'Tổng điểm' : 'Streak'}
+          {/* Cột Tổng điểm */}
+          <div className="w-32 text-center text-yellow-600">
+            Tổng điểm
           </div>
         </div>
 
@@ -234,30 +207,21 @@ function LeaderboardPage({ isAdmin = false }) {
                 <img src={user.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full object-cover border border-gray-200" />
                 <div className="flex flex-col">
                   <span className={`font-bold ${(!isAdmin && user.isCurrentUser) ? 'text-cyan-900' : 'text-gray-800'}`}>
-                    {user.username}
+                    {user.fullName}
                   </span>
                   <span className="text-xs text-gray-500 font-medium">{user.email}</span>
                 </div>
               </div>
 
-              {/* Cột Dữ liệu 1 */}
-              <div className="w-32 text-center text-sm font-bold text-gray-400 flex items-center justify-center gap-1.5">
-                {sortBy === 'score' ? (
-                  <>{user._displayStreak} <Flame size={14} /></>
-                ) : (
-                  <>{user._displayScore.toLocaleString()} <Trophy size={14}/></>
-                )}
+              {/* Cột Chuỗi (Streak) */}
+              <div className="w-24 flex items-center justify-center gap-1.5 text-orange-600 font-bold bg-orange-50/50 py-1 rounded-lg mr-4 border border-orange-100">
+                <Flame size={16} className="fill-orange-500 text-orange-500" />
+                <span className="text-sm">{user.streak}</span>
               </div>
 
-              {/* Cột Dữ liệu 2 */}
-              <div className={`w-32 text-center font-black text-base flex items-center justify-center gap-1.5 ${
-                sortBy === 'score' ? 'text-yellow-600 bg-yellow-50/50 py-1 rounded-lg' : 'text-orange-500 bg-orange-50/50 py-1 rounded-lg'
-              }`}>
-                {sortBy === 'score' ? (
-                  <>{user._displayScore.toLocaleString()} <Trophy size={16} fill="currentColor" className="text-yellow-500"/></>
-                ) : (
-                  <>{user._displayStreak} <Flame size={16} fill="currentColor" className="text-orange-400"/></>
-                )}
+              {/* Cột Điểm */}
+              <div className="w-32 text-center font-black text-base flex items-center justify-center gap-1.5 text-yellow-600 bg-yellow-50/50 py-1 rounded-lg">
+                {user._displayScore.toLocaleString()} <Trophy size={16} fill="currentColor" className="text-yellow-500"/>
               </div>
             </div>
           ))}

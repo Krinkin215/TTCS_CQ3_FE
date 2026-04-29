@@ -1,11 +1,12 @@
+import { toast } from 'react-hot-toast';
 import React, { useState, useRef, useEffect } from 'react';
 import { FolderPlus, Search, X, Filter, Heart, Plus, Upload, FileText, Zap, ChevronDown, Trash2, HelpCircle, Download, AlertTriangle, FileSpreadsheet } from 'lucide-react';
-import VocabTable from '../src_components/VocabTable';
-import AddToCollectionModal from '../src_components/AddToCollectionModal';
-import SearchBar from '../src_components/SearchBar';
-import FilterDropdown from '../src_components/FilterDropdown';
-import { downloadVocabImportTemplate, importVocabulariesCsv } from '../src_utils/services/vocabService';
-import { createVocabulary } from '../src_utils/services/vocabService';
+import VocabTable from '../components/VocabTable';
+import AddToCollectionModal from '../components/AddToCollectionModal';
+import SearchBar from '../components/SearchBar';
+import FilterDropdown from '../components/FilterDropdown';
+import { downloadVocabImportTemplate, importVocabulariesCsv } from '../utils/services/vocabService';
+import { createVocabulary } from '../utils/services/vocabService';
 
 
 
@@ -20,13 +21,10 @@ const ITEMS_PER_PAGE = 10;
 function VocabularyPage({ initialFilter }) {
 
 
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
   const [wordToAdd, setWordToAdd] = useState(null);
-  const [isBulkAddMode, setIsBulkAddMode] = useState(false);
   const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
 
@@ -199,7 +197,7 @@ function VocabularyPage({ initialFilter }) {
     }
 
     if (wordsToProcess.length === 0) {
-      alert("⚠️ Vui lòng nhập ít nhất 1 từ vựng có đủ TỪ TIẾNG ANH và NGHĨA!");
+      toast.error("⚠️ Vui lòng nhập ít nhất 1 từ vựng có đủ TỪ TIẾNG ANH và NGHĨA!");
       return;
     }
 
@@ -282,7 +280,7 @@ function VocabularyPage({ initialFilter }) {
     if (formatErrorCount > 0) alertMsg += `❌ Lỗi định dạng: ${formatErrorCount} từ (Có chứa số/kí tự lạ hoặc phiên âm thiếu dấu / /).\n`;
     if (apiErrorCount > 0) alertMsg += `🌐 Từ vô nghĩa: Bỏ qua ${apiErrorCount} từ (Không tìm thấy trong từ điển tiếng Anh).\n`;
 
-    alert(alertMsg);
+    toast.error(alertMsg);
 
     if (addedCount > 0) forceCloseAddModal();
   };
@@ -300,7 +298,7 @@ function VocabularyPage({ initialFilter }) {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      alert('Tải template thất bại. Vui lòng thử lại.');
+      toast.error('Tải template thất bại. Vui lòng thử lại.');
     }
   };
   const triggerFileInput = () => {
@@ -312,29 +310,17 @@ function VocabularyPage({ initialFilter }) {
       if (e.target.files.length > 0) {
         const file = e.target.files[0];
         await importVocabulariesCsv(file, { collectionId: 0 });
-        alert(`Đã import file: ${file.name}`);
+        toast.error(`Đã import file: ${file.name}`);
       }
     } catch {
-      alert('Import file thất bại. Vui lòng kiểm tra định dạng CSV.');
+      toast.error('Import file thất bại. Vui lòng kiểm tra định dạng CSV.');
     } finally {
       e.target.value = null;
     }
   };
 
-  const toggleSelect = (id) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
-  };
 
-  const handleSelectAllCurrentPage = (currentWords) => {
-    const isAllCurrentSelected = currentWords.every(v => selectedIds.includes(v.id));
-    if (isAllCurrentSelected && currentWords.length > 0) {
-      const currentIds = currentWords.map(v => v.id);
-      setSelectedIds(prev => prev.filter(id => !currentIds.includes(id)));
-    } else {
-      const newIds = currentWords.map(v => v.id).filter(id => !selectedIds.includes(id));
-      setSelectedIds(prev => [...prev, ...newIds]);
-    }
-  };
+
 
   const toggleFavorite = (id) => {
     setFavoriteVocabDB(prev =>
@@ -342,38 +328,13 @@ function VocabularyPage({ initialFilter }) {
     );
   };
 
-  const handleBulkFavorite = () => {
-    if (selectedIds.length === 0) return;
-
-    const newFavorites = selectedIds.filter(id => !favoriteVocabDB.includes(id));
-    const favoritedCount = selectedIds.length - newFavorites.length;
-
-    setFavoriteVocabDB(prev => [...prev, ...newFavorites]);
-
-    let alertMsg = `KẾT QUẢ THÊM VÀO YÊU THÍCH:\n\n`;
-    if (newFavorites.length > 0) alertMsg += `✅ Thành công: Thêm ${newFavorites.length} từ vào danh sách Yêu thích.\n`;
-    if (favoritedCount > 0) alertMsg += `⚠️ Bỏ qua: ${favoritedCount} từ (Vì đã nằm trong danh sách Yêu thích rồi).`;
-
-    alert(alertMsg);
-
-    setIsSelectMode(false);
-    setSelectedIds([]);
-  };
-
-
   // Modal Thêm vào bộ từ
   const modalFilteredCollections = collections.filter(c =>
     c.name.toLowerCase().includes(modalSearchTerm.toLowerCase())
   );
 
-  const handleOpenAddToCollectionModal = (word = null) => {
-    if (word) {
-      setWordToAdd(word);
-      setIsBulkAddMode(false);
-    } else {
-      setWordToAdd(null);
-      setIsBulkAddMode(true);
-    }
+  const handleOpenAddToCollectionModal = (word) => {
+    setWordToAdd(word);
     setSelectedCollectionIds([]);
     setModalSearchTerm('');
     setShowAddToCollectionModal(true);
@@ -395,7 +356,7 @@ function VocabularyPage({ initialFilter }) {
     let addedCount = 0;
     let duplicateCount = 0;
 
-    const wordIdsToProcess = isBulkAddMode ? selectedIds : [wordToAdd.id];
+    const wordIdsToProcess = [wordToAdd.id];
     const newDB = [...collectionVocabDB];
 
     wordIdsToProcess.forEach(wId => {
@@ -417,19 +378,10 @@ function VocabularyPage({ initialFilter }) {
     if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} lượt từ vào các bộ.\n`;
     if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} lượt (Vì từ đã tồn tại sẵn trong bộ được chọn).`;
 
-    alert(alertMsg);
+    toast.error(alertMsg);
 
     setShowAddToCollectionModal(false);
-    if (isBulkAddMode) {
-      setIsSelectMode(false);
-      setSelectedIds([]);
-    }
   };
-
-  const unfavoritedSelectedCount = selectedIds.filter(id => {
-    const word = vocabularies.find(v => v.id === id);
-    return word && !word.isFavorite;
-  }).length;
 
   // Cột Hành động của trang Từ Vựng
   const VocabularyActionColumn = ({ item }) => {
@@ -649,54 +601,12 @@ function VocabularyPage({ initialFilter }) {
         </div>
 
         <div className="flex gap-3 items-center">
-          {!isSelectMode && (
             <button
               onClick={() => setShowAddWordModal(true)}
               className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-sm transition-colors mr-2"
             >
               <Plus size={20} /> Thêm từ
             </button>
-          )}
-
-          {isSelectMode && (
-            <>
-              <button
-                onClick={() => handleOpenAddToCollectionModal(null)}
-                disabled={selectedIds.length === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${selectedIds.length > 0
-                    ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
-                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                  }`}
-              >
-                <FolderPlus size={18} /> Thêm vào...
-              </button>
-
-              <button
-                onClick={handleBulkFavorite}
-                disabled={unfavoritedSelectedCount === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl shadow-sm font-bold transition-colors ${unfavoritedSelectedCount > 0
-                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer'
-                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-70'
-                  }`}
-              >
-                <Heart size={18} fill={unfavoritedSelectedCount > 0 ? "currentColor" : "none"} />
-                Yêu thích ({unfavoritedSelectedCount})
-              </button>
-            </>
-          )}
-
-          <button
-            onClick={() => {
-              setIsSelectMode(!isSelectMode);
-              if (isSelectMode) setSelectedIds([]);
-            }}
-            className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-colors ${isSelectMode
-                ? 'bg-[#164e63] text-white'
-                : 'bg-[#0e7490] hover:bg-[#164e63] text-white'
-              }`}
-          >
-            {isSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
-          </button>
         </div>
       </div>
 
@@ -704,10 +614,6 @@ function VocabularyPage({ initialFilter }) {
       <VocabTable
         words={filteredVocabularies}
         searchTerm={searchTerm}
-        isSelectMode={isSelectMode}
-        selectedIds={selectedIds}
-        onToggleSelect={toggleSelect}
-        onSelectAll={handleSelectAllCurrentPage}
         ActionColumn={VocabularyActionColumn}
       />
 
@@ -715,9 +621,7 @@ function VocabularyPage({ initialFilter }) {
       <AddToCollectionModal
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}
-        isBulkMode={isBulkAddMode}
         wordToAdd={wordToAdd}
-        selectedCount={selectedIds.length}
         collections={collections}
         onConfirm={handleConfirmAddToCollections}
       />
@@ -747,10 +651,9 @@ function VocabularyPage({ initialFilter }) {
                   {showImportDropdown && (
                     <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 shadow-xl rounded-xl py-2 z-50">
                       <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600" /> Nhập file CSV (.csv)</button>
-                      <button onClick={triggerFileInput} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"><FileSpreadsheet size={18} className="text-emerald-600" /> Nhập file Excel (.xlsx)</button>
                     </div>
                   )}
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".csv" />
                 </div>
 
                 <button onClick={() => setShowGuideModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-bold rounded-lg transition-colors shadow-sm">
@@ -905,7 +808,7 @@ function VocabularyPage({ initialFilter }) {
               <button onClick={() => setShowGuideModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full"><X size={20} /></button>
             </div>
             <div className="p-6 text-sm text-gray-700 space-y-4">
-              <p>Hệ thống hỗ trợ nhập dữ liệu hàng loạt qua file <strong>Excel (.xlsx)</strong> hoặc <strong>CSV (.csv)</strong>.</p>
+              <p>Hệ thống hỗ trợ nhập dữ liệu hàng loạt qua file <strong>CSV (.csv)</strong>.</p>
               <ul className="space-y-2 list-disc pl-5">
                 <li><strong className="text-cyan-800">Cấu trúc bảng:</strong> Mỗi cột tương ứng với một thuộc tính.</li>
                 <li><strong className="text-cyan-800">Thứ tự cột (Bắt buộc đúng thứ tự):</strong>
