@@ -1,22 +1,58 @@
-import { toast } from 'react-hot-toast';
-import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Search, X, Filter, Plus, Edit2, Trash2, BookOpen, Eye, Check, ChevronRight, Copy, FolderInput, LogOut, MoreVertical, Gamepad2, ChevronDown, Settings, AlertTriangle, Upload } from 'lucide-react';
-import VocabTable from '../components/VocabTable';
-import SearchBar from '../components/SearchBar';
-import ConfirmModal from '../components/ConfirmModal';
-import ModalWrapper from '../components/ModalWrapper';
-import FilterDropdown from '../components/FilterDropdown';
-import { fetchTopics, fetchTopicById, createTopic as apiCreateTopic, updateTopic as apiUpdateTopic, deleteTopic as apiDeleteTopic, fetchTopicVocabularies, importTopicVocabularies } from '../utils/services/topicService';
-import { fetchLessons, fetchLessonById, createLesson as apiCreateLesson, updateLesson as apiUpdateLesson, deleteLesson as apiDeleteLesson } from '../utils/services/lessonService';
-import { updateVocabulary, deleteVocabulary, fetchVocabularyById } from '../utils/services/vocabService';
-
-
+import { toast } from "react-hot-toast";
+import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+import {
+  Search,
+  X,
+  Filter,
+  Plus,
+  Edit2,
+  Trash2,
+  BookOpen,
+  Eye,
+  Check,
+  ChevronRight,
+  Copy,
+  FolderInput,
+  LogOut,
+  MoreVertical,
+  Gamepad2,
+  ChevronDown,
+  Settings,
+  AlertTriangle,
+  Upload,
+} from "lucide-react";
+import VocabTable from "../components/VocabTable";
+import SearchBar from "../components/SearchBar";
+import ConfirmModal from "../components/ConfirmModal";
+import ModalWrapper from "../components/ModalWrapper";
+import FilterDropdown from "../components/FilterDropdown";
+import {
+  fetchTopics,
+  fetchTopicById,
+  createTopic as apiCreateTopic,
+  updateTopic as apiUpdateTopic,
+  deleteTopic as apiDeleteTopic,
+  fetchTopicVocabularies,
+  importTopicVocabularies,
+} from "../utils/services/topicService";
+import {
+  fetchLessons,
+  fetchLessonById,
+  createLesson as apiCreateLesson,
+  updateLesson as apiUpdateLesson,
+  deleteLesson as apiDeleteLesson,
+} from "../utils/services/lessonService";
+import {
+  updateVocabulary,
+  deleteVocabulary,
+  fetchVocabularyById,
+} from "../utils/services/vocabService";
 
 export default function AdminTopicManagement() {
   const [topics, setTopics] = useState([]);
   const [allWords, setAllWords] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -24,35 +60,48 @@ export default function AdminTopicManagement() {
     const run = async () => {
       setIsLoading(true);
       try {
-        const [topicsRes, lessonsRes] = await Promise.allSettled([fetchTopics(), fetchLessons()]);
-        const topicsList = topicsRes.status === 'fulfilled'
-          ? (Array.isArray(topicsRes.value) ? topicsRes.value : (topicsRes.value?.items ?? topicsRes.value?.data ?? []))
-          : [];
-        const lessonsList = lessonsRes.status === 'fulfilled'
-          ? (Array.isArray(lessonsRes.value) ? lessonsRes.value : (lessonsRes.value?.items ?? lessonsRes.value?.data ?? []))
-          : [];
+        const [topicsRes, lessonsRes] = await Promise.allSettled([
+          fetchTopics(),
+          fetchLessons(),
+        ]);
+        const topicsList =
+          topicsRes.status === "fulfilled"
+            ? Array.isArray(topicsRes.value)
+              ? topicsRes.value
+              : (topicsRes.value?.items ?? topicsRes.value?.data ?? [])
+            : [];
+        const lessonsList =
+          lessonsRes.status === "fulfilled"
+            ? Array.isArray(lessonsRes.value)
+              ? lessonsRes.value
+              : (lessonsRes.value?.items ?? lessonsRes.value?.data ?? [])
+            : [];
 
         if (!cancelled && Array.isArray(topicsList) && topicsList.length > 0) {
           const mappedTopics = topicsList.map((t) => {
             const id = t.id ?? t.topicId ?? t.topic_id;
-            const title = t.title ?? t.name ?? '';
-            const imageUrl = t.imageUrl ?? t.image_url ?? '';
+            const title = t.topicName ?? t.title ?? t.name ?? "";
+            const imageUrl = t.image ?? t.imageUrl ?? t.image_url ?? "";
             const topicLessons = Array.isArray(lessonsList)
               ? lessonsList
-                  .filter((l) => (l.topicId ?? l.topic_id ?? l.topic?.id) === id)
+                  .filter(
+                    (l) => (l.topicId ?? l.topic_id ?? l.topic?.id) === id,
+                  )
                   .map((l) => ({
                     id: l.id ?? l.lessonId ?? l.lesson_id,
-                    name: l.name ?? l.title ?? '',
-                    difficulty: l.difficulty ?? l.level ?? 1
+                    name: l.name ?? l.title ?? "",
+                    difficulty: l.difficulty ?? l.level ?? 1,
                   }))
               : [];
             return {
               id,
               title,
               totalVocab: t.totalVocab ?? t.total_vocab ?? 0,
-              color: 'bg-gray-100 text-gray-700',
-              imageUrl: imageUrl || 'https://cdn-icons-png.flaticon.com/512/616/616408.png',
-              lessons: topicLessons
+              color: "bg-gray-100 text-gray-700",
+              imageUrl:
+                imageUrl ||
+                "https://cdn-icons-png.flaticon.com/512/616/616408.png",
+              lessons: topicLessons,
             };
           });
           setTopics(mappedTopics);
@@ -64,22 +113,22 @@ export default function AdminTopicManagement() {
       }
     };
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-
 
   // Modals Quản lý Chủ đề
   const [showCreateTopicModal, setShowCreateTopicModal] = useState(false);
   const [showEditTopicModal, setShowEditTopicModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(null);
-  const [newTopicName, setNewTopicName] = useState('');
-  const [newTopicImage, setNewTopicImage] = useState('');
-  const [newTopicImageTab, setNewTopicImageTab] = useState('url'); // 'url' | 'upload'
+  const [newTopicName, setNewTopicName] = useState("");
+  const [newTopicImage, setNewTopicImage] = useState("");
+  const [newTopicImageTab, setNewTopicImageTab] = useState("url"); // 'url' | 'upload'
   const topicImageFileRef = useRef(null);
 
   const [showCreateLessonModal, setShowCreateLessonModal] = useState(false);
-  const [newLessonName, setNewLessonName] = useState('');
+  const [newLessonName, setNewLessonName] = useState("");
   const [newLessonDifficulty, setNewLessonDifficulty] = useState(1);
 
   // modal xóa
@@ -99,19 +148,19 @@ export default function AdminTopicManagement() {
 
   // state từ vựng trong modal
   const [modalWords, setModalWords] = useState([]);
-  const [wordSearchTerm, setWordSearchTerm] = useState('');
-
+  const [wordSearchTerm, setWordSearchTerm] = useState("");
 
   // lọc bài học trong modal chủ đỀ
   const [selectedLessonFilters, setSelectedLessonFilters] = useState([]);
-  const [showLessonFilterDropdown, setShowLessonFilterDropdown] = useState(false);
+  const [showLessonFilterDropdown, setShowLessonFilterDropdown] =
+    useState(false);
 
   // modal di chuyển từ vựng
   const [showMoveWordModal, setShowMoveWordModal] = useState(false);
   const [movingWords, setMovingWords] = useState([]);
-  const [moveTargetTopicId, setMoveTargetTopicId] = useState('');
-  const [moveTargetLessonId, setMoveTargetLessonId] = useState('');
-  const [moveMode, setMoveMode] = useState('full');
+  const [moveTargetTopicId, setMoveTargetTopicId] = useState("");
+  const [moveTargetLessonId, setMoveTargetLessonId] = useState("");
+  const [moveMode, setMoveMode] = useState("full");
 
   // modal chỉnh sửa từ vựng
   const [showEditWordModal, setShowEditWordModal] = useState(false);
@@ -123,7 +172,7 @@ export default function AdminTopicManagement() {
   // modal chỉnh sửa bài học
   const [showEditLessonModal, setShowEditLessonModal] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
-  const [editLessonName, setEditLessonName] = useState('');
+  const [editLessonName, setEditLessonName] = useState("");
   const [editLessonDifficulty, setEditLessonDifficulty] = useState(1);
 
   // menu hành động dùng chung, tránh nhiều menu mở cùng lúc
@@ -151,7 +200,9 @@ export default function AdminTopicManagement() {
   };
 
   const handleEditWordChange = (id, field, value) => {
-    setEditingWords(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
+    setEditingWords((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, [field]: value } : w)),
+    );
   };
 
   const handleSaveEditedWords = async () => {
@@ -164,41 +215,46 @@ export default function AdminTopicManagement() {
             word_type: w.word_type,
             meaning: w.meaning,
             level: w.level,
-            example: w.example
+            example: w.example,
           });
         } catch {
           // ignore để UI vẫn cập nhật local
         }
-      })
+      }),
     );
-    setAllWords(prev => prev.map(cw => {
-      const edited = editingWords.find(ew => ew.id === cw.id);
-      return edited ? edited : cw;
-    }));
-    setModalWords(prev => prev.map(cw => {
-      const edited = editingWords.find(ew => ew.id === cw.id);
-      return edited ? edited : cw;
-    }));
-    toast.error('Đã lưu thay đổi từ vựng!');
+    setAllWords((prev) =>
+      prev.map((cw) => {
+        const edited = editingWords.find((ew) => ew.id === cw.id);
+        return edited ? edited : cw;
+      }),
+    );
+    setModalWords((prev) =>
+      prev.map((cw) => {
+        const edited = editingWords.find((ew) => ew.id === cw.id);
+        return edited ? edited : cw;
+      }),
+    );
+    toast.error("Đã lưu thay đổi từ vựng!");
     setShowEditWordModal(false);
     setEditingWords([]);
   };
 
-  // CÁC HÀM XỬ LÝ CHỦ ĐỀ 
-  const filteredTopics = topics.filter(t => t.title.toLowerCase().includes(searchTerm.toLowerCase())).map(t => ({
-    ...t,
-    totalVocab: allWords.filter(w => w.topicId === t.id).length
-  }));
-
+  // CÁC HÀM XỬ LÝ CHỦ ĐỀ
+  const filteredTopics = topics
+    .filter((t) => t.title.toLowerCase().includes(searchTerm.toLowerCase()))
+    .map((t) => ({
+      ...t,
+      totalVocab: allWords.filter((w) => w.topicId === t.id).length,
+    }));
 
   const handleDeleteTopicConfirm = async () => {
     if (!topicToDelete) return;
     try {
       await apiDeleteTopic(topicToDelete.id);
-      setTopics(topics.filter(t => t.id !== topicToDelete.id));
+      setTopics(topics.filter((t) => t.id !== topicToDelete.id));
       setTopicToDelete(null);
     } catch {
-      toast.error('Xóa chủ đề thất bại. Vui lòng thử lại.');
+      toast.error("Xóa chủ đề thất bại. Vui lòng thử lại.");
     } finally {
       setShowConfirmDeleteTopic(false);
     }
@@ -207,22 +263,30 @@ export default function AdminTopicManagement() {
   const handleCreateTopic = async () => {
     if (!newTopicName.trim()) return;
     try {
-      const created = await apiCreateTopic({ title: newTopicName, imageUrl: newTopicImage }).catch(() => null);
+      const created = await apiCreateTopic({
+        topicName: newTopicName,
+        image: newTopicImage,
+      }).catch(() => null);
       const newId = created?.id ?? created?.topicId ?? Date.now();
-      setTopics([...topics, {
-        id: newId,
-        title: created?.title ?? newTopicName,
-        totalVocab: created?.totalVocab ?? 0,
-        color: 'bg-gray-100 text-gray-700',
-        imageUrl: (created?.imageUrl ?? newTopicImage.trim()) || 'https://cdn-icons-png.flaticon.com/512/616/616408.png',
-        lessons: []
-      }]);
-      setNewTopicName('');
-      setNewTopicImage('');
-      setNewTopicImageTab('url');
+      setTopics([
+        ...topics,
+        {
+          id: newId,
+          title: created?.topicName ?? created?.title ?? newTopicName,
+          totalVocab: created?.totalVocab ?? 0,
+          color: "bg-gray-100 text-gray-700",
+          imageUrl:
+            (created?.image ?? created?.imageUrl ?? newTopicImage.trim()) ||
+            "https://cdn-icons-png.flaticon.com/512/616/616408.png",
+          lessons: [],
+        },
+      ]);
+      setNewTopicName("");
+      setNewTopicImage("");
+      setNewTopicImageTab("url");
       setShowCreateTopicModal(false);
     } catch {
-      toast.error('Tạo chủ đề thất bại.');
+      toast.error("Tạo chủ đề thất bại.");
     }
   };
 
@@ -237,37 +301,61 @@ export default function AdminTopicManagement() {
   const handleEditTopic = async () => {
     if (!newTopicName.trim() || !editingTopic) return;
     try {
-      await apiUpdateTopic(editingTopic.id, { title: newTopicName, imageUrl: newTopicImage }).catch(() => null);
-      setTopics(topics.map(t => t.id === editingTopic.id ? { ...t, title: newTopicName, imageUrl: newTopicImage || t.imageUrl } : t));
+      await apiUpdateTopic(editingTopic.id, {
+        topicName: newTopicName,
+        image: newTopicImage,
+      }).catch(() => null);
+      setTopics(
+        topics.map((t) =>
+          t.id === editingTopic.id
+            ? {
+                ...t,
+                title: newTopicName,
+                imageUrl: newTopicImage || t.imageUrl,
+              }
+            : t,
+        ),
+      );
       setEditingTopic(null);
-      setNewTopicName('');
+      setNewTopicName("");
       setShowEditTopicModal(false);
     } catch {
-      toast.error('Cập nhật chủ đề thất bại.');
+      toast.error("Cập nhật chủ đề thất bại.");
     }
   };
 
   const handleCreateLesson = async () => {
     if (!newLessonName.trim() || !activeTopic) return;
     try {
-      const created = await apiCreateLesson({ name: newLessonName, difficulty: newLessonDifficulty, topicId: activeTopic.id }).catch(() => null);
+      const created = await apiCreateLesson({
+        lessonName: newLessonName,
+        difficulty: newLessonDifficulty,
+        topicId: activeTopic.id,
+      }).catch(() => null);
       const newLessonId = created?.id ?? created?.lessonId ?? Date.now();
-      const updatedTopics = topics.map(t => {
+      const updatedTopics = topics.map((t) => {
         if (t.id === activeTopic.id) {
           return {
             ...t,
-            lessons: [...t.lessons, { id: newLessonId, name: created?.name ?? newLessonName, difficulty: created?.difficulty ?? newLessonDifficulty }]
+            lessons: [
+              ...t.lessons,
+              {
+                id: newLessonId,
+                name: created?.name ?? newLessonName,
+                difficulty: created?.difficulty ?? newLessonDifficulty,
+              },
+            ],
           };
         }
         return t;
       });
       setTopics(updatedTopics);
-      setActiveTopic(updatedTopics.find(t => t.id === activeTopic.id));
-      setNewLessonName('');
+      setActiveTopic(updatedTopics.find((t) => t.id === activeTopic.id));
+      setNewLessonName("");
       setNewLessonDifficulty(1);
       setShowCreateLessonModal(false);
     } catch {
-      toast.error('Tạo bài học thất bại.');
+      toast.error("Tạo bài học thất bại.");
     }
   };
 
@@ -277,26 +365,32 @@ export default function AdminTopicManagement() {
     if (!file || !activeTopic) return;
     try {
       await importTopicVocabularies(activeTopic.id, file);
-      toast.success(`Đã import CSV vào chủ đề "${activeTopic.title}" thành công!`);
+      toast.success(
+        `Đã import CSV vào chủ đề "${activeTopic.title}" thành công!`,
+      );
       // reload words for this topic
       const words = await fetchTopicVocabularies(activeTopic.id);
-      const list = Array.isArray(words) ? words : (words?.items ?? words?.data ?? []);
+      const list = Array.isArray(words)
+        ? words
+        : (words?.items ?? words?.data ?? []);
       if (Array.isArray(list) && list.length > 0) {
-        setModalWords(list.map((w) => ({
-          id: w.id ?? w.vocabId ?? w.vocab_id,
-          word: w.word ?? '',
-          pronunciation: w.pronunciation ?? '',
-          word_type: w.word_type ?? w.type ?? '',
-          meaning: w.meaning ?? '',
-          example: w.example ?? '',
-          level: w.level ?? 1,
-          topicId: activeTopic.id,
-          lessonId: w.lessonId ?? w.lesson?.id,
-          lessonName: w.lessonName ?? w.lesson?.name
-        })));
+        setModalWords(
+          list.map((w) => ({
+            id: w.id ?? w.vocabId ?? w.vocab_id,
+            word: w.word ?? "",
+            pronunciation: w.pronunciation ?? "",
+            word_type: w.word_type ?? w.type ?? "",
+            meaning: w.meaning ?? "",
+            example: w.example ?? "",
+            level: w.level ?? 1,
+            topicId: activeTopic.id,
+            lessonId: w.lessonId ?? w.lesson?.id,
+            lessonName: w.lessonName ?? w.lesson?.name,
+          })),
+        );
       }
     } catch {
-      toast.error('Import CSV thất bại. Vui lòng kiểm tra định dạng file.');
+      toast.error("Import CSV thất bại. Vui lòng kiểm tra định dạng file.");
     } finally {
       e.target.value = null;
     }
@@ -312,8 +406,15 @@ export default function AdminTopicManagement() {
       const detail = await fetchLessonById(lesson.id);
       if (detail) {
         setEditLessonName(detail.name ?? detail.title ?? lesson.name);
-        setEditLessonDifficulty(detail.difficulty ?? detail.level ?? lesson.difficulty ?? 1);
-        setEditingLesson({ ...lesson, name: detail.name ?? detail.title ?? lesson.name, difficulty: detail.difficulty ?? detail.level ?? lesson.difficulty ?? 1 });
+        setEditLessonDifficulty(
+          detail.difficulty ?? detail.level ?? lesson.difficulty ?? 1,
+        );
+        setEditingLesson({
+          ...lesson,
+          name: detail.name ?? detail.title ?? lesson.name,
+          difficulty:
+            detail.difficulty ?? detail.level ?? lesson.difficulty ?? 1,
+        });
       }
     } catch {
       // fallback giữ dữ liệu hiện có
@@ -324,31 +425,35 @@ export default function AdminTopicManagement() {
     if (!editLessonName.trim() || !editingLesson) return;
     try {
       await apiUpdateLesson(editingLesson.id, {
-        name: editLessonName,
+        lessonName: editLessonName,
         difficulty: editLessonDifficulty,
-        topicId: activeTopic?.id
+        topicId: activeTopic?.id,
       }).catch(() => null);
-      const updatedTopics = topics.map(t => {
+      const updatedTopics = topics.map((t) => {
         if (t.id === activeTopic?.id) {
           return {
             ...t,
-            lessons: t.lessons.map(l =>
+            lessons: t.lessons.map((l) =>
               l.id === editingLesson.id
-                ? { ...l, name: editLessonName, difficulty: editLessonDifficulty }
-                : l
-            )
+                ? {
+                    ...l,
+                    name: editLessonName,
+                    difficulty: editLessonDifficulty,
+                  }
+                : l,
+            ),
           };
         }
         return t;
       });
       setTopics(updatedTopics);
       if (activeTopic) {
-        setActiveTopic(updatedTopics.find(t => t.id === activeTopic.id));
+        setActiveTopic(updatedTopics.find((t) => t.id === activeTopic.id));
       }
       setShowEditLessonModal(false);
       setEditingLesson(null);
     } catch {
-      toast.error('Cập nhật bài học thất bại.');
+      toast.error("Cập nhật bài học thất bại.");
     }
   };
 
@@ -360,53 +465,60 @@ export default function AdminTopicManagement() {
     try {
       if (lessonToDelete) {
         await apiDeleteLesson(lessonToDelete.id).catch(() => {});
-        const updatedTopics = topics.map(t => {
+        const updatedTopics = topics.map((t) => {
           if (t.id === activeTopic?.id) {
-            return { ...t, lessons: t.lessons.filter(l => l.id !== lessonToDelete.id) };
+            return {
+              ...t,
+              lessons: t.lessons.filter((l) => l.id !== lessonToDelete.id),
+            };
           }
           return t;
         });
         setTopics(updatedTopics);
         if (activeTopic) {
-          setActiveTopic(updatedTopics.find(t => t.id === activeTopic.id));
+          setActiveTopic(updatedTopics.find((t) => t.id === activeTopic.id));
         }
       }
     } catch {
-      toast.error('Xóa bài học thất bại.');
+      toast.error("Xóa bài học thất bại.");
     } finally {
       setShowConfirmDeleteLesson(false);
       setLessonToDelete(null);
     }
   };
 
-  // CÁC HÀM MỞ MODAL XEM CHI TIẾT 
+  // CÁC HÀM MỞ MODAL XEM CHI TIẾT
   const openTopicWords = async (topic) => {
     setActiveTopic(topic);
     try {
       const words = await fetchTopicVocabularies(topic.id);
-      const list = Array.isArray(words) ? words : (words?.items ?? words?.data ?? []);
+      const list = Array.isArray(words)
+        ? words
+        : (words?.items ?? words?.data ?? []);
       if (Array.isArray(list) && list.length > 0) {
-        setModalWords(list.map((w) => ({
-          id: w.id ?? w.vocabId ?? w.vocab_id,
-          word: w.word ?? '',
-          pronunciation: w.pronunciation ?? '',
-          word_type: w.word_type ?? w.type ?? '',
-          meaning: w.meaning ?? '',
-          example: w.example ?? '',
-          level: w.level ?? 1,
-          topicId: topic.id,
-          lessonId: w.lessonId ?? w.lesson?.id,
-          lessonName: w.lessonName ?? w.lesson?.name
-        })));
+        setModalWords(
+          list.map((w) => ({
+            id: w.id ?? w.vocabId ?? w.vocab_id,
+            word: w.word ?? "",
+            pronunciation: w.pronunciation ?? "",
+            word_type: w.word_type ?? w.type ?? "",
+            meaning: w.meaning ?? "",
+            example: w.example ?? "",
+            level: w.level ?? 1,
+            topicId: topic.id,
+            lessonId: w.lessonId ?? w.lesson?.id,
+            lessonName: w.lessonName ?? w.lesson?.name,
+          })),
+        );
       } else {
-        setModalWords(allWords.filter(w => w.topicId === topic.id));
+        setModalWords(allWords.filter((w) => w.topicId === topic.id));
       }
     } catch {
-      setModalWords(allWords.filter(w => w.topicId === topic.id));
+      setModalWords(allWords.filter((w) => w.topicId === topic.id));
     }
     setSelectedLessonFilters([]);
     setShowLessonFilterDropdown(false);
-    setWordSearchTerm('');
+    setWordSearchTerm("");
     setShowTopicWordsModal(true);
   };
 
@@ -418,8 +530,8 @@ export default function AdminTopicManagement() {
   const openLessonWords = (lesson, topic) => {
     setActiveLesson(lesson);
     setActiveTopic(topic);
-    setModalWords(allWords.filter(w => w.lessonId === lesson.id));
-    setWordSearchTerm('');
+    setModalWords(allWords.filter((w) => w.lessonId === lesson.id));
+    setWordSearchTerm("");
     setShowTopicLessonsModal(false);
     setShowLessonWordsModal(true);
   };
@@ -429,39 +541,51 @@ export default function AdminTopicManagement() {
   const handleDeleteWordConfirm = async () => {
     if (!wordToDelete) return;
     await deleteVocabulary(wordToDelete.id).catch(() => {});
-    setAllWords(prev => prev.filter(w => w.id !== wordToDelete.id));
-    setModalWords(prev => prev.filter(w => w.id !== wordToDelete.id));
+    setAllWords((prev) => prev.filter((w) => w.id !== wordToDelete.id));
+    setModalWords((prev) => prev.filter((w) => w.id !== wordToDelete.id));
     setWordToDelete(null);
     setShowConfirmDeleteWord(false);
   };
 
   const openMoveModal = (wordsToMove, lessonOnly = false) => {
     setMovingWords(wordsToMove);
-    setMoveMode(lessonOnly ? 'lesson-only' : 'full');
-    setMoveTargetTopicId(activeTopic ? String(activeTopic.id) : '');
-    setMoveTargetLessonId('');
+    setMoveMode(lessonOnly ? "lesson-only" : "full");
+    setMoveTargetTopicId(activeTopic ? String(activeTopic.id) : "");
+    setMoveTargetLessonId("");
     setShowMoveWordModal(true);
   };
 
   const handleConfirmMove = () => {
-    const targetTopicId = parseInt(moveMode === 'full' ? moveTargetTopicId : activeTopic?.id);
+    const targetTopicId = parseInt(
+      moveMode === "full" ? moveTargetTopicId : activeTopic?.id,
+    );
     const targetLessonId = parseInt(moveTargetLessonId);
-    const targetLessonName = topics.find(t => t.id === targetTopicId)?.lessons.find(l => l.id === targetLessonId)?.name || '';
+    const targetLessonName =
+      topics
+        .find((t) => t.id === targetTopicId)
+        ?.lessons.find((l) => l.id === targetLessonId)?.name || "";
 
-    const wordIdsToMove = movingWords.map(w => w.id);
+    const wordIdsToMove = movingWords.map((w) => w.id);
 
-    setAllWords(prev => prev.map(w => {
-      if (wordIdsToMove.includes(w.id)) {
-        return { ...w, topicId: targetTopicId, lessonId: targetLessonId, lessonName: targetLessonName };
-      }
-      return w;
-    }));
+    setAllWords((prev) =>
+      prev.map((w) => {
+        if (wordIdsToMove.includes(w.id)) {
+          return {
+            ...w,
+            topicId: targetTopicId,
+            lessonId: targetLessonId,
+            lessonName: targetLessonName,
+          };
+        }
+        return w;
+      }),
+    );
 
-    setModalWords(prev => prev.filter(w => !wordIdsToMove.includes(w.id)));
+    setModalWords((prev) => prev.filter((w) => !wordIdsToMove.includes(w.id)));
 
     setShowMoveWordModal(false);
     setMovingWords([]);
-    toast.success('Đã di chuyển thành công!');
+    toast.success("Đã di chuyển thành công!");
   };
 
   // cột action cho bảng từ vựng trong modal chủ đề
@@ -473,24 +597,68 @@ export default function AdminTopicManagement() {
       >
         <MoreVertical size={20} />
       </button>
-      {openMenuId === item.id && menuAnchor && createPortal(
-        <div
-          style={{ position: 'fixed', top: menuAnchor.top, right: menuAnchor.right }}
-          className="w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
-        >
-          <button onClick={async () => { closeMenu(); setEditingWords([item]); setShowEditWordModal(true); try { const detail = await fetchVocabularyById(item.id); if (detail) { setEditingWords([{ ...item, word: detail.word ?? item.word, pronunciation: detail.pronunciation ?? item.pronunciation, word_type: detail.word_type ?? detail.type ?? item.word_type, meaning: detail.meaning ?? item.meaning, level: detail.level ?? item.level, example: detail.example ?? item.example }]); } } catch {} }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
-            <Edit2 size={16} /> Chỉnh sửa
-          </button>
-          <button onClick={() => { closeMenu(); openMoveModal([item], false); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
-            <FolderInput size={16} /> Di chuyển
-          </button>
-          <div className="border-t border-gray-100 my-1"></div>
-          <button onClick={() => { closeMenu(); setWordToDelete(item); setShowConfirmDeleteWord(true); }} className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center gap-2">
-            <Trash2 size={16} /> Xóa từ
-          </button>
-        </div>,
-        document.body
-      )}
+      {openMenuId === item.id &&
+        menuAnchor &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: menuAnchor.top,
+              right: menuAnchor.right,
+            }}
+            className="w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
+          >
+            <button
+              onClick={async () => {
+                closeMenu();
+                setEditingWords([item]);
+                setShowEditWordModal(true);
+                try {
+                  const detail = await fetchVocabularyById(item.id);
+                  if (detail) {
+                    setEditingWords([
+                      {
+                        ...item,
+                        word: detail.word ?? item.word,
+                        pronunciation:
+                          detail.pronunciation ?? item.pronunciation,
+                        word_type:
+                          detail.word_type ?? detail.type ?? item.word_type,
+                        meaning: detail.meaning ?? item.meaning,
+                        level: detail.level ?? item.level,
+                        example: detail.example ?? item.example,
+                      },
+                    ]);
+                  }
+                } catch {}
+              }}
+              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2"
+            >
+              <Edit2 size={16} /> Chỉnh sửa
+            </button>
+            <button
+              onClick={() => {
+                closeMenu();
+                openMoveModal([item], false);
+              }}
+              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2"
+            >
+              <FolderInput size={16} /> Di chuyển
+            </button>
+            <div className="border-t border-gray-100 my-1"></div>
+            <button
+              onClick={() => {
+                closeMenu();
+                setWordToDelete(item);
+                setShowConfirmDeleteWord(true);
+              }}
+              className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center gap-2"
+            >
+              <Trash2 size={16} /> Xóa từ
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 
@@ -503,42 +671,95 @@ export default function AdminTopicManagement() {
       >
         <MoreVertical size={20} />
       </button>
-      {openMenuId === item.id && menuAnchor && createPortal(
-        <div
-          style={{ position: 'fixed', top: menuAnchor.top, right: menuAnchor.right }}
-          className="w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
-        >
-          <button onClick={async () => { closeMenu(); setEditingWords([item]); setShowEditWordModal(true); try { const detail = await fetchVocabularyById(item.id); if (detail) { setEditingWords([{ ...item, word: detail.word ?? item.word, pronunciation: detail.pronunciation ?? item.pronunciation, word_type: detail.word_type ?? detail.type ?? item.word_type, meaning: detail.meaning ?? item.meaning, level: detail.level ?? item.level, example: detail.example ?? item.example }]); } } catch {} }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
-            <Edit2 size={16} /> Chỉnh sửa
-          </button>
-          <button onClick={() => { closeMenu(); openMoveModal([item], true); }} className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2">
-            <FolderInput size={16} /> Đổi bài học
-          </button>
-          <div className="border-t border-gray-100 my-1"></div>
-          <button onClick={() => { closeMenu(); setWordToDelete(item); setShowConfirmDeleteWord(true); }} className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center gap-2">
-            <Trash2 size={16} /> Xóa từ
-          </button>
-        </div>,
-        document.body
-      )}
+      {openMenuId === item.id &&
+        menuAnchor &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: menuAnchor.top,
+              right: menuAnchor.right,
+            }}
+            className="w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
+          >
+            <button
+              onClick={async () => {
+                closeMenu();
+                setEditingWords([item]);
+                setShowEditWordModal(true);
+                try {
+                  const detail = await fetchVocabularyById(item.id);
+                  if (detail) {
+                    setEditingWords([
+                      {
+                        ...item,
+                        word: detail.word ?? item.word,
+                        pronunciation:
+                          detail.pronunciation ?? item.pronunciation,
+                        word_type:
+                          detail.word_type ?? detail.type ?? item.word_type,
+                        meaning: detail.meaning ?? item.meaning,
+                        level: detail.level ?? item.level,
+                        example: detail.example ?? item.example,
+                      },
+                    ]);
+                  }
+                } catch {}
+              }}
+              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2"
+            >
+              <Edit2 size={16} /> Chỉnh sửa
+            </button>
+            <button
+              onClick={() => {
+                closeMenu();
+                openMoveModal([item], true);
+              }}
+              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2"
+            >
+              <FolderInput size={16} /> Đổi bài học
+            </button>
+            <div className="border-t border-gray-100 my-1"></div>
+            <button
+              onClick={() => {
+                closeMenu();
+                setWordToDelete(item);
+                setShowConfirmDeleteWord(true);
+              }}
+              className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center gap-2"
+            >
+              <Trash2 size={16} /> Xóa từ
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 
   let finalTopicWords = modalWords;
   if (selectedLessonFilters.length > 0) {
-    finalTopicWords = finalTopicWords.filter(w => selectedLessonFilters.includes(w.lessonId));
+    finalTopicWords = finalTopicWords.filter((w) =>
+      selectedLessonFilters.includes(w.lessonId),
+    );
   }
 
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
-
       {/* thanh công cụ */}
       <div className="bg-white rounded-[1.25rem] shadow-sm border border-gray-200 p-4 mb-6 flex justify-between items-center">
         <div className="flex gap-4 items-center w-full max-w-xl">
-          <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Tìm kiếm chủ đề..." className="flex-1" />
+          <SearchBar
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm kiếm chủ đề..."
+            className="flex-1"
+          />
         </div>
         <div className="flex gap-3 items-center">
-          <button onClick={() => setShowCreateTopicModal(true)} className="px-5 py-2.5 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-lg shadow-cyan-500/30 transition-all flex items-center gap-2">
+          <button
+            onClick={() => setShowCreateTopicModal(true)}
+            className="px-5 py-2.5 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-lg shadow-cyan-500/30 transition-all flex items-center gap-2"
+          >
             <Plus size={18} /> Tạo chủ đề
           </button>
         </div>
@@ -546,7 +767,9 @@ export default function AdminTopicManagement() {
 
       {/* danh sách chủ đề */}
       <div>
-        <h2 className="text-2xl font-bold text-[#083344] mb-6 border-b-2 border-gray-200 pb-2 inline-block">Chủ đề từ vựng</h2>
+        <h2 className="text-2xl font-bold text-[#083344] mb-6 border-b-2 border-gray-200 pb-2 inline-block">
+          Chủ đề từ vựng
+        </h2>
         {isLoading && (
           <div className="mb-4 text-sm font-bold text-gray-400">
             Đang tải chủ đề...
@@ -554,17 +777,28 @@ export default function AdminTopicManagement() {
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredTopics.map((topic) => (
-            <div key={topic.id} className="relative bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all flex flex-col justify-between min-h-[14rem] group">
-
-
-
-              <div className="cursor-pointer" onClick={() => openTopicLessons(topic)}>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${topic.color}`}>
-                  <img src={topic.imageUrl} alt={topic.title} className="w-full h-full object-contain" />
+            <div
+              key={topic.id}
+              className="relative bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all flex flex-col justify-between min-h-[14rem] group"
+            >
+              <div
+                className="cursor-pointer"
+                onClick={() => openTopicLessons(topic)}
+              >
+                <div
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${topic.color}`}
+                >
+                  <img
+                    src={topic.imageUrl}
+                    alt={topic.title}
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 {/* tiêu đề và nút sửa */}
                 <div className="flex items-center gap-1.5 mb-3 pr-10">
-                  <h3 className="font-bold text-gray-800 line-clamp-1">{topic.title}</h3>
+                  <h3 className="font-bold text-gray-800 line-clamp-1">
+                    {topic.title}
+                  </h3>
                   <button
                     onClick={async (e) => {
                       e.stopPropagation();
@@ -574,9 +808,32 @@ export default function AdminTopicManagement() {
                       try {
                         const detail = await fetchTopicById(topic.id);
                         if (detail) {
-                          setNewTopicName(detail.title ?? detail.name ?? topic.title);
-                          setNewTopicImage(detail.imageUrl ?? detail.image_url ?? topic.imageUrl ?? '');
-                          setEditingTopic({ ...topic, title: detail.title ?? detail.name ?? topic.title, imageUrl: detail.imageUrl ?? detail.image_url ?? topic.imageUrl });
+                          setNewTopicName(
+                            detail.topicName ??
+                              detail.title ??
+                              detail.name ??
+                              topic.title,
+                          );
+                          setNewTopicImage(
+                            detail.image ??
+                              detail.imageUrl ??
+                              detail.image_url ??
+                              topic.imageUrl ??
+                              "",
+                          );
+                          setEditingTopic({
+                            ...topic,
+                            title:
+                              detail.topicName ??
+                              detail.title ??
+                              detail.name ??
+                              topic.title,
+                            imageUrl:
+                              detail.image ??
+                              detail.imageUrl ??
+                              detail.image_url ??
+                              topic.imageUrl,
+                          });
                         }
                       } catch {}
                     }}
@@ -593,11 +850,21 @@ export default function AdminTopicManagement() {
               </div>
 
               <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center gap-2">
-                <button onClick={(e) => { e.stopPropagation(); openTopicWords(topic); }} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openTopicWords(topic);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm"
+                >
                   <Eye size={16} /> Xem từ
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setTopicToDelete(topic); setShowConfirmDeleteTopic(true); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTopicToDelete(topic);
+                    setShowConfirmDeleteTopic(true);
+                  }}
                   className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-red-500 hover:bg-red-50 border border-red-100 transition-colors shrink-0 shadow-sm"
                 >
                   <Trash2 size={16} /> Xóa
@@ -608,7 +875,6 @@ export default function AdminTopicManagement() {
         </div>
       </div>
 
-
       {/* modal tạo chủ đề */}
       <ModalWrapper isOpen={showCreateTopicModal} zIndex="z-[200]">
         <h3 className="text-xl font-bold text-cyan-950 mb-5 flex items-center gap-2">
@@ -617,7 +883,9 @@ export default function AdminTopicManagement() {
 
         {/* tên chủ đề */}
         <div className="mb-5">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Tên chủ đề <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Tên chủ đề <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={newTopicName}
@@ -630,19 +898,27 @@ export default function AdminTopicManagement() {
 
         {/* ảnh chủ đề */}
         <div className="mb-6">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Ảnh chủ đề</label>
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Ảnh chủ đề
+          </label>
 
           {/* tab switch */}
           <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl w-fit">
             <button
-              onClick={() => { setNewTopicImageTab('url'); setNewTopicImage(''); }}
-              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${newTopicImageTab === 'url' ? 'bg-white shadow text-cyan-700' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => {
+                setNewTopicImageTab("url");
+                setNewTopicImage("");
+              }}
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${newTopicImageTab === "url" ? "bg-white shadow text-cyan-700" : "text-gray-500 hover:text-gray-700"}`}
             >
               URL ảnh
             </button>
             <button
-              onClick={() => { setNewTopicImageTab('upload'); setNewTopicImage(''); }}
-              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${newTopicImageTab === 'upload' ? 'bg-white shadow text-cyan-700' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => {
+                setNewTopicImageTab("upload");
+                setNewTopicImage("");
+              }}
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${newTopicImageTab === "upload" ? "bg-white shadow text-cyan-700" : "text-gray-500 hover:text-gray-700"}`}
             >
               Tải ảnh lên
             </button>
@@ -651,7 +927,7 @@ export default function AdminTopicManagement() {
           <div className="flex gap-4 items-start">
             {/* input */}
             <div className="flex-1">
-              {newTopicImageTab === 'url' ? (
+              {newTopicImageTab === "url" ? (
                 <input
                   type="text"
                   value={newTopicImage}
@@ -672,11 +948,15 @@ export default function AdminTopicManagement() {
                     onClick={() => topicImageFileRef.current?.click()}
                     className="w-full px-4 py-3 border-2 border-dashed border-gray-300 hover:border-cyan-400 rounded-xl text-sm text-gray-500 hover:text-cyan-600 font-medium transition-colors bg-gray-50 hover:bg-cyan-50 text-left"
                   >
-                    {newTopicImage ? '✓ Đã chọn ảnh — nhấn để đổi' : '📁 Nhấn để chọn file ảnh...'}
+                    {newTopicImage
+                      ? "✓ Đã chọn ảnh — nhấn để đổi"
+                      : "📁 Nhấn để chọn file ảnh..."}
                   </button>
                 </div>
               )}
-              <p className="text-xs text-gray-400 mt-1.5">Để trống sẽ dùng ảnh mặc định</p>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Để trống sẽ dùng ảnh mặc định
+              </p>
             </div>
 
             {/* preview */}
@@ -686,7 +966,9 @@ export default function AdminTopicManagement() {
                   src={newTopicImage}
                   alt="preview"
                   className="w-full h-full object-contain"
-                  onError={(e) => { e.target.style.display = 'none'; }}
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
                 />
               ) : (
                 <img
@@ -701,7 +983,12 @@ export default function AdminTopicManagement() {
 
         <div className="flex justify-end gap-3">
           <button
-            onClick={() => { setShowCreateTopicModal(false); setNewTopicName(''); setNewTopicImage(''); setNewTopicImageTab('url'); }}
+            onClick={() => {
+              setShowCreateTopicModal(false);
+              setNewTopicName("");
+              setNewTopicImage("");
+              setNewTopicImageTab("url");
+            }}
             className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
           >
             Hủy
@@ -720,25 +1007,61 @@ export default function AdminTopicManagement() {
       <ModalWrapper isOpen={showEditTopicModal} zIndex="z-[200]">
         <h3 className="text-xl font-bold text-cyan-950 mb-4">Đổi tên chủ đề</h3>
         <div className="mb-6">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Tên chủ đề</label>
-          <input type="text" value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none" autoFocus />
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Tên chủ đề
+          </label>
+          <input
+            type="text"
+            value={newTopicName}
+            onChange={(e) => setNewTopicName(e.target.value)}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none"
+            autoFocus
+          />
         </div>
         <div className="flex justify-end gap-3">
-          <button onClick={() => setShowEditTopicModal(false)} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">Hủy</button>
-          <button onClick={handleEditTopic} disabled={!newTopicName.trim()} className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all">Lưu thay đổi</button>
+          <button
+            onClick={() => setShowEditTopicModal(false)}
+            className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleEditTopic}
+            disabled={!newTopicName.trim()}
+            className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all"
+          >
+            Lưu thay đổi
+          </button>
         </div>
       </ModalWrapper>
 
       {/* modal tạo bài học */}
       <ModalWrapper isOpen={showCreateLessonModal} zIndex="z-[200]">
-        <h3 className="text-xl font-bold text-cyan-950 mb-4">Tạo bài học mới</h3>
+        <h3 className="text-xl font-bold text-cyan-950 mb-4">
+          Tạo bài học mới
+        </h3>
         <div className="mb-4">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Tên bài học</label>
-          <input type="text" value={newLessonName} onChange={(e) => setNewLessonName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none" placeholder="Nhập tên bài học..." autoFocus />
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Tên bài học
+          </label>
+          <input
+            type="text"
+            value={newLessonName}
+            onChange={(e) => setNewLessonName(e.target.value)}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none"
+            placeholder="Nhập tên bài học..."
+            autoFocus
+          />
         </div>
         <div className="mb-6">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Độ khó</label>
-          <select value={newLessonDifficulty} onChange={(e) => setNewLessonDifficulty(parseInt(e.target.value))} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none font-bold text-blue-600">
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Độ khó
+          </label>
+          <select
+            value={newLessonDifficulty}
+            onChange={(e) => setNewLessonDifficulty(parseInt(e.target.value))}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none font-bold text-blue-600"
+          >
             <option value={1}>A1</option>
             <option value={2}>A2</option>
             <option value={3}>B1</option>
@@ -748,13 +1071,28 @@ export default function AdminTopicManagement() {
           </select>
         </div>
         <div className="flex justify-end gap-3">
-          <button onClick={() => setShowCreateLessonModal(false)} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">Hủy</button>
-          <button onClick={handleCreateLesson} disabled={!newLessonName.trim()} className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all">Xác nhận tạo</button>
+          <button
+            onClick={() => setShowCreateLessonModal(false)}
+            className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleCreateLesson}
+            disabled={!newLessonName.trim()}
+            className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all"
+          >
+            Xác nhận tạo
+          </button>
         </div>
       </ModalWrapper>
 
       {/* modal từ vựng của chủ đề */}
-      <ModalWrapper isOpen={showTopicWordsModal && activeTopic} zIndex="z-[100]" className="rounded-2xl w-full max-w-6xl overflow-hidden flex flex-col h-[90vh]">
+      <ModalWrapper
+        isOpen={showTopicWordsModal && activeTopic}
+        zIndex="z-[100]"
+        className="rounded-2xl w-full max-w-6xl overflow-hidden flex flex-col h-[90vh]"
+      >
         <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-cyan-50/30">
           <h3 className="text-2xl font-bold text-cyan-950 flex items-center gap-3">
             <BookOpen className="text-cyan-600" /> Chủ đề: {activeTopic?.title}
@@ -762,7 +1100,11 @@ export default function AdminTopicManagement() {
 
           <div className="flex items-center gap-3">
             <div className="w-60">
-              <SearchBar value={wordSearchTerm} onChange={(e) => setWordSearchTerm(e.target.value)} placeholder="Tìm từ vựng..." />
+              <SearchBar
+                value={wordSearchTerm}
+                onChange={(e) => setWordSearchTerm(e.target.value)}
+                placeholder="Tìm từ vựng..."
+              />
             </div>
 
             {/* lọc bài học */}
@@ -781,75 +1123,142 @@ export default function AdminTopicManagement() {
                   onChange={() => setSelectedLessonFilters([])}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                 />
-                <span className="text-sm font-semibold text-cyan-700">Tất cả bài học</span>
+                <span className="text-sm font-semibold text-cyan-700">
+                  Tất cả bài học
+                </span>
               </label>
-              {activeTopic?.lessons.map(l => (
-                <label key={l.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 cursor-pointer transition-colors">
+              {activeTopic?.lessons.map((l) => (
+                <label
+                  key={l.id}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 cursor-pointer transition-colors"
+                >
                   <input
                     type="checkbox"
                     checked={selectedLessonFilters.includes(l.id)}
-                    onChange={() => setSelectedLessonFilters(prev =>
-                      prev.includes(l.id) ? prev.filter(id => id !== l.id) : [...prev, l.id]
-                    )}
+                    onChange={() =>
+                      setSelectedLessonFilters((prev) =>
+                        prev.includes(l.id)
+                          ? prev.filter((id) => id !== l.id)
+                          : [...prev, l.id],
+                      )
+                    }
                     className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"
                   />
-                  <span className="text-sm font-medium text-gray-700">{l.name}</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {l.name}
+                  </span>
                 </label>
               ))}
             </FilterDropdown>
 
             {/* import CSV */}
-            <button onClick={() => topicCsvFileRef.current?.click()} className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-xl hover:bg-emerald-100 text-sm flex items-center gap-2 transition-colors">
+            <button
+              onClick={() => topicCsvFileRef.current?.click()}
+              className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-xl hover:bg-emerald-100 text-sm flex items-center gap-2 transition-colors"
+            >
               <Upload size={16} /> Import CSV
             </button>
-            <input type="file" ref={topicCsvFileRef} onChange={handleTopicCsvImport} className="hidden" accept=".csv" />
-
+            <input
+              type="file"
+              ref={topicCsvFileRef}
+              onChange={handleTopicCsvImport}
+              className="hidden"
+              accept=".csv"
+            />
 
             <div className="w-px h-6 bg-gray-200 mx-1"></div>
-            <button onClick={() => setShowTopicWordsModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full"><X size={24} /></button>
+            <button
+              onClick={() => setShowTopicWordsModal(false)}
+              className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full"
+            >
+              <X size={24} />
+            </button>
           </div>
         </div>
         <div className="p-6 overflow-y-auto bg-gray-50/30 flex-1">
           <VocabTable
-            words={finalTopicWords} searchTerm={wordSearchTerm}
+            words={finalTopicWords}
+            searchTerm={wordSearchTerm}
             ActionColumn={TopicActionColumn}
-            showTopicColumn={false} showLessonColumn={true}
+            showTopicColumn={false}
+            showLessonColumn={true}
           />
         </div>
       </ModalWrapper>
 
       {/* modal bài học của chủ đề */}
-      <ModalWrapper isOpen={showTopicLessonsModal && activeTopic} zIndex="z-[100]" className="rounded-[1.5rem] w-full max-w-3xl flex flex-col h-[85vh]">
+      <ModalWrapper
+        isOpen={showTopicLessonsModal && activeTopic}
+        zIndex="z-[100]"
+        className="rounded-[1.5rem] w-full max-w-3xl flex flex-col h-[85vh]"
+      >
         <div className="p-5 border-b border-gray-100 flex justify-between items-start bg-cyan-50/50">
           <div>
-            <h2 className="text-2xl font-black text-cyan-950 flex items-center gap-3"><Gamepad2 className="text-cyan-600" /> Danh sách bài học: {activeTopic?.title}</h2>
-            <p className="text-gray-500 mt-2">Chọn một bài học dưới đây để xem danh sách từ vựng.</p>
+            <h2 className="text-2xl font-black text-cyan-950 flex items-center gap-3">
+              <Gamepad2 className="text-cyan-600" /> Danh sách bài học:{" "}
+              {activeTopic?.title}
+            </h2>
+            <p className="text-gray-500 mt-2">
+              Chọn một bài học dưới đây để xem danh sách từ vựng.
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowCreateLessonModal(true)} className="px-4 py-2 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-md transition-all flex items-center gap-2 text-sm">
+            <button
+              onClick={() => setShowCreateLessonModal(true)}
+              className="px-4 py-2 bg-[#0e7490] hover:bg-[#164e63] text-white font-bold rounded-xl shadow-md transition-all flex items-center gap-2 text-sm"
+            >
               <Plus size={16} /> Tạo bài học
             </button>
-            <button onClick={() => setShowTopicLessonsModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><X size={24} /></button>
+            <button
+              onClick={() => setShowTopicLessonsModal(false)}
+              className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
+            >
+              <X size={24} />
+            </button>
           </div>
         </div>
         <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
           <div className="space-y-4">
             {activeTopic?.lessons.map((lesson, idx) => {
-              const lessonWordCount = allWords.filter(w => w.lessonId === lesson.id).length;
-              const levelLabels = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
+              const lessonWordCount = allWords.filter(
+                (w) => w.lessonId === lesson.id,
+              ).length;
+              const levelLabels = {
+                1: "A1",
+                2: "A2",
+                3: "B1",
+                4: "B2",
+                5: "C1",
+                6: "C2",
+              };
               // Tính cấp độ trung bình của các từ trong bài
-              const lessonWords = allWords.filter(w => w.lessonId === lesson.id);
-              const avgLevel = lessonWords.length > 0
-                ? Math.round(lessonWords.reduce((a, w) => a + w.level, 0) / lessonWords.length)
-                : lesson.difficulty;
+              const lessonWords = allWords.filter(
+                (w) => w.lessonId === lesson.id,
+              );
+              const avgLevel =
+                lessonWords.length > 0
+                  ? Math.round(
+                      lessonWords.reduce((a, w) => a + w.level, 0) /
+                        lessonWords.length,
+                    )
+                  : lesson.difficulty;
               return (
-                <div key={lesson.id} className="bg-white p-5 rounded-[1.25rem] border border-cyan-100 hover:border-cyan-400 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
+                <div
+                  key={lesson.id}
+                  className="bg-white p-5 rounded-[1.25rem] border border-cyan-100 hover:border-cyan-400 shadow-sm hover:shadow-md transition-all flex items-center justify-between"
+                >
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-cyan-50 text-cyan-700 font-bold rounded-full flex items-center justify-center text-lg">{idx + 1}</div>
+                    <div className="w-12 h-12 bg-cyan-50 text-cyan-700 font-bold rounded-full flex items-center justify-center text-lg">
+                      {idx + 1}
+                    </div>
                     <div>
-                      <h3 className="text-lg font-bold text-cyan-950">{lesson.name}</h3>
+                      <h3 className="text-lg font-bold text-cyan-950">
+                        {lesson.name}
+                      </h3>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-gray-500 font-medium">{lessonWordCount} từ vựng</p>
+                        <p className="text-xs text-gray-500 font-medium">
+                          {lessonWordCount} từ vựng
+                        </p>
                         {avgLevel && (
                           <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
                             {levelLabels[avgLevel]}
@@ -859,13 +1268,27 @@ export default function AdminTopicManagement() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => handleOpenEditLesson(lesson, activeTopic)} className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors" title="Chỉnh sửa bài học">
+                    <button
+                      onClick={() => handleOpenEditLesson(lesson, activeTopic)}
+                      className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
+                      title="Chỉnh sửa bài học"
+                    >
                       <Edit2 size={18} />
                     </button>
-                    <button onClick={() => { setLessonToDelete(lesson); setShowConfirmDeleteLesson(true); }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Xóa bài học">
+                    <button
+                      onClick={() => {
+                        setLessonToDelete(lesson);
+                        setShowConfirmDeleteLesson(true);
+                      }}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Xóa bài học"
+                    >
                       <Trash2 size={18} />
                     </button>
-                    <button onClick={() => openLessonWords(lesson, activeTopic)} className="px-6 py-2.5 bg-white border border-cyan-200 text-cyan-700 font-bold rounded-xl hover:bg-cyan-50 transition-colors shadow-sm">
+                    <button
+                      onClick={() => openLessonWords(lesson, activeTopic)}
+                      className="px-6 py-2.5 bg-white border border-cyan-200 text-cyan-700 font-bold rounded-xl hover:bg-cyan-50 transition-colors shadow-sm"
+                    >
                       Xem từ
                     </button>
                   </div>
@@ -877,30 +1300,54 @@ export default function AdminTopicManagement() {
       </ModalWrapper>
 
       {/* modal từ vựng của bài học */}
-      <ModalWrapper isOpen={showLessonWordsModal && activeLesson} zIndex="z-[150]" className="rounded-2xl w-full max-w-6xl overflow-hidden flex flex-col h-[90vh]">
+      <ModalWrapper
+        isOpen={showLessonWordsModal && activeLesson}
+        zIndex="z-[150]"
+        className="rounded-2xl w-full max-w-6xl overflow-hidden flex flex-col h-[90vh]"
+      >
         <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-cyan-50/30">
           <div>
-            <button onClick={() => { setShowLessonWordsModal(false); setShowTopicLessonsModal(true); }} className="text-cyan-700 hover:underline font-bold flex items-center gap-1 text-sm mb-1"><ChevronRight size={14} className="rotate-180" /> Trở về danh sách bài học</button>
+            <button
+              onClick={() => {
+                setShowLessonWordsModal(false);
+                setShowTopicLessonsModal(true);
+              }}
+              className="text-cyan-700 hover:underline font-bold flex items-center gap-1 text-sm mb-1"
+            >
+              <ChevronRight size={14} className="rotate-180" /> Trở về danh sách
+              bài học
+            </button>
             <h3 className="text-2xl font-bold text-cyan-950 flex items-center gap-3">
-              <BookOpen className="text-cyan-600" /> Bài học: {activeLesson?.name}
+              <BookOpen className="text-cyan-600" /> Bài học:{" "}
+              {activeLesson?.name}
             </h3>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="w-64">
-              <SearchBar value={wordSearchTerm} onChange={(e) => setWordSearchTerm(e.target.value)} placeholder="Tìm từ vựng..." />
+              <SearchBar
+                value={wordSearchTerm}
+                onChange={(e) => setWordSearchTerm(e.target.value)}
+                placeholder="Tìm từ vựng..."
+              />
             </div>
 
-
             <div className="w-px h-6 bg-gray-200 mx-1"></div>
-            <button onClick={() => setShowLessonWordsModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full"><X size={24} /></button>
+            <button
+              onClick={() => setShowLessonWordsModal(false)}
+              className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full"
+            >
+              <X size={24} />
+            </button>
           </div>
         </div>
         <div className="p-6 overflow-y-auto bg-gray-50/30 flex-1">
           <VocabTable
-            words={modalWords} searchTerm={wordSearchTerm}
+            words={modalWords}
+            searchTerm={wordSearchTerm}
             ActionColumn={LessonActionColumn}
-            showTopicColumn={false} showLessonColumn={false}
+            showTopicColumn={false}
+            showLessonColumn={false}
           />
         </div>
       </ModalWrapper>
@@ -908,8 +1355,15 @@ export default function AdminTopicManagement() {
       {/* modal di chuyển từ vựng */}
       <ModalWrapper isOpen={showMoveWordModal} zIndex="z-[200]">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-cyan-950 flex items-center gap-2"><FolderInput className="text-cyan-600" /> Di chuyển từ vựng</h3>
-          <button onClick={() => setShowMoveWordModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full"><X size={20} /></button>
+          <h3 className="text-xl font-bold text-cyan-950 flex items-center gap-2">
+            <FolderInput className="text-cyan-600" /> Di chuyển từ vựng
+          </h3>
+          <button
+            onClick={() => setShowMoveWordModal(false)}
+            className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         <div className="bg-blue-50 text-blue-800 p-3 rounded-xl mb-6 font-medium text-sm">
@@ -918,33 +1372,56 @@ export default function AdminTopicManagement() {
 
         <div className="space-y-4 mb-8">
           {/* chế độ full: chọn cả chủ đề lẫn bài học */}
-          {moveMode === 'full' && (
+          {moveMode === "full" && (
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Chọn chủ đề đích</label>
-              <select value={moveTargetTopicId} onChange={e => { setMoveTargetTopicId(e.target.value); setMoveTargetLessonId(''); }} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none font-medium">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Chọn chủ đề đích
+              </label>
+              <select
+                value={moveTargetTopicId}
+                onChange={(e) => {
+                  setMoveTargetTopicId(e.target.value);
+                  setMoveTargetLessonId("");
+                }}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none font-medium"
+              >
                 <option value="">-- Chọn Chủ đề --</option>
                 {/* chỉ hiện các chủ đỀ khác với chủ đỀ hiện tại */}
-                {topics.filter(t => t.id !== activeTopic?.id).map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                {topics
+                  .filter((t) => t.id !== activeTopic?.id)
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
               </select>
             </div>
           )}
 
           {/* chọn bài học đích */}
-          {(moveMode === 'full' ? moveTargetTopicId : true) && (
+          {(moveMode === "full" ? moveTargetTopicId : true) && (
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
-                {moveMode === 'lesson-only'
+                {moveMode === "lesson-only"
                   ? `Chọn bài học khác (trong chủ đề: ${activeTopic?.title})`
-                  : 'Chọn bài học đích'}
+                  : "Chọn bài học đích"}
               </label>
-              <select value={moveTargetLessonId} onChange={e => setMoveTargetLessonId(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none font-medium">
+              <select
+                value={moveTargetLessonId}
+                onChange={(e) => setMoveTargetLessonId(e.target.value)}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none font-medium"
+              >
                 <option value="">-- Chọn Bài học --</option>
-                {(moveMode === 'lesson-only'
+                {(moveMode === "lesson-only"
                   ? activeTopic?.lessons
-                  : topics.find(t => t.id === parseInt(moveTargetTopicId))?.lessons
-                )?.filter(l => l.id !== activeLesson?.id)
-                  .map(l => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
+                  : topics.find((t) => t.id === parseInt(moveTargetTopicId))
+                      ?.lessons
+                )
+                  ?.filter((l) => l.id !== activeLesson?.id)
+                  .map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
                   ))}
               </select>
             </div>
@@ -952,8 +1429,21 @@ export default function AdminTopicManagement() {
         </div>
 
         <div className="flex justify-end gap-3">
-          <button onClick={() => setShowMoveWordModal(false)} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">Hủy</button>
-          <button onClick={handleConfirmMove} disabled={!moveTargetLessonId || (moveMode === 'full' && !moveTargetTopicId)} className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all">Xác nhận di chuyển</button>
+          <button
+            onClick={() => setShowMoveWordModal(false)}
+            className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleConfirmMove}
+            disabled={
+              !moveTargetLessonId || (moveMode === "full" && !moveTargetTopicId)
+            }
+            className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all"
+          >
+            Xác nhận di chuyển
+          </button>
         </div>
       </ModalWrapper>
 
@@ -979,12 +1469,22 @@ export default function AdminTopicManagement() {
       />
 
       {/* modal chỉnh sửa từ vựng */}
-      <ModalWrapper isOpen={showEditWordModal} zIndex="z-[200]" className="rounded-[1.5rem] w-full max-w-7xl flex flex-col max-h-[90vh] overflow-hidden">
+      <ModalWrapper
+        isOpen={showEditWordModal}
+        zIndex="z-[200]"
+        className="rounded-[1.5rem] w-full max-w-7xl flex flex-col max-h-[90vh] overflow-hidden"
+      >
         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white z-10 shrink-0">
           <h2 className="text-xl font-bold text-cyan-950 flex items-center gap-2">
-            <Edit2 className="text-cyan-600" /> Chỉnh sửa {editingWords.length} từ vựng
+            <Edit2 className="text-cyan-600" /> Chỉnh sửa {editingWords.length}{" "}
+            từ vựng
           </h2>
-          <button onClick={() => setShowEditWordModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><X size={24} /></button>
+          <button
+            onClick={() => setShowEditWordModal(false)}
+            className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
+          >
+            <X size={24} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
@@ -993,37 +1493,126 @@ export default function AdminTopicManagement() {
               <thead>
                 <tr className="bg-cyan-50/50 border-b border-gray-200 text-cyan-900 text-xs uppercase tracking-wider">
                   <th className="p-3 w-12 text-center">#</th>
-                  <th className="p-3 w-32">Từ vựng <span className="text-red-500">*</span></th>
+                  <th className="p-3 w-32">
+                    Từ vựng <span className="text-red-500">*</span>
+                  </th>
                   <th className="p-3 w-32">Phiên âm</th>
                   <th className="p-3 w-32">Loại từ</th>
-                  <th className="p-3 w-40">Nghĩa <span className="text-red-500">*</span></th>
+                  <th className="p-3 w-40">
+                    Nghĩa <span className="text-red-500">*</span>
+                  </th>
                   <th className="p-3 w-24 text-center">Cấp độ</th>
                   <th className="p-3 w-48">Ví dụ</th>
                 </tr>
               </thead>
               <tbody>
                 {editingWords.map((word, index) => (
-                  <tr key={word.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                    <td className="p-3 text-center text-gray-400 font-bold">{index + 1}</td>
-                    <td className="p-3"><input type="text" value={word.word} onChange={(e) => handleEditWordChange(word.id, 'word', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950" /></td>
-                    <td className="p-3"><input type="text" value={word.pronunciation} onChange={(e) => handleEditWordChange(word.id, 'pronunciation', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600" /></td>
+                  <tr
+                    key={word.id}
+                    className="border-b border-gray-100 hover:bg-gray-50/50"
+                  >
+                    <td className="p-3 text-center text-gray-400 font-bold">
+                      {index + 1}
+                    </td>
                     <td className="p-3">
-                      <select value={word.word_type} onChange={(e) => handleEditWordChange(word.id, 'word_type', e.target.value)} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white">
+                      <input
+                        type="text"
+                        value={word.word}
+                        onChange={(e) =>
+                          handleEditWordChange(word.id, "word", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-cyan-950"
+                      />
+                    </td>
+                    <td className="p-3">
+                      <input
+                        type="text"
+                        value={word.pronunciation}
+                        onChange={(e) =>
+                          handleEditWordChange(
+                            word.id,
+                            "pronunciation",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600"
+                      />
+                    </td>
+                    <td className="p-3">
+                      <select
+                        value={word.word_type}
+                        onChange={(e) =>
+                          handleEditWordChange(
+                            word.id,
+                            "word_type",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white"
+                      >
                         <option value="Danh từ">Danh từ</option>
                         <option value="Động từ">Động từ</option>
                         <option value="Tính từ">Tính từ</option>
                         <option value="Trạng từ">Trạng từ</option>
                       </select>
                     </td>
-                    <td className="p-3"><input type="text" value={word.meaning} onChange={(e) => handleEditWordChange(word.id, 'meaning', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium" /></td>
                     <td className="p-3">
-                      <select value={word.level} onChange={(e) => handleEditWordChange(word.id, 'level', parseInt(e.target.value))} className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white text-center">
-                        {[1, 2, 3, 4, 5, 6].map(lvl => (
-                          <option key={lvl} value={lvl}>{lvl === 1 ? 'A1' : lvl === 2 ? 'A2' : lvl === 3 ? 'B1' : lvl === 4 ? 'B2' : lvl === 5 ? 'C1' : 'C2'}</option>
+                      <input
+                        type="text"
+                        value={word.meaning}
+                        onChange={(e) =>
+                          handleEditWordChange(
+                            word.id,
+                            "meaning",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-medium"
+                      />
+                    </td>
+                    <td className="p-3">
+                      <select
+                        value={word.level}
+                        onChange={(e) =>
+                          handleEditWordChange(
+                            word.id,
+                            "level",
+                            parseInt(e.target.value),
+                          )
+                        }
+                        className="w-full px-2 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm font-bold text-blue-600 bg-white text-center"
+                      >
+                        {[1, 2, 3, 4, 5, 6].map((lvl) => (
+                          <option key={lvl} value={lvl}>
+                            {lvl === 1
+                              ? "A1"
+                              : lvl === 2
+                                ? "A2"
+                                : lvl === 3
+                                  ? "B1"
+                                  : lvl === 4
+                                    ? "B2"
+                                    : lvl === 5
+                                      ? "C1"
+                                      : "C2"}
+                          </option>
                         ))}
                       </select>
                     </td>
-                    <td className="p-3"><input type="text" value={word.example} onChange={(e) => handleEditWordChange(word.id, 'example', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic" /></td>
+                    <td className="p-3">
+                      <input
+                        type="text"
+                        value={word.example}
+                        onChange={(e) =>
+                          handleEditWordChange(
+                            word.id,
+                            "example",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 italic"
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1032,8 +1621,18 @@ export default function AdminTopicManagement() {
         </div>
 
         <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
-          <button onClick={() => setShowEditWordModal(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">Hủy</button>
-          <button onClick={handleSaveEditedWords} className="px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all bg-[#0e7490] hover:bg-[#164e63] text-white">Xác nhận Lưu</button>
+          <button
+            onClick={() => setShowEditWordModal(false)}
+            className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleSaveEditedWords}
+            className="px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all bg-[#0e7490] hover:bg-[#164e63] text-white"
+          >
+            Xác nhận Lưu
+          </button>
         </div>
       </ModalWrapper>
 
@@ -1043,7 +1642,9 @@ export default function AdminTopicManagement() {
           <Edit2 className="text-cyan-600" /> Chỉnh sửa bài học
         </h3>
         <div className="mb-4">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Tên bài học</label>
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Tên bài học
+          </label>
           <input
             type="text"
             value={editLessonName}
@@ -1054,7 +1655,9 @@ export default function AdminTopicManagement() {
           />
         </div>
         <div className="mb-6">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Độ khó</label>
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Độ khó
+          </label>
           <select
             value={editLessonDifficulty}
             onChange={(e) => setEditLessonDifficulty(parseInt(e.target.value))}
@@ -1069,8 +1672,19 @@ export default function AdminTopicManagement() {
           </select>
         </div>
         <div className="flex justify-end gap-3">
-          <button onClick={() => setShowEditLessonModal(false)} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">Hủy</button>
-          <button onClick={handleEditLesson} disabled={!editLessonName.trim()} className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all">Lưu thay đổi</button>
+          <button
+            onClick={() => setShowEditLessonModal(false)}
+            className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleEditLesson}
+            disabled={!editLessonName.trim()}
+            className="px-6 py-2.5 bg-[#0e7490] hover:bg-[#164e63] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all"
+          >
+            Lưu thay đổi
+          </button>
         </div>
       </ModalWrapper>
 
@@ -1080,11 +1694,14 @@ export default function AdminTopicManagement() {
         onClose={() => setShowConfirmDeleteLesson(false)}
         onConfirm={handleDeleteLessonConfirm}
         title="Xóa bài học"
-        message={lessonToDelete ? `Bạn có chắc chắn muốn xóa bài học "${lessonToDelete.name}" không? Các từ vựng trong bài học này sẽ không bị xóa.` : 'Bạn có chắc chắn muốn xóa bài học này không?'}
+        message={
+          lessonToDelete
+            ? `Bạn có chắc chắn muốn xóa bài học "${lessonToDelete.name}" không? Các từ vựng trong bài học này sẽ không bị xóa.`
+            : "Bạn có chắc chắn muốn xóa bài học này không?"
+        }
         confirmText="Xóa vĩnh viễn"
         isDanger={true}
       />
-
     </div>
   );
 }

@@ -5,8 +5,7 @@ import VocabTable from '../components/VocabTable';
 import AddToCollectionModal from '../components/AddToCollectionModal';
 import SearchBar from '../components/SearchBar';
 import FilterDropdown from '../components/FilterDropdown';
-import { downloadVocabImportTemplate, importVocabulariesCsv } from '../utils/services/vocabService';
-import { createVocabulary } from '../utils/services/vocabService';
+import { downloadVocabImportTemplate, importVocabulariesCsv, fetchUserVocabularies, createVocabulary } from '../utils/services/vocabService';
 
 
 
@@ -76,6 +75,29 @@ function VocabularyPage({ initialFilter }) {
       setDraftFilters(baseFilters);
     }
   }, [initialFilter]);
+
+  useEffect(() => {
+    const loadVocabularies = async () => {
+      try {
+        const data = await fetchUserVocabularies();
+        const formattedData = (data || []).map(word => ({
+          id: word.vocabId || word.id,
+          word: word.word,
+          word_type: word.wordType || word.word_type,
+          pronunciation: word.pronunciation,
+          meaning: word.meaning,
+          example: word.example,
+          level: word.level,
+          status: word.status || 'Chưa học'
+        }));
+        setVocabularies(formattedData);
+      } catch (error) {
+        toast.error('Lỗi khi tải danh sách từ vựng của bạn.');
+        console.error(error);
+      }
+    };
+    loadVocabularies();
+  }, []);
 
   const toggleDraftFilter = (category, value) => {
     setDraftFilters(prev => {
@@ -255,7 +277,7 @@ function VocabularyPage({ initialFilter }) {
           ...newWord,
           word: created?.word ?? wordTrimmed,
           id: created?.id ?? Date.now() + Math.random(),
-          created_by: CURRENT_USER_ID
+          createdBy: created?.createdBy
         });
         addedCount++;
       } catch {
@@ -263,8 +285,7 @@ function VocabularyPage({ initialFilter }) {
         currentVocabs.unshift({
           ...newWord,
           word: wordTrimmed,
-          id: Date.now() + Math.random(),
-          created_by: CURRENT_USER_ID
+          id: Date.now() + Math.random()
         });
         addedCount++;
       }
