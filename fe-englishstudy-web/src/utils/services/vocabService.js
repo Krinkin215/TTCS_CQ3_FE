@@ -4,6 +4,10 @@ export async function fetchVocabularyById(id) {
   return apiRequest(`/api/vocabularies/${id}`, { method: 'GET', auth: true });
 }
 
+export async function fetchUserVocabularies() {
+  return apiRequest('/api/vocabularies/user', { method: 'GET', auth: true });
+}
+
 export async function createVocabulary(payload) {
   return apiRequest('/api/vocabularies', { method: 'POST', auth: true, body: payload });
 }
