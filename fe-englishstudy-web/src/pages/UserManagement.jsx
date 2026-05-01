@@ -22,7 +22,8 @@ export default function UserManagement() {
         const data = await fetchAllUsers();
         const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
         if (!cancelled && Array.isArray(list) && list.length > 0) {
-          const mapped = list.map((u) => ({
+          const userRoleOnlyList = list.filter(u => String(u.role ?? 'USER').toUpperCase() === 'USER');
+          const mapped = userRoleOnlyList.map((u) => ({
             id: String(u.id ?? u.userId ?? ''),
             username: u.username ?? u.userName ?? u.name ?? '',
             fullName: u.fullName ?? u.full_name ?? u.name ?? '',

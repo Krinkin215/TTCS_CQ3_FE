@@ -354,15 +354,15 @@ export default function AdminVocabManagement() {
     setVocabularies(currentVocabs);
     setIsSaving(false);
 
-    let alertMsg = `KẾT QUẢ THÊM TỪ VỰNG:\n\n`;
-    if (addedCount > 0)
-      alertMsg += `✅ Thành công: Thêm ${addedCount} từ mới.\n`;
-    if (duplicateCount > 0)
-      alertMsg += `⚠️ Bỏ qua: ${duplicateCount} từ (Đã có sẵn trong hệ thống).\n`;
-    if (formatErrorCount > 0)
-      alertMsg += `❌ Lỗi định dạng: ${formatErrorCount} từ (Có chứa số/kí tự lạ hoặc phiên âm thiếu dấu / /).\n`;
-
-    toast.error(alertMsg);
+    if (addedCount > 0 && (duplicateCount + formatErrorCount) === 0) {
+      toast.success(`✅ Thành công: Thêm ${addedCount} từ mới.`);
+    } else {
+      let alertMsg = `KẾT QUẢ THÊM TỪ VỰNG:\n\n`;
+      if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} từ mới.\n`;
+      if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} từ (Đã có sẵn trong hệ thống).\n`;
+      if (formatErrorCount > 0) alertMsg += `❌ Lỗi định dạng: ${formatErrorCount} từ (Có chứa số/kí tự lạ hoặc phiên âm thiếu dấu / /).\n`;
+      toast(alertMsg);
+    }
 
     if (addedCount > 0) forceCloseAddModal();
   };
@@ -381,7 +381,7 @@ export default function AdminVocabManagement() {
         const lessonId =
           draftWords?.[0]?.lessonId ?? activeFilters?.lessons?.[0];
         await adminImportVocabulariesCsv(file, { topicId, lessonId });
-        toast.error(`Đã import file: ${file.name}`);
+        toast.success(`Đã import file: ${file.name}`);
       }
     } catch {
       toast.error(

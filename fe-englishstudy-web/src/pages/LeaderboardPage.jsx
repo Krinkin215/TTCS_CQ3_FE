@@ -58,7 +58,7 @@ function LeaderboardPage({ isAdmin = false }) {
       rank: user.rank ?? index + 1,
       _displayScore: getScore(user)
     }));
-  }, [timeFilter, sortBy]);
+  }, [timeFilter, sortBy, serverUsers]);
 
   const top3 = rankedUsers.slice(0, 3);
   const remainingUsers = rankedUsers.slice(3, 100); 

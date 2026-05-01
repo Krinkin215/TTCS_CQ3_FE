@@ -4,6 +4,7 @@ import LeaderboardPage from './LeaderboardPage';
 import UserManagement from './UserManagement';
 import AdminVocabManagement from './AdminVocabManagement';
 import AdminTopicManagement from './AdminTopicManagement';
+import { fetchAllUsers } from '../utils/services/adminUserService';
 
 export default function AdminHomePage({ onLogout }) {
   const getInitialTab = () => {
@@ -16,6 +17,27 @@ export default function AdminHomePage({ onLogout }) {
   };
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [totalUsers, setTotalUsers] = useState('—');
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchStats = async () => {
+      try {
+        const data = await fetchAllUsers();
+        const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
+        if (!cancelled && Array.isArray(list)) {
+          const userCount = list.filter(u => String(u.role ?? 'USER').toUpperCase() === 'USER').length;
+          setTotalUsers(userCount);
+        }
+      } catch (err) {
+        // Handle error silently
+      }
+    };
+    if (activeTab === 'dashboard') {
+      fetchStats();
+    }
+    return () => { cancelled = true; };
+  }, [activeTab]);
 
   useEffect(() => {
     const routeMap = {
@@ -53,7 +75,7 @@ export default function AdminHomePage({ onLogout }) {
   }, []);
 
   const stats = [
-    { label: 'Tổng người dùng', value: '—', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Tổng người dùng', value: totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Từ vựng hệ thống', value: '—', icon: BookOpen, color: 'text-cyan-600', bg: 'bg-cyan-50' },
     { label: 'Lượt học hôm nay', value: '—', icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50' },
   ];

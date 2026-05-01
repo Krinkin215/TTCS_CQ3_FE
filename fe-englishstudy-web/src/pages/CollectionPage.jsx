@@ -1,5 +1,5 @@
 import { toast } from 'react-hot-toast';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import VocabTable from '../components/VocabTable';
 import AddToCollectionModal from '../components/AddToCollectionModal';
 import FlashcardLearning from '../components/FlashcardLearning';
@@ -8,12 +8,39 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalWrapper from '../components/ModalWrapper';
 import FilterDropdown from '../components/FilterDropdown';
 import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp, MoreVertical, Heart, FolderPlus, ChevronRight, Filter } from 'lucide-react';
+import { fetchCollections, createCollection as apiCreateCollection, deleteCollection as apiDeleteCollection, fetchCollectionVocabs, addVocabToCollection } from '../utils/services/collectionService';
 
 const COLLECTION_NAME_LIMIT = 50;
 
 
 function CollectionPage({ onNavigateToPractice }) {
   const [collections, setCollections] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCollections = async () => {
+      setIsLoading(true);
+      try {
+        const data = await fetchCollections();
+        const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
+        if (!cancelled && Array.isArray(list)) {
+          setCollections(list.map(c => ({
+            id: c.collectionId ?? c.id,
+            name: c.collectionName ?? c.name ?? '',
+            wordCount: c.vocabCount ?? c.wordCount ?? 0,
+            masteredVocab: c.masteredVocab ?? 0
+          })));
+        }
+      } catch {
+        // API lỗi, giữ mảng rỗng
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    loadCollections();
+    return () => { cancelled = true; };
+  }, []);
 
 
 
@@ -127,40 +154,36 @@ function CollectionPage({ onNavigateToPractice }) {
     c.name.toLowerCase().includes(addModalSearchTerm.toLowerCase()) && c.id !== 0
   );
 
-  const handleConfirmAddToCollections = (targetCollectionIds) => {
+  const handleConfirmAddToCollections = async (targetCollectionIds) => {
     let addedCount = 0;
     let duplicateCount = 0;
 
-    const wordIdsToProcess = [wordToAdd.id];
-    const newDB = [...collectionVocabDB];
-    const addedCountsPerCollection = {};
-
-    wordIdsToProcess.forEach(wId => {
-      targetCollectionIds.forEach(cId => {
-        const isDuplicate = newDB.some(record => record.vocabId === wId && record.collectionId === cId);
-        if (isDuplicate) {
+    for (const cId of targetCollectionIds) {
+      try {
+        await addVocabToCollection(cId, wordToAdd.id);
+        addedCount++;
+      } catch (err) {
+        if (err?.status === 409 || err?.body?.includes?.('already')) {
           duplicateCount++;
         } else {
-          newDB.push({ vocabId: wId, collectionId: cId });
-          addedCountsPerCollection[cId] = (addedCountsPerCollection[cId] || 0) + 1;
-          addedCount++;
+          duplicateCount++;
         }
-      });
-    });
+      }
+    }
 
-    setCollectionVocabDB(newDB);
-
-    if (Object.keys(addedCountsPerCollection).length > 0) {
-      setCollections(prev => prev.map(c => 
-        addedCountsPerCollection[c.id] ? { ...c, wordCount: c.wordCount + addedCountsPerCollection[c.id] } : c
+    if (addedCount > 0) {
+      setCollections(prev => prev.map(c =>
+        targetCollectionIds.includes(c.id) ? { ...c, wordCount: c.wordCount + 1 } : c
       ));
     }
 
-    let alertMsg = `KẾT QUẢ THÊM VÀO BỘ TỪ:\n\n`;
-    if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} lượt từ vào các bộ.\n`;
-    if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} lượt (Vì từ đã tồn tại sẵn trong bộ được chọn).`;
-
-    toast.error(alertMsg);
+    if (addedCount > 0 && duplicateCount === 0) {
+      toast.success(`✅ Đã thêm từ vào ${addedCount} bộ từ thành công!`);
+    } else if (addedCount > 0 && duplicateCount > 0) {
+      toast(`Thêm ${addedCount} thành công, bỏ qua ${duplicateCount} (đã tồn tại).`);
+    } else {
+      toast(`⚠️ Từ đã tồn tại trong tất cả các bộ được chọn.`);
+    }
 
     setShowAddToCollectionModal(false);
   };
@@ -173,19 +196,23 @@ function CollectionPage({ onNavigateToPractice }) {
   };
 
 
-  const handleCreateCollection = (e) => {
+  const handleCreateCollection = async (e) => {
     e.preventDefault();
     if (!newCollectionName.trim()) return;
 
-    const newId = collections.length > 0 ? Math.max(...collections.map(c => c.id)) + 1 : 1;
-
-    const newCollection = {
-      id: newId,
-      name: newCollectionName.trim(),
-      wordCount: 0
-    };
-
-    setCollections([...collections, newCollection]);
+    try {
+      const created = await apiCreateCollection(newCollectionName.trim());
+      const newCollection = {
+        id: created?.collectionId ?? created?.id ?? Date.now(),
+        name: created?.collectionName ?? newCollectionName.trim(),
+        wordCount: created?.vocabCount ?? 0,
+        masteredVocab: 0
+      };
+      setCollections([...collections, newCollection]);
+      toast.success('Tạo bộ từ mới thành công!');
+    } catch {
+      toast.error('Tạo bộ từ thất bại. Vui lòng thử lại.');
+    }
 
     setShowCreateModal(false);
     setNewCollectionName('');
@@ -230,20 +257,45 @@ function CollectionPage({ onNavigateToPractice }) {
     setShowDeleteModal(true);
   };
 
-  const confirmSingleDelete = () => {
-    setCollections(collections.filter(c => c.id !== collectionToDelete.id));
+  const confirmSingleDelete = async () => {
+    try {
+      await apiDeleteCollection(collectionToDelete.id);
+      setCollections(collections.filter(c => c.id !== collectionToDelete.id));
+      toast.success('Đã xóa bộ từ thành công!');
+    } catch {
+      toast.error('Xóa bộ từ thất bại. Vui lòng thử lại.');
+    }
     setShowDeleteModal(false);
     setCollectionToDelete(null);
   };
 
-  const openWordList = (collection) => {
+  const openWordList = async (collection) => {
     setActiveCollection(collection);
-    setCollectionWords([]); // sẽ load từ API
+    setCollectionWords([]);
     setShowWordListModal(true);
     setWordListSearchTerm('');
     setSelectedWordLevels([]);
     setSelectedWordTypes([]);
     setShowWordFilterDropdown(false);
+
+    try {
+      const data = await fetchCollectionVocabs(collection.id);
+      const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
+      if (Array.isArray(list)) {
+        setCollectionWords(list.map(w => ({
+          id: w.vocabId ?? w.id,
+          word: w.word ?? '',
+          pronunciation: w.pronunciation ?? '',
+          word_type: w.wordType ?? w.word_type ?? '',
+          meaning: w.meaning ?? '',
+          example: w.example ?? '',
+          level: w.level ?? 1,
+          isFavorite: w.isFavorite ?? false
+        })));
+      }
+    } catch {
+      // API lỗi, giữ mảng rỗng
+    }
   };
 
 

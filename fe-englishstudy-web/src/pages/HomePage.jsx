@@ -46,6 +46,7 @@ import {
   fetchTopicVocabularies,
 } from "../utils/services/topicService";
 import { fetchLessons } from "../utils/services/lessonService";
+import { fetchCollections } from "../utils/services/collectionService";
 
 const TOPIC_COLORS = [
   "bg-green-100 text-green-700",
@@ -274,6 +275,21 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           .filter(Boolean);
 
         setTopics(mappedTopics);
+
+        // Load collections song song
+        try {
+          const collData = await fetchCollections();
+          const collList = Array.isArray(collData) ? collData : (collData?.items ?? collData?.data ?? []);
+          if (!cancelled && Array.isArray(collList)) {
+            setCollections(collList.map(c => ({
+              id: c.collectionId ?? c.id,
+              name: c.collectionName ?? c.name ?? '',
+              wordCount: c.vocabCount ?? c.wordCount ?? 0,
+            })));
+          }
+        } catch {
+          // ignore — collections sẽ giữ mảng rỗng
+        }
       } catch {
         // ignore — nếu API không trả dữ liệu, topics vẫn giữ giá trị hiện tại
       }

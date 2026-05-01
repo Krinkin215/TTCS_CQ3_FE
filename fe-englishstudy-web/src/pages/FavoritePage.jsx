@@ -4,6 +4,7 @@ import { Volume2, MoreVertical, FolderPlus, Trash2, Search, X } from 'lucide-rea
 import VocabTable from '../components/VocabTable';
 import AddToCollectionModal from '../components/AddToCollectionModal';
 import SearchBar from '../components/SearchBar';
+import { fetchCollections } from '../utils/services/collectionService';
 
 
 const ITEMS_PER_PAGE = 10;
@@ -12,6 +13,27 @@ const ITEMS_PER_PAGE = 10;
 function FavoritePage() {
   const [favorites, setFavorites] = useState([]);
   const [collections, setCollections] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCollections = async () => {
+      try {
+        const data = await fetchCollections();
+        const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
+        if (!cancelled && Array.isArray(list)) {
+          setCollections(list.map(c => ({
+            id: c.collectionId ?? c.id,
+            name: c.collectionName ?? c.name ?? '',
+            wordCount: c.vocabCount ?? c.wordCount ?? 0
+          })));
+        }
+      } catch {
+        // API lỗi, giữ mảng rỗng
+      }
+    };
+    loadCollections();
+    return () => { cancelled = true; };
+  }, []);
   
 
   const [openExampleId, setOpenExampleId] = useState(null); 
@@ -73,7 +95,13 @@ function FavoritePage() {
     if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} lượt từ vào các bộ.\n`;
     if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} lượt (Vì từ đã tồn tại sẵn trong bộ được chọn).`;
     
-    toast.error(alertMsg);
+    if (addedCount > 0 && duplicateCount === 0) {
+      toast.success(`✅ Đã thêm từ vào ${addedCount} bộ từ thành công!`);
+    } else if (addedCount > 0 && duplicateCount > 0) {
+      toast(`Thêm ${addedCount} thành công, bỏ qua ${duplicateCount} (đã tồn tại).`);
+    } else {
+      toast(`⚠️ Từ đã tồn tại trong các bộ được chọn.`);
+    }
 
     setShowAddToCollectionModal(false);
   };

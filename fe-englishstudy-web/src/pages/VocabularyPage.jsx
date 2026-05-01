@@ -295,13 +295,16 @@ function VocabularyPage({ initialFilter }) {
     setIsSaving(false);
 
     // TỔNG HỢP BÁO CÁO CHO NGƯỜI DÙNG
-    let alertMsg = `KẾT QUẢ THÊM TỪ VỰNG:\n\n`;
-    if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} từ mới.\n`;
-    if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} từ (Đã có sẵn trong hệ thống).\n`;
-    if (formatErrorCount > 0) alertMsg += `❌ Lỗi định dạng: ${formatErrorCount} từ (Có chứa số/kí tự lạ hoặc phiên âm thiếu dấu / /).\n`;
-    if (apiErrorCount > 0) alertMsg += `🌐 Từ vô nghĩa: Bỏ qua ${apiErrorCount} từ (Không tìm thấy trong từ điển tiếng Anh).\n`;
-
-    toast.error(alertMsg);
+    if (addedCount > 0 && (duplicateCount + formatErrorCount + apiErrorCount) === 0) {
+      toast.success(`✅ Thành công: Thêm ${addedCount} từ mới.`);
+    } else {
+      let alertMsg = `KẾT QUẢ THÊM TỪ VỰNG:\n\n`;
+      if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} từ mới.\n`;
+      if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} từ (Đã có sẵn trong hệ thống).\n`;
+      if (formatErrorCount > 0) alertMsg += `❌ Lỗi định dạng: ${formatErrorCount} từ (Có chứa số/kí tự lạ hoặc phiên âm thiếu dấu / /).\n`;
+      if (apiErrorCount > 0) alertMsg += `🌐 Từ vô nghĩa: Bỏ qua ${apiErrorCount} từ (Không tìm thấy trong từ điển tiếng Anh).\n`;
+      toast(alertMsg);
+    }
 
     if (addedCount > 0) forceCloseAddModal();
   };
@@ -331,7 +334,7 @@ function VocabularyPage({ initialFilter }) {
       if (e.target.files.length > 0) {
         const file = e.target.files[0];
         await importVocabulariesCsv(file, { collectionId: 0 });
-        toast.error(`Đã import file: ${file.name}`);
+        toast.success(`Đã import file: ${file.name}`);
       }
     } catch {
       toast.error('Import file thất bại. Vui lòng kiểm tra định dạng CSV.');
@@ -395,11 +398,13 @@ function VocabularyPage({ initialFilter }) {
 
     setCollectionVocabDB(newDB);
 
-    let alertMsg = `KẾT QUẢ THÊM VÀO BỘ TỪ:\n\n`;
-    if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} lượt từ vào các bộ.\n`;
-    if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} lượt (Vì từ đã tồn tại sẵn trong bộ được chọn).`;
-
-    toast.error(alertMsg);
+    if (addedCount > 0 && duplicateCount === 0) {
+      toast.success(`✅ Đã thêm từ vào ${addedCount} bộ từ thành công!`);
+    } else if (addedCount > 0 && duplicateCount > 0) {
+      toast(`Thêm ${addedCount} thành công, bỏ qua ${duplicateCount} (đã tồn tại).`);
+    } else {
+      toast(`⚠️ Từ đã tồn tại trong các bộ được chọn.`);
+    }
 
     setShowAddToCollectionModal(false);
   };

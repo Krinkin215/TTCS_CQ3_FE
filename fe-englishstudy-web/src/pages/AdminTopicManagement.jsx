@@ -234,7 +234,7 @@ export default function AdminTopicManagement() {
         return edited ? edited : cw;
       }),
     );
-    toast.error("Đã lưu thay đổi từ vựng!");
+    toast.success("Đã lưu thay đổi từ vựng!");
     setShowEditWordModal(false);
     setEditingWords([]);
   };
