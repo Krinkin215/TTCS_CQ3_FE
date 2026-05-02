@@ -83,7 +83,7 @@ function LeaderboardPage({ isAdmin = false }) {
           {isFirst && <Crown className="absolute -top-8 text-yellow-500 fill-yellow-500 animate-bounce" size={32} />}
           <img 
             src={user.avatarUrl} 
-            alt={user.username} 
+            alt={user.fullName || user.username} 
             className={`rounded-full object-cover border-4 shadow-md ${isFirst ? 'w-24 h-24 border-yellow-400' : 'w-20 h-20 border-gray-300'}`}
           />
           <div className={`absolute -bottom-3 w-8 h-8 rounded-full flex items-center justify-center font-black text-white shadow-lg ${isFirst ? 'bg-yellow-500' : isSecond ? 'bg-gray-400' : 'bg-orange-500'}`}>
@@ -95,6 +95,9 @@ function LeaderboardPage({ isAdmin = false }) {
           <h3 className={`font-bold truncate w-full mt-2 ${isFirst ? 'text-lg text-yellow-900' : 'text-base text-gray-800'}`}>
             {user.fullName}
           </h3>
+          <p className={`text-[10px] truncate w-full -mt-0.5 mb-1 ${isFirst ? 'text-yellow-700/80' : 'text-gray-500'}`}>
+            {user.email}
+          </p>
           
           <div className="mt-auto w-full flex flex-col gap-1.5 items-center border-t border-black/10 pt-2.5">
             

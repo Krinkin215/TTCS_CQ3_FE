@@ -145,9 +145,9 @@ function VocabTable({
                   </td>
                   
                   <td className="p-4 text-gray-500">{item.pronunciation}</td>
-                  <td className="p-4"><span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-sm font-medium">{item.word_type}</span></td>
+                  <td className="p-4"><span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-sm font-medium">{item.word_type || item.wordType || ''}</span></td>
                   <td className="p-4 font-medium max-w-[200px] truncate" title={item.meaning}>{item.meaning}</td>
-                  <td className="p-4 text-center"><span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{LEVEL_LABEL[item.level]}</span></td>
+                  <td className="p-4 text-center"><span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{LEVEL_LABEL[item.level] || item.level}</span></td>
                   
                   {showTopicColumn && (
                     <td className="p-4 text-gray-600 font-medium whitespace-nowrap">

@@ -2,40 +2,57 @@ import React, { useState, useEffect } from 'react';
 import { Volume2, X, ChevronLeft, ChevronRight, CheckCircle2, Gamepad2, RotateCcw, ArrowLeft, ArrowRight, Heart } from 'lucide-react';
 import { playAudio as playGlobalAudio } from '../utils/audio';
 import { fetchLessonVocabularies } from '../utils/services/lessonService';
+import { fetchCollectionVocabs } from '../utils/services/collectionService';
 import { saveVocabProgress } from '../utils/services/userService';
+import { addFavorite, removeFavorite, fetchFavorites } from '../utils/services/favouriteService';
 
 export default function FlashcardLearning({ topic, lesson, collection, onExit, onNextLesson, onPrevLesson, onPractice }) {
   const [localWords, setLocalWords] = React.useState([]);
+  const [favIds, setFavIds] = React.useState([]);
   
   React.useEffect(() => {
     const run = async () => {
-      // ưu tiên load vocab thật theo lesson nếu có
+      let vocabList = [];
+
+      // Load vocab theo lesson hoặc collection
       if (!collection && lesson?.id) {
         try {
           const res = await fetchLessonVocabularies(lesson.id);
           const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
-          if (Array.isArray(list) && list.length > 0) {
-            const mapped = list.map((w, idx) => ({
-              id: w.id ?? w.vocabId ?? `${lesson.id}-${idx}`,
-              word: w.word ?? '',
-              pronunciation: w.pronunciation ?? '',
-              word_type: w.word_type ?? w.type ?? '',
-              meaning: w.meaning ?? '',
-              example: w.example ?? '',
-              isFavorite: false,
-              status: w.status ?? 'LEARNING'
-            }));
-            setLocalWords(mapped);
-          } else {
-             setLocalWords([]);
-          }
-        } catch {
-             setLocalWords([]);
-        }
-      } else {
-         setLocalWords([]);
+          if (Array.isArray(list)) vocabList = list;
+        } catch { /* ignore */ }
+      } else if (collection?.id) {
+        try {
+          const res = await fetchCollectionVocabs(collection.id);
+          const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
+          if (Array.isArray(list)) vocabList = list;
+        } catch { /* ignore */ }
       }
-      
+
+      // Load favorites để đánh dấu trái tim
+      let loadedFavIds = [];
+      try {
+        const favRes = await fetchFavorites();
+        const favList = Array.isArray(favRes) ? favRes : (favRes?.items ?? favRes?.data ?? []);
+        loadedFavIds = favList.map(f => f.vocabId ?? f.id).filter(Boolean);
+      } catch { /* ignore */ }
+
+      if (Array.isArray(vocabList) && vocabList.length > 0) {
+        const mapped = vocabList.map((w, idx) => ({
+          id: w.vocabId ?? w.id ?? `${lesson?.id ?? collection?.id}-${idx}`,
+          word: w.word ?? '',
+          pronunciation: w.pronunciation ?? '',
+          word_type: w.wordType ?? w.word_type ?? '',
+          meaning: w.meaning ?? '',
+          example: w.example ?? '',
+          isFavorite: loadedFavIds.includes(w.vocabId ?? w.id),
+          status: w.status ?? 'LEARNING'
+        }));
+        setLocalWords(mapped);
+      } else {
+        setLocalWords([]);
+      }
+      setFavIds(loadedFavIds);
       setCurrentIndex(0);
       setIsFinished(false);
       setIsFlipped(false);
@@ -50,9 +67,17 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
 
   const currentWord = localWords[currentIndex] || localWords[0] || {};
 
-  const toggleLocalFavorite = (id) => {
-    setLocalWords(prev => prev.map(w => w.id === id ? { ...w, isFavorite: !w.isFavorite } : w));
-    console.log(`Đã đồng bộ Yêu thích cho từ ID: ${id} với cơ sở dữ liệu`);
+  const toggleLocalFavorite = async (id) => {
+    const isFav = favIds.includes(id);
+    try {
+      if (isFav) {
+        await removeFavorite(id);
+      } else {
+        await addFavorite(id);
+      }
+      setFavIds(prev => prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]);
+      setLocalWords(prev => prev.map(w => w.id === id ? { ...w, isFavorite: !w.isFavorite } : w));
+    } catch { /* ignore */ }
   };
 
   useEffect(() => {
@@ -85,14 +110,12 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
     if (collection) return;
     if (!lesson?.id) return;
 
-    // best-effort lưu tiến độ học
+    // best-effort lưu tiến độ học (gửi isCorrect = true cho từ đã xem)
     Promise.all(
       localWords.map((w) =>
         saveVocabProgress({
           vocabId: w.id,
-          status: w.status ?? 'LEARNING',
-          lessonId: lesson.id,
-          topicId: topic?.id
+          isCorrect: true
         }).catch(() => {})
       )
     ).catch(() => {});

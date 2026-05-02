@@ -1,5 +1,6 @@
 import { toast } from 'react-hot-toast';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import VocabTable from '../components/VocabTable';
 import AddToCollectionModal from '../components/AddToCollectionModal';
 import FlashcardLearning from '../components/FlashcardLearning';
@@ -8,7 +9,9 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalWrapper from '../components/ModalWrapper';
 import FilterDropdown from '../components/FilterDropdown';
 import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp, MoreVertical, Heart, FolderPlus, ChevronRight, Filter } from 'lucide-react';
-import { fetchCollections, createCollection as apiCreateCollection, deleteCollection as apiDeleteCollection, fetchCollectionVocabs, addVocabToCollection } from '../utils/services/collectionService';
+import { fetchCollections, createCollection as apiCreateCollection, deleteCollection as apiDeleteCollection, fetchCollectionVocabs, addVocabToCollection, updateCollectionName, removeVocabFromCollection } from '../utils/services/collectionService';
+import { addFavorite, removeFavorite, fetchFavorites } from '../utils/services/favouriteService';
+import { fetchVocabularyById } from '../utils/services/vocabService';
 
 const COLLECTION_NAME_LIMIT = 50;
 
@@ -191,8 +194,19 @@ function CollectionPage({ onNavigateToPractice }) {
 
 
 
-  const toggleFavorite = (id) => {
-    setCollectionWords(collectionWords.map(w => w.id === id ? { ...w, isFavorite: !w.isFavorite } : w));
+  const toggleFavorite = async (id) => {
+    const word = collectionWords.find(w => w.id === id);
+    if (!word) return;
+    try {
+      if (word.isFavorite) {
+        await removeFavorite(id);
+      } else {
+        await addFavorite(id);
+      }
+      setCollectionWords(collectionWords.map(w => w.id === id ? { ...w, isFavorite: !w.isFavorite } : w));
+    } catch {
+      toast.error('Cập nhật yêu thích thất bại.');
+    }
   };
 
 
@@ -237,11 +251,17 @@ function CollectionPage({ onNavigateToPractice }) {
     setTempName(collection.name);
   };
 
-  const saveRename = () => {
+  const saveRename = async () => {
     if (!tempName.trim()) return;
-    setCollections(collections.map(c =>
-      c.id === editingId ? { ...c, name: tempName.trim() } : c
-    ));
+    try {
+      await updateCollectionName(editingId, tempName.trim());
+      setCollections(collections.map(c =>
+        c.id === editingId ? { ...c, name: tempName.trim() } : c
+      ));
+      toast.success('Đổi tên bộ từ thành công!');
+    } catch {
+      toast.error('Đổi tên thất bại. Vui lòng thử lại.');
+    }
     setEditingId(null);
     setTempName('');
   };
@@ -279,19 +299,38 @@ function CollectionPage({ onNavigateToPractice }) {
     setShowWordFilterDropdown(false);
 
     try {
-      const data = await fetchCollectionVocabs(collection.id);
-      const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
-      if (Array.isArray(list)) {
-        setCollectionWords(list.map(w => ({
-          id: w.vocabId ?? w.id,
-          word: w.word ?? '',
-          pronunciation: w.pronunciation ?? '',
-          word_type: w.wordType ?? w.word_type ?? '',
-          meaning: w.meaning ?? '',
-          example: w.example ?? '',
-          level: w.level ?? 1,
-          isFavorite: w.isFavorite ?? false
-        })));
+      const [data, favData] = await Promise.allSettled([
+        fetchCollectionVocabs(collection.id),
+        fetchFavorites(),
+      ]);
+      const list = data.status === 'fulfilled'
+        ? (Array.isArray(data.value) ? data.value : (data.value?.items ?? data.value?.data ?? []))
+        : [];
+      const favIds = favData.status === 'fulfilled'
+        ? (Array.isArray(favData.value) ? favData.value : (favData.value?.items ?? favData.value?.data ?? [])).map(f => f.vocabId ?? f.id)
+        : [];
+
+      if (Array.isArray(list) && list.length > 0) {
+        // CollectionVocabResponse chỉ có vocabId, word, meaning, pronunciation
+        // → cần fetch chi tiết từng từ để có wordType, level, example
+        const detailResults = await Promise.allSettled(
+          list.map(w => fetchVocabularyById(w.vocabId ?? w.id))
+        );
+        const LEVEL_MAP = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+        setCollectionWords(list.map((w, idx) => {
+          const detail = detailResults[idx]?.status === 'fulfilled' ? detailResults[idx].value : null;
+          const vid = w.vocabId ?? w.id;
+          return {
+            id: vid,
+            word: detail?.word ?? w.word ?? '',
+            pronunciation: detail?.pronunciation ?? w.pronunciation ?? '',
+            word_type: detail?.wordType ?? w.wordType ?? w.word_type ?? '',
+            meaning: detail?.meaning ?? w.meaning ?? '',
+            example: detail?.example ?? w.example ?? '',
+            level: LEVEL_MAP[detail?.level] ?? LEVEL_MAP[w.level] ?? w.level ?? 1,
+            isFavorite: favIds.includes(vid)
+          };
+        }));
       }
     } catch {
       // API lỗi, giữ mảng rỗng
@@ -312,22 +351,32 @@ function CollectionPage({ onNavigateToPractice }) {
     setShowWordDeleteModal(true);
   };
 
-  const confirmWordDelete = () => {
+  const confirmWordDelete = async () => {
     if (!wordToDelete) return;
-    
-    let updatedWords = collectionWords.filter(w => w.id !== wordToDelete.id);
-    let deletedCount = 1;
 
-    setCollectionWords(updatedWords);
-
-    setCollections(collections.map(c => {
-      if (c.id === activeCollection.id) {
-        const newWordCount = Math.max(0, c.wordCount - deletedCount);
-        const newMastered = Math.min(c.masteredVocab || 0, newWordCount);
-        return { ...c, wordCount: newWordCount, masteredVocab: newMastered };
+    try {
+      if (activeCollection?.id === 0) {
+        // Xóa khỏi hệ thống - không có API xóa vocab khỏi collection cho "Từ vựng của tôi"
+      } else {
+        await removeVocabFromCollection(activeCollection.id, wordToDelete.id);
       }
-      return c;
-    }));
+      let updatedWords = collectionWords.filter(w => w.id !== wordToDelete.id);
+      let deletedCount = 1;
+
+      setCollectionWords(updatedWords);
+
+      setCollections(collections.map(c => {
+        if (c.id === activeCollection.id) {
+          const newWordCount = Math.max(0, c.wordCount - deletedCount);
+          const newMastered = Math.min(c.masteredVocab || 0, newWordCount);
+          return { ...c, wordCount: newWordCount, masteredVocab: newMastered };
+        }
+        return c;
+      }));
+      toast.success('Đã xóa từ khỏi bộ từ!');
+    } catch {
+      toast.error('Xóa từ thất bại. Vui lòng thử lại.');
+    }
 
     setShowWordDeleteModal(false);
     setWordToDelete(null);
@@ -345,48 +394,72 @@ function CollectionPage({ onNavigateToPractice }) {
     return true;
   });
 
-  // cột hành động
+  // cột hành động — dùng Portal để dropdown không bị overflow clip
   const CollectionWordActionColumn = ({ item }) => {
     const [openMenuId, setOpenMenuId] = useState(null);
+    const btnRef = useRef(null);
+    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
+    const handleToggle = () => {
+      if (openMenuId === item.id) {
+        setOpenMenuId(null);
+        return;
+      }
+      if (btnRef.current) {
+        const rect = btnRef.current.getBoundingClientRect();
+        setMenuPos({ top: rect.bottom + 4, left: rect.left - 180 });
+      }
+      setOpenMenuId(item.id);
+    };
+
+    const closeMenu = () => setOpenMenuId(null);
 
     return (
-      <div className="relative flex justify-center">
+      <div className="flex justify-center">
         <button
-          onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+          ref={btnRef}
+          onClick={handleToggle}
           className="p-2 text-gray-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-full transition-colors"
         >
           <MoreVertical size={20} />
         </button>
 
-        {openMenuId === item.id && (
-          <div className="absolute right-8 top-10 w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-50 text-left">
-            {activeCollection?.id === 0 && (
+        {openMenuId === item.id && createPortal(
+          <>
+            <div className="fixed inset-0 z-[9998]" onClick={closeMenu} />
+            <div
+              className="fixed w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
+              style={{ top: menuPos.top, left: menuPos.left }}
+            >
+              {activeCollection?.id === 0 && (
+                <button
+                  onClick={() => { closeMenu(); handleOpenEditModal([item]); }}
+                  className="w-full px-4 py-2 text-sm text-cyan-700 hover:bg-cyan-50 text-left font-medium flex items-center gap-2 border-b border-gray-100"
+                >
+                  <Edit2 size={16} /> Chỉnh sửa
+                </button>
+              )}
               <button
-                onClick={() => { setOpenMenuId(null); handleOpenEditModal([item]); }}
-                className="w-full px-4 py-2 text-sm text-cyan-700 hover:bg-cyan-50 text-left font-medium flex items-center gap-2 border-b border-gray-100"
+                onClick={() => { closeMenu(); handleOpenAddToCollectionModal(item); }}
+                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium"
               >
-                <Edit2 size={16} /> Chỉnh sửa
+                Thêm vào bộ từ...
               </button>
-            )}
-            <button
-              onClick={() => { setOpenMenuId(null); handleOpenAddToCollectionModal(item); }}
-              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium"
-            >
-              Thêm vào bộ từ...
-            </button>
-            <button
-              onClick={() => { setOpenMenuId(null); toggleFavorite(item.id); }}
-              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium flex justify-between items-center"
-            >
-              Yêu thích <Heart size={16} fill={item.isFavorite ? "currentColor" : "none"} className={item.isFavorite ? "text-red-500" : "text-gray-400"} />
-            </button>
-            <button
-              onClick={() => { setOpenMenuId(null); handleWordDeleteClick(item); }}
-              className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
-            >
-              {activeCollection?.id === 0 ? 'Xóa khỏi hệ thống' : 'Xóa khỏi bộ từ này'}
-            </button>
-          </div>
+              <button
+                onClick={() => { closeMenu(); toggleFavorite(item.id); }}
+                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium flex justify-between items-center"
+              >
+                Yêu thích <Heart size={16} fill={item.isFavorite ? "currentColor" : "none"} className={item.isFavorite ? "text-red-500" : "text-gray-400"} />
+              </button>
+              <button
+                onClick={() => { closeMenu(); handleWordDeleteClick(item); }}
+                className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
+              >
+                {activeCollection?.id === 0 ? 'Xóa khỏi hệ thống' : 'Xóa khỏi bộ từ này'}
+              </button>
+            </div>
+          </>,
+          document.body
         )}
       </div>
     );
@@ -437,7 +510,7 @@ function CollectionPage({ onNavigateToPractice }) {
             <div className={collection.wordCount > 0 ? "cursor-pointer" : ""} onClick={() => { if (collection.wordCount > 0) setActiveFlashcardSession({ collection }); }}>
               
               <div className="flex items-center gap-3 mb-4">
-                {collection.id === 0 ? (
+                {collection.name === 'Từ vựng của tôi' ? (
                   <span className="flex items-center justify-center w-12 h-12 bg-orange-100 text-orange-500 rounded-xl">
                     <Bookmark size={24} fill="currentColor" />
                   </span>
@@ -473,7 +546,7 @@ function CollectionPage({ onNavigateToPractice }) {
                   <h3 title={collection.name} className="text-lg font-bold text-cyan-950 line-clamp-2 flex-1 mt-1 leading-snug">
                     {collection.name}
                   </h3>
-                  {collection.id !== 0 && (
+                  {collection.name !== 'Từ vựng của tôi' && (
                     <button
                       onClick={(e) => { e.stopPropagation(); startEditing(collection); }}
                       className="p-1.5 text-cyan-600 hover:bg-cyan-100 rounded-full opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0 absolute right-0 top-1"
@@ -517,7 +590,7 @@ function CollectionPage({ onNavigateToPractice }) {
                 <Eye size={16} /> Xem từ
               </button>
 
-              {collection.id !== 0 && (
+              {collection.name !== 'Từ vựng của tôi' && (
                 <button
                   onClick={() => openDeleteModal(collection)}
                   className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-red-500 hover:bg-red-50 border border-red-100 transition-colors shrink-0 shadow-sm"

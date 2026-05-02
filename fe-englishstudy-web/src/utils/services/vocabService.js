@@ -43,7 +43,8 @@ export async function adminImportVocabulariesCsv(file, { topicId, lessonId } = {
 }
 
 export async function downloadVocabImportTemplate() {
-  const res = await fetch('/api/templates/vocab-import.csv', { method: 'GET' });
+  const API_BASE_URL = (import.meta?.env?.VITE_API_BASE_URL ?? 'http://localhost:8080').replace(/\/$/, '');
+  const res = await fetch(`${API_BASE_URL}/api/templates/vocab-import.csv`, { method: 'GET' });
   if (!res.ok) throw new Error('Template download failed');
   return res.blob();
 }

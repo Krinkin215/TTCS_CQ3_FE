@@ -33,6 +33,8 @@ const FILTER_OPTIONS = {
   levels: ["A1", "A2", "B1", "B2", "C1", "C2"],
 };
 
+const INT_TO_LEVEL = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
+
 const getTopicId = (topic) => topic?.id ?? topic?.topicId ?? topic?.topic_id;
 const getLessonId = (lesson) =>
   lesson?.id ?? lesson?.lessonId ?? lesson?.lesson_id;
@@ -115,6 +117,7 @@ export default function AdminVocabManagement() {
               lessonId: v.lessonId ?? v.lesson_id ?? v.lesson?.id,
               lessonName: v.lessonName ?? v.lesson_name ?? v.lesson?.name,
               topic: topicName,
+              word_type: v.word_type ?? v.wordType ?? v.type ?? "Danh từ",
             }));
             allVocabs = [...allVocabs, ...mapped];
           });
@@ -322,9 +325,9 @@ export default function AdminVocabManagement() {
         const created = await createVocabulary({
           word: wordTrimmed,
           pronunciation: newWord.pronunciation?.trim() || "",
-          word_type: newWord.word_type || "",
+          wordType: newWord.word_type || "",
           meaning: newWord.meaning?.trim() || "",
-          level: newWord.level || 1,
+          level: INT_TO_LEVEL[newWord.level] ?? newWord.level ?? 'A1',
           example: newWord.example || "",
           topicId: newWord.topicId,
           lessonId: newWord.lessonId,
@@ -376,10 +379,15 @@ export default function AdminVocabManagement() {
     try {
       if (e.target.files.length > 0) {
         const file = e.target.files[0];
-        // ưu tiên import theo bộ lọc topic/lesson hiện tại (nếu có)
         const topicId = draftWords?.[0]?.topicId ?? activeFilters?.topics?.[0];
-        const lessonId =
-          draftWords?.[0]?.lessonId ?? activeFilters?.lessons?.[0];
+        const lessonId = draftWords?.[0]?.lessonId ?? activeFilters?.lessons?.[0];
+
+        if (!topicId || !lessonId) {
+          toast.error("Vui lòng chọn Chủ đề và Bài học trước khi Import file CSV!");
+          e.target.value = null;
+          return;
+        }
+
         await adminImportVocabulariesCsv(file, { topicId, lessonId });
         toast.success(`Đã import file: ${file.name}`);
       }
@@ -456,9 +464,9 @@ export default function AdminVocabManagement() {
           await updateVocabulary(w.id, {
             word: w.word,
             pronunciation: w.pronunciation,
-            word_type: w.word_type,
+            wordType: w.word_type,
             meaning: w.meaning,
-            level: w.level,
+            level: INT_TO_LEVEL[w.level] ?? w.level ?? 'A1',
             example: w.example,
           });
         } catch {

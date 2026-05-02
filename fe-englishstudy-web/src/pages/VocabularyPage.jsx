@@ -6,6 +6,11 @@ import AddToCollectionModal from '../components/AddToCollectionModal';
 import SearchBar from '../components/SearchBar';
 import FilterDropdown from '../components/FilterDropdown';
 import { downloadVocabImportTemplate, importVocabulariesCsv, fetchUserVocabularies, createVocabulary } from '../utils/services/vocabService';
+import { addFavorite, removeFavorite, fetchFavorites } from '../utils/services/favouriteService';
+import { addVocabToCollection, fetchCollections } from '../utils/services/collectionService';
+import { getLearnedVocabStats } from '../utils/services/progressService';
+import { fetchTopics, fetchTopicVocabularies } from '../utils/services/topicService';
+import { getMe } from '../utils/services/authService';
 
 
 
@@ -77,26 +82,137 @@ function VocabularyPage({ initialFilter }) {
   }, [initialFilter]);
 
   useEffect(() => {
-    const loadVocabularies = async () => {
+    let cancelled = false;
+    const loadData = async () => {
       try {
-        const data = await fetchUserVocabularies();
-        const formattedData = (data || []).map(word => ({
-          id: word.vocabId || word.id,
-          word: word.word,
-          word_type: word.wordType || word.word_type,
-          pronunciation: word.pronunciation,
-          meaning: word.meaning,
-          example: word.example,
-          level: word.level,
-          status: word.status || 'Chưa học'
-        }));
-        setVocabularies(formattedData);
+        // Lấy userId trước khi gọi API cần userId
+        let userId = null;
+        try {
+          const principal = await getMe();
+          const u = principal?.user || principal;
+          userId = u?.userId ?? u?.user_id ?? u?.id ?? null;
+        } catch { /* ignore */ }
+
+        // Load từ vựng user tạo + collections + topics + favorites song song
+        const apiCalls = [
+          fetchUserVocabularies(),
+          fetchCollections(),
+          fetchTopics(),
+          fetchFavorites(),
+        ];
+        if (userId) apiCalls.push(getLearnedVocabStats(userId));
+        const [vocabRes, collRes, topicsRes, favRes, statsRes] = await Promise.allSettled(apiCalls);
+
+        // Từ vựng do user tạo
+        const userVocabList = vocabRes.status === 'fulfilled'
+          ? (Array.isArray(vocabRes.value) ? vocabRes.value : (vocabRes.value?.items ?? vocabRes.value?.data ?? []))
+          : [];
+
+        // Từ vựng do admin thêm vào topics/lessons
+        const topicsList = topicsRes.status === 'fulfilled'
+          ? (Array.isArray(topicsRes.value) ? topicsRes.value : (topicsRes.value?.items ?? topicsRes.value?.data ?? []))
+          : [];
+
+        const topicVocabResults = await Promise.allSettled(
+          topicsList.map(t => fetchTopicVocabularies(t.topicId ?? t.id))
+        );
+
+        // Admin vocabularies with topicId added
+        const adminVocabList = [];
+        topicsList.forEach((t, idx) => {
+          const res = topicVocabResults[idx];
+          if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+            const tid = t.topicId ?? t.id;
+            res.value.forEach(v => { v.topicId = tid; });
+            adminVocabList.push(...res.value);
+          }
+        });
+
+        // Merge user vocab + admin vocab, deduplicate by vocabId
+        const seen = new Set();
+        const allVocabList = [];
+        for (const w of [...userVocabList, ...adminVocabList]) {
+          const vid = w.vocabId ?? w.id;
+          if (vid && !seen.has(vid)) {
+            seen.add(vid);
+            allVocabList.push(w);
+          }
+        }
+
+        // Map trạng thái từ thống kê tiến độ
+        const statusMap = {};
+        if (statsRes.status === 'fulfilled' && statsRes.value) {
+          const statsData = statsRes.value;
+          const learnedItems = Array.isArray(statsData?.learnedVocabs)
+            ? statsData.learnedVocabs
+            : (statsData?.items ?? statsData?.data ?? []);
+          learnedItems.forEach(item => {
+            const vid = item.vocabId ?? item.id;
+            if (vid) statusMap[vid] = item.status ?? 'NEW';
+          });
+        }
+
+        const STATUS_MAP = { NEW: 'Chưa học', LEARNING: 'Chưa thuộc', MASTERED: 'Đã thuộc' };
+        const LEVEL_MAP = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+        // Danh sách yêu thích
+        const favIds = favRes.status === 'fulfilled'
+          ? (Array.isArray(favRes.value) ? favRes.value : (favRes.value?.items ?? favRes.value?.data ?? [])).map(f => f.vocabId ?? f.id).filter(Boolean)
+          : [];
+        if (!cancelled) setFavoriteVocabDB(favIds);
+
+        // Map topicId -> topicName để hiển thị cột chủ đề
+        const topicNameMap = {};
+        topicsList.forEach(t => {
+          topicNameMap[t.topicId ?? t.id] = t.topicName ?? t.name ?? t.title ?? '';
+        });
+
+        const formattedData = allVocabList.map(word => {
+          const vid = word.vocabId || word.id;
+          return {
+            id: vid,
+            word: word.word || '',
+            word_type: word.wordType || word.word_type || '',
+            pronunciation: word.pronunciation || '',
+            meaning: word.meaning || '',
+            example: word.example || '',
+            level: LEVEL_MAP[word.level] ?? word.level ?? 1,
+            status: STATUS_MAP[statusMap[vid]] || word.status || 'Chưa học',
+            isFavorite: favIds.includes(vid),
+            topicId: word.topicId ?? null,
+            topic: topicNameMap[word.topicId] || null,
+            lessonId: word.lessonId ?? null,
+            lesson: word.lessonName ?? null,
+            lessonName: word.lessonName ?? null
+          };
+        });
+        if (!cancelled) setVocabularies(formattedData);
+
+        // Collections cho modal & bộ lọc
+        if (collRes.status === 'fulfilled') {
+          const collList = Array.isArray(collRes.value) ? collRes.value : (collRes.value?.items ?? collRes.value?.data ?? []);
+          if (!cancelled && Array.isArray(collList)) {
+            setCollections(collList.map(c => ({
+              id: c.collectionId ?? c.id,
+              name: c.collectionName ?? c.name ?? '',
+              wordCount: c.vocabCount ?? c.wordCount ?? 0
+            })));
+          }
+        }
+
+        // Topics cho bộ lọc
+        if (!cancelled && Array.isArray(topicsList)) {
+          setTopicsList(topicsList.map(t => ({
+            id: t.topicId ?? t.id,
+            name: t.topicName ?? t.name ?? t.title ?? ''
+          })));
+        }
       } catch (error) {
         toast.error('Lỗi khi tải danh sách từ vựng của bạn.');
         console.error(error);
       }
     };
-    loadVocabularies();
+    loadData();
+    return () => { cancelled = true; };
   }, []);
 
   const toggleDraftFilter = (category, value) => {
@@ -264,12 +380,13 @@ function VocabularyPage({ initialFilter }) {
 
       // PASS TOÀN BỘ -> LƯU VỀ BACKEND (fallback local nếu backend lỗi)
       try {
+        const INT_TO_LEVEL = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
         const created = await createVocabulary({
           word: wordTrimmed,
           pronunciation: newWord.pronunciation?.trim() || '',
-          word_type: newWord.word_type || '',
+          wordType: newWord.word_type || '',
           meaning: newWord.meaning?.trim() || '',
-          level: newWord.level || 1,
+          level: INT_TO_LEVEL[newWord.level] ?? newWord.level ?? 'A1',
           example: newWord.example || ''
         });
 
@@ -346,10 +463,20 @@ function VocabularyPage({ initialFilter }) {
 
 
 
-  const toggleFavorite = (id) => {
-    setFavoriteVocabDB(prev =>
-      prev.includes(id) ? prev.filter(vId => vId !== id) : [...prev, id]
-    );
+  const toggleFavorite = async (id) => {
+    const isFav = favoriteVocabDB.includes(id);
+    try {
+      if (isFav) {
+        await removeFavorite(id);
+      } else {
+        await addFavorite(id);
+      }
+      setFavoriteVocabDB(prev =>
+        prev.includes(id) ? prev.filter(vId => vId !== id) : [...prev, id]
+      );
+    } catch {
+      toast.error('Cập nhật yêu thích thất bại.');
+    }
   };
 
   // Modal Thêm vào bộ từ
@@ -376,27 +503,18 @@ function VocabularyPage({ initialFilter }) {
     }
   };
 
-  const handleConfirmAddToCollections = (targetCollectionIds) => {
+  const handleConfirmAddToCollections = async (targetCollectionIds) => {
     let addedCount = 0;
     let duplicateCount = 0;
 
-    const wordIdsToProcess = [wordToAdd.id];
-    const newDB = [...collectionVocabDB];
-
-    wordIdsToProcess.forEach(wId => {
-      targetCollectionIds.forEach(cId => {
-        const isDuplicate = newDB.some(record => record.vocabId === wId && record.collectionId === cId);
-
-        if (isDuplicate) {
-          duplicateCount++;
-        } else {
-          newDB.push({ vocabId: wId, collectionId: cId });
-          addedCount++;
-        }
-      });
-    });
-
-    setCollectionVocabDB(newDB);
+    for (const cId of targetCollectionIds) {
+      try {
+        await addVocabToCollection(cId, wordToAdd.id);
+        addedCount++;
+      } catch {
+        duplicateCount++;
+      }
+    }
 
     if (addedCount > 0 && duplicateCount === 0) {
       toast.success(`✅ Đã thêm từ vào ${addedCount} bộ từ thành công!`);
@@ -641,6 +759,8 @@ function VocabularyPage({ initialFilter }) {
         words={filteredVocabularies}
         searchTerm={searchTerm}
         ActionColumn={VocabularyActionColumn}
+        showTopicColumn={true}
+        showLessonColumn={true}
       />
 
       {/* modal thêm vào bộ từ */}

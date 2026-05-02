@@ -240,7 +240,7 @@ export default function UserManagement() {
                             )}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-800 text-base">{user.username}</p>
+                            <p className="font-bold text-slate-800 text-base">{user.fullName || user.username}</p>
                             <p className="text-sm text-slate-500">{user.email}</p>
                           </div>
                         </div>
@@ -307,7 +307,7 @@ export default function UserManagement() {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Xác nhận xóa"
-        message={`Bạn có chắc chắn muốn xóa tài khoản "${userToDelete?.username}" không? Hành động này không thể hoàn tác.`}
+        message={`Bạn có chắc chắn muốn xóa tài khoản "${userToDelete?.fullName || userToDelete?.username}" không? Hành động này không thể hoàn tác.`}
         isDanger={true}
       />
 

@@ -52,3 +52,27 @@ export async function addVocabToCollection(collectionId, vocabId) {
     auth: true
   });
 }
+/**
+ * Đổi tên collection
+ * @param {number|string} collectionId
+ * @param {string} newName
+ */
+export async function updateCollectionName(collectionId, newName) {
+  return apiRequest(`/api/collections/${collectionId}`, {
+    method: 'PUT',
+    auth: true,
+    body: { name: newName }
+  });
+}
+
+/**
+ * Xóa từ vựng khỏi collection
+ * @param {number|string} collectionId
+ * @param {number|string} vocabId
+ */
+export async function removeVocabFromCollection(collectionId, vocabId) {
+  return apiRequest(`/api/collections/${collectionId}/vocabs/${vocabId}`, {
+    method: 'DELETE',
+    auth: true
+  });
+}

@@ -34,7 +34,6 @@ import {
   updateTopic as apiUpdateTopic,
   deleteTopic as apiDeleteTopic,
   fetchTopicVocabularies,
-  importTopicVocabularies,
 } from "../utils/services/topicService";
 import {
   fetchLessons,
@@ -42,11 +41,13 @@ import {
   createLesson as apiCreateLesson,
   updateLesson as apiUpdateLesson,
   deleteLesson as apiDeleteLesson,
+  fetchLessonVocabularies,
 } from "../utils/services/lessonService";
 import {
   updateVocabulary,
   deleteVocabulary,
   fetchVocabularyById,
+  adminImportVocabulariesCsv,
 } from "../utils/services/vocabService";
 
 export default function AdminTopicManagement() {
@@ -166,8 +167,8 @@ export default function AdminTopicManagement() {
   const [showEditWordModal, setShowEditWordModal] = useState(false);
   const [editingWords, setEditingWords] = useState([]);
 
-  // import CSV cho chủ đề
-  const topicCsvFileRef = useRef(null);
+  // import CSV cho bài học
+  const lessonCsvFileRef = useRef(null);
 
   // modal chỉnh sửa bài học
   const [showEditLessonModal, setShowEditLessonModal] = useState(false);
@@ -209,12 +210,13 @@ export default function AdminTopicManagement() {
     await Promise.all(
       editingWords.map(async (w) => {
         try {
+          const INT_TO_LEVEL = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
           await updateVocabulary(w.id, {
             word: w.word,
             pronunciation: w.pronunciation,
-            word_type: w.word_type,
+            wordType: w.word_type,
             meaning: w.meaning,
-            level: w.level,
+            level: INT_TO_LEVEL[w.level] ?? w.level ?? 'A1',
             example: w.example,
           });
         } catch {
@@ -359,17 +361,20 @@ export default function AdminTopicManagement() {
     }
   };
 
-  // IMPORT CSV CHO CHỦ ĐỀ
-  const handleTopicCsvImport = async (e) => {
+  // IMPORT CSV CHO BÀI HỌC
+  const handleLessonCsvImport = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !activeTopic) return;
+    if (!file || !activeLesson || !activeTopic) return;
     try {
-      await importTopicVocabularies(activeTopic.id, file);
+      await adminImportVocabulariesCsv(file, {
+        topicId: activeTopic.id,
+        lessonId: activeLesson.id,
+      });
       toast.success(
-        `Đã import CSV vào chủ đề "${activeTopic.title}" thành công!`,
+        `Đã import CSV vào bài học "${activeLesson.name}" thành công!`,
       );
-      // reload words for this topic
-      const words = await fetchTopicVocabularies(activeTopic.id);
+      // reload words for this lesson
+      const words = await fetchLessonVocabularies(activeLesson.id);
       const list = Array.isArray(words)
         ? words
         : (words?.items ?? words?.data ?? []);
@@ -382,10 +387,10 @@ export default function AdminTopicManagement() {
             word_type: w.word_type ?? w.type ?? "",
             meaning: w.meaning ?? "",
             example: w.example ?? "",
-            level: w.level ?? 1,
+            level: { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 }[w.level] ?? w.level ?? 1,
             topicId: activeTopic.id,
-            lessonId: w.lessonId ?? w.lesson?.id,
-            lessonName: w.lessonName ?? w.lesson?.name,
+            lessonId: activeLesson.id,
+            lessonName: activeLesson.name,
           })),
         );
       }
@@ -501,10 +506,10 @@ export default function AdminTopicManagement() {
             id: w.id ?? w.vocabId ?? w.vocab_id,
             word: w.word ?? "",
             pronunciation: w.pronunciation ?? "",
-            word_type: w.word_type ?? w.type ?? "",
+            word_type: w.word_type ?? w.wordType ?? w.type ?? "",
             meaning: w.meaning ?? "",
             example: w.example ?? "",
-            level: w.level ?? 1,
+            level: { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 }[w.level] ?? w.level ?? 1,
             topicId: topic.id,
             lessonId: w.lessonId ?? w.lesson?.id,
             lessonName: w.lessonName ?? w.lesson?.name,
@@ -527,10 +532,33 @@ export default function AdminTopicManagement() {
     setShowTopicLessonsModal(true);
   };
 
-  const openLessonWords = (lesson, topic) => {
+  const openLessonWords = async (lesson, topic) => {
     setActiveLesson(lesson);
     setActiveTopic(topic);
-    setModalWords(allWords.filter((w) => w.lessonId === lesson.id));
+    try {
+      const words = await fetchLessonVocabularies(lesson.id);
+      const list = Array.isArray(words) ? words : (words?.items ?? words?.data ?? []);
+      if (Array.isArray(list) && list.length > 0) {
+        setModalWords(
+          list.map((w) => ({
+            id: w.id ?? w.vocabId ?? w.vocab_id,
+            word: w.word ?? "",
+            pronunciation: w.pronunciation ?? "",
+            word_type: w.word_type ?? w.wordType ?? w.type ?? "",
+            meaning: w.meaning ?? "",
+            example: w.example ?? "",
+            level: { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 }[w.level] ?? w.level ?? 1,
+            topicId: topic.id,
+            lessonId: lesson.id,
+            lessonName: lesson.name,
+          }))
+        );
+      } else {
+        setModalWords([]);
+      }
+    } catch {
+      setModalWords([]);
+    }
     setWordSearchTerm("");
     setShowTopicLessonsModal(false);
     setShowLessonWordsModal(true);
@@ -697,7 +725,7 @@ export default function AdminTopicManagement() {
                         pronunciation:
                           detail.pronunciation ?? item.pronunciation,
                         word_type:
-                          detail.word_type ?? detail.type ?? item.word_type,
+                          detail.word_type ?? detail.wordType ?? detail.type ?? item.word_type,
                         meaning: detail.meaning ?? item.meaning,
                         level: detail.level ?? item.level,
                         example: detail.example ?? item.example,
@@ -1151,20 +1179,6 @@ export default function AdminTopicManagement() {
               ))}
             </FilterDropdown>
 
-            {/* import CSV */}
-            <button
-              onClick={() => topicCsvFileRef.current?.click()}
-              className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-xl hover:bg-emerald-100 text-sm flex items-center gap-2 transition-colors"
-            >
-              <Upload size={16} /> Import CSV
-            </button>
-            <input
-              type="file"
-              ref={topicCsvFileRef}
-              onChange={handleTopicCsvImport}
-              className="hidden"
-              accept=".csv"
-            />
 
             <div className="w-px h-6 bg-gray-200 mx-1"></div>
             <button
@@ -1331,6 +1345,21 @@ export default function AdminTopicManagement() {
                 placeholder="Tìm từ vựng..."
               />
             </div>
+
+            {/* import CSV */}
+            <button
+              onClick={() => lessonCsvFileRef.current?.click()}
+              className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-xl hover:bg-emerald-100 text-sm flex items-center gap-2 transition-colors"
+            >
+              <Upload size={16} /> Import CSV
+            </button>
+            <input
+              type="file"
+              ref={lessonCsvFileRef}
+              onChange={handleLessonCsvImport}
+              className="hidden"
+              accept=".csv"
+            />
 
             <div className="w-px h-6 bg-gray-200 mx-1"></div>
             <button

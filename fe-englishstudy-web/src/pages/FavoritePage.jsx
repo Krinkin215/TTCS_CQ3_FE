@@ -1,10 +1,12 @@
 import { toast } from 'react-hot-toast';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Volume2, MoreVertical, FolderPlus, Trash2, Search, X } from 'lucide-react';
 import VocabTable from '../components/VocabTable';
 import AddToCollectionModal from '../components/AddToCollectionModal';
 import SearchBar from '../components/SearchBar';
-import { fetchCollections } from '../utils/services/collectionService';
+import { fetchCollections, addVocabToCollection } from '../utils/services/collectionService';
+import { fetchFavorites, removeFavorite } from '../utils/services/favouriteService';
 
 
 const ITEMS_PER_PAGE = 10;
@@ -16,22 +18,45 @@ function FavoritePage() {
 
   useEffect(() => {
     let cancelled = false;
-    const loadCollections = async () => {
+    const loadData = async () => {
       try {
-        const data = await fetchCollections();
-        const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
-        if (!cancelled && Array.isArray(list)) {
-          setCollections(list.map(c => ({
-            id: c.collectionId ?? c.id,
-            name: c.collectionName ?? c.name ?? '',
-            wordCount: c.vocabCount ?? c.wordCount ?? 0
-          })));
+        const [favData, collData] = await Promise.allSettled([
+          fetchFavorites(),
+          fetchCollections()
+        ]);
+
+        if (favData.status === 'fulfilled') {
+          const favList = Array.isArray(favData.value) ? favData.value : (favData.value?.items ?? favData.value?.data ?? []);
+          const LEVEL_MAP = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+          if (!cancelled && Array.isArray(favList)) {
+            setFavorites(favList.map(w => ({
+              id: w.vocabId ?? w.id,
+              word: w.word ?? '',
+              pronunciation: w.pronunciation ?? '',
+              word_type: w.wordType ?? w.word_type ?? '',
+              meaning: w.meaning ?? '',
+              example: w.example ?? '',
+              level: LEVEL_MAP[w.level] ?? w.level ?? 1,
+              isFavorite: true
+            })));
+          }
+        }
+
+        if (collData.status === 'fulfilled') {
+          const list = Array.isArray(collData.value) ? collData.value : (collData.value?.items ?? collData.value?.data ?? []);
+          if (!cancelled && Array.isArray(list)) {
+            setCollections(list.map(c => ({
+              id: c.collectionId ?? c.id,
+              name: c.collectionName ?? c.name ?? '',
+              wordCount: c.vocabCount ?? c.wordCount ?? 0
+            })));
+          }
         }
       } catch {
         // API lỗi, giữ mảng rỗng
       }
     };
-    loadCollections();
+    loadData();
     return () => { cancelled = true; };
   }, []);
   
@@ -70,31 +95,19 @@ function FavoritePage() {
     }
   };
 
-  const handleConfirmAddToCollections = (targetCollectionIds) => {
+  const handleConfirmAddToCollections = async (targetCollectionIds) => {
     let addedCount = 0;
     let duplicateCount = 0;
-    
-    const wordIdsToProcess = [wordToAdd.id];
-    const newDB = [...collectionVocabDB];
 
-    wordIdsToProcess.forEach(wId => {
-      targetCollectionIds.forEach(cId => {
-        const isDuplicate = newDB.some(record => record.vocabId === wId && record.collectionId === cId);
-        if (isDuplicate) {
-          duplicateCount++; 
-        } else {
-          newDB.push({ vocabId: wId, collectionId: cId }); 
-          addedCount++;
-        }
-      });
-    });
+    for (const cId of targetCollectionIds) {
+      try {
+        await addVocabToCollection(cId, wordToAdd.id);
+        addedCount++;
+      } catch (err) {
+        duplicateCount++;
+      }
+    }
 
-    setCollectionVocabDB(newDB); 
-
-    let alertMsg = `KẾT QUẢ THÊM VÀO BỘ TỪ:\n\n`;
-    if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} lượt từ vào các bộ.\n`;
-    if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} lượt (Vì từ đã tồn tại sẵn trong bộ được chọn).`;
-    
     if (addedCount > 0 && duplicateCount === 0) {
       toast.success(`✅ Đã thêm từ vào ${addedCount} bộ từ thành công!`);
     } else if (addedCount > 0 && duplicateCount > 0) {
@@ -109,17 +122,21 @@ function FavoritePage() {
 
 
 
-
   const playAudio = (word) => {
     console.log(`Đang phát âm thanh từ: ${word}`);
 
   };
 
 
-  const handleRemoveSingle = (id) => {
-    setFavorites(favorites.filter(item => item.id !== id));
+  const handleRemoveSingle = async (id) => {
+    try {
+      await removeFavorite(id);
+      setFavorites(favorites.filter(item => item.id !== id));
+      toast.success('Đã bỏ yêu thích!');
+    } catch {
+      toast.error('Không thể bỏ yêu thích. Vui lòng thử lại.');
+    }
   };
-
 
 
 
@@ -133,31 +150,51 @@ function FavoritePage() {
 
   const FavoriteActionColumn = ({ item }) => {
     const [openMenuId, setOpenMenuId] = useState(null); 
+    const btnRef = useRef(null);
+    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
+    const handleToggle = () => {
+      if (openMenuId === item.id) { setOpenMenuId(null); return; }
+      if (btnRef.current) {
+        const rect = btnRef.current.getBoundingClientRect();
+        setMenuPos({ top: rect.bottom + 4, left: rect.left - 180 });
+      }
+      setOpenMenuId(item.id);
+    };
+    const closeMenu = () => setOpenMenuId(null);
     
     return (
-      <div className="relative flex justify-center">
+      <div className="flex justify-center">
         <button 
-          onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+          ref={btnRef}
+          onClick={handleToggle}
           className="p-2 text-gray-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-full transition-colors"
         >
           <MoreVertical size={20} />
         </button>
 
-        {openMenuId === item.id && (
-          <div className="absolute right-8 top-10 w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-50 text-left">
-            <button 
-              onClick={() => handleOpenAddToCollectionModal(item)}
-              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium"
+        {openMenuId === item.id && createPortal(
+          <>
+            <div className="fixed inset-0 z-[9998]" onClick={closeMenu} />
+            <div
+              className="fixed w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
+              style={{ top: menuPos.top, left: menuPos.left }}
             >
-              Thêm vào bộ từ...
-            </button>
-            <button 
-              onClick={() => handleRemoveSingle(item.id)}
-              className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
-            >
-              Bỏ yêu thích
-            </button>
-          </div>
+              <button 
+                onClick={() => { closeMenu(); handleOpenAddToCollectionModal(item); }}
+                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 text-left font-medium"
+              >
+                Thêm vào bộ từ...
+              </button>
+              <button 
+                onClick={() => { closeMenu(); handleRemoveSingle(item.id); }}
+                className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
+              >
+                Bỏ yêu thích
+              </button>
+            </div>
+          </>,
+          document.body
         )}
       </div>
     );

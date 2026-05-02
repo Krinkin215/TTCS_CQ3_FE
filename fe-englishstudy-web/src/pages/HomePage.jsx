@@ -1,5 +1,6 @@
 import { toast } from "react-hot-toast";
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Home,
   Heart,
@@ -46,7 +47,9 @@ import {
   fetchTopicVocabularies,
 } from "../utils/services/topicService";
 import { fetchLessons } from "../utils/services/lessonService";
-import { fetchCollections } from "../utils/services/collectionService";
+import { fetchCollections, addVocabToCollection } from "../utils/services/collectionService";
+import { addFavorite, removeFavorite, fetchFavorites } from "../utils/services/favouriteService";
+import { getLearnedVocabStats } from "../utils/services/progressService";
 
 const TOPIC_COLORS = [
   "bg-green-100 text-green-700",
@@ -275,21 +278,6 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           .filter(Boolean);
 
         setTopics(mappedTopics);
-
-        // Load collections song song
-        try {
-          const collData = await fetchCollections();
-          const collList = Array.isArray(collData) ? collData : (collData?.items ?? collData?.data ?? []);
-          if (!cancelled && Array.isArray(collList)) {
-            setCollections(collList.map(c => ({
-              id: c.collectionId ?? c.id,
-              name: c.collectionName ?? c.name ?? '',
-              wordCount: c.vocabCount ?? c.wordCount ?? 0,
-            })));
-          }
-        } catch {
-          // ignore — collections sẽ giữ mảng rỗng
-        }
       } catch {
         // ignore — nếu API không trả dữ liệu, topics vẫn giữ giá trị hiện tại
       }
@@ -301,8 +289,74 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     };
   }, []);
 
+  // Load collections riêng biệt để đảm bảo luôn có dữ liệu cho AddToCollectionModal
+  useEffect(() => {
+    let cancelled = false;
+    const loadCollections = async () => {
+      try {
+        const collData = await fetchCollections();
+        const collList = Array.isArray(collData) ? collData : (collData?.items ?? collData?.data ?? []);
+        if (!cancelled && Array.isArray(collList)) {
+          setCollections(collList.map(c => ({
+            id: c.collectionId ?? c.id,
+            name: c.collectionName ?? c.name ?? '',
+            wordCount: c.vocabCount ?? c.wordCount ?? 0,
+          })));
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadCollections();
+    return () => { cancelled = true; };
+  }, []);
+
   const [favoriteVocabDB, setFavoriteVocabDB] = useState([]);
   const [collectionVocabDB, setCollectionVocabDB] = useState([]);
+  const [vocabStats, setVocabStats] = useState({ totalLearned: 0, masteredCount: 0, learningCount: 0 });
+
+  // Load danh sách yêu thích
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const data = await fetchFavorites();
+        const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
+        if (!cancelled && Array.isArray(list)) {
+          setFavoriteVocabDB(list.map(f => f.vocabId ?? f.id).filter(Boolean));
+        }
+      } catch {
+        // ignore
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Load thống kê từ vựng
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const principal = await getMe();
+        const u = principal?.user || principal;
+        const userId = u?.userId ?? u?.user_id ?? u?.id;
+        if (!userId) return;
+        const stats = await getLearnedVocabStats(userId);
+        if (!cancelled && stats) {
+          setVocabStats({
+            totalLearned: stats.totalLearned ?? 0,
+            masteredCount: stats.masteredCount ?? 0,
+            learningCount: stats.learningCount ?? 0,
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, []);
 
   const [showTopicWordListModal, setShowTopicWordListModal] = useState(false);
   const [activeTopic, setActiveTopic] = useState(null);
@@ -354,30 +408,26 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     setShowAddToCollectionModal(true);
   };
 
-  const handleConfirmAddToCollections = (targetCollectionIds) => {
+  const handleConfirmAddToCollections = async (targetCollectionIds) => {
     let added = 0,
       duplicate = 0;
-    const wordIdsToProcess = [wordToAdd.id];
-    const newDB = [...collectionVocabDB];
 
-    wordIdsToProcess.forEach((wId) => {
-      targetCollectionIds.forEach((cId) => {
-        if (
-          newDB.some(
-            (record) => record.vocabId === wId && record.collectionId === cId,
-          )
-        ) {
-          duplicate++;
-        } else {
-          newDB.push({ vocabId: wId, collectionId: cId });
-          added++;
-        }
-      });
-    });
-    setCollectionVocabDB(newDB);
-    toast.error(
-      `KẾT QUẢ:\n✅ Đã thêm ${added} lượt từ.\n⚠️ Bỏ qua ${duplicate} lượt trùng lặp.`,
-    );
+    for (const cId of targetCollectionIds) {
+      try {
+        await addVocabToCollection(cId, wordToAdd.id);
+        added++;
+      } catch {
+        duplicate++;
+      }
+    }
+
+    if (added > 0 && duplicate === 0) {
+      toast.success(`✅ Đã thêm từ vào ${added} bộ từ thành công!`);
+    } else if (added > 0) {
+      toast(`Thêm ${added} thành công, bỏ qua ${duplicate} (đã tồn tại).`);
+    } else {
+      toast(`⚠️ Từ đã tồn tại trong các bộ được chọn.`);
+    }
     setShowAddToCollectionModal(false);
   };
 
@@ -488,49 +538,78 @@ function HomePage({ onLogout, onNavigateToPractice }) {
   const streakNumberClass = streakDigits >= 3 ? "text-5xl" : "text-6xl";
   const streakUnitClass = streakDigits >= 3 ? "text-2xl ml-2" : "text-3xl ml-3";
 
-  // cột action cho bảng từ vựng trong modal chủ đề
+  // cột action cho bảng từ vựng trong modal chủ đề — dùng Portal để dropdown không bị overflow clip
   const TopicWordActionColumn = ({ item }) => {
     const [openMenuId, setOpenMenuId] = useState(null);
     const isFav = favoriteVocabDB.includes(item.id);
+    const btnRef = useRef(null);
+    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
+    const handleToggle = () => {
+      if (openMenuId === item.id) { setOpenMenuId(null); return; }
+      if (btnRef.current) {
+        const rect = btnRef.current.getBoundingClientRect();
+        setMenuPos({ top: rect.bottom + 4, left: rect.left - 180 });
+      }
+      setOpenMenuId(item.id);
+    };
+    const closeMenu = () => setOpenMenuId(null);
 
     return (
-      <div className="relative flex justify-center">
+      <div className="flex justify-center">
         <button
-          onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+          ref={btnRef}
+          onClick={handleToggle}
           className="p-2 text-gray-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-full transition-colors"
         >
           <MoreVertical size={20} />
         </button>
-        {openMenuId === item.id && (
-          <div className="absolute right-8 top-10 w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-50 text-left">
-            <button
-              onClick={() => {
-                setOpenMenuId(null);
-                handleOpenAddToCollection(item);
-              }}
-              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2"
+        {openMenuId === item.id && createPortal(
+          <>
+            <div className="fixed inset-0 z-[9998]" onClick={closeMenu} />
+            <div
+              className="fixed w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
+              style={{ top: menuPos.top, left: menuPos.left }}
             >
-              <FolderPlus size={16} /> Thêm vào bộ từ
-            </button>
-            <button
-              onClick={() => {
-                setOpenMenuId(null);
-                setFavoriteVocabDB((prev) =>
-                  prev.includes(item.id)
-                    ? prev.filter((v) => v !== item.id)
-                    : [...prev, item.id],
-                );
-              }}
-              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex justify-between items-center"
-            >
-              Yêu thích{" "}
-              <Heart
-                size={16}
-                fill={isFav ? "currentColor" : "none"}
-                className={isFav ? "text-red-500" : "text-gray-400"}
-              />
-            </button>
-          </div>
+              <button
+                onClick={() => {
+                  closeMenu();
+                  handleOpenAddToCollection(item);
+                }}
+                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2"
+              >
+                <FolderPlus size={16} /> Thêm vào bộ từ
+              </button>
+              <button
+                onClick={async () => {
+                  closeMenu();
+                  try {
+                    if (isFav) {
+                      await removeFavorite(item.id);
+                    } else {
+                      await addFavorite(item.id);
+                    }
+                    setFavoriteVocabDB((prev) =>
+                      prev.includes(item.id)
+                        ? prev.filter((v) => v !== item.id)
+                        : [...prev, item.id],
+                    );
+                  } catch {
+                    toast.error('Cập nhật yêu thích thất bại.');
+                  }
+                }}
+                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex justify-between items-center"
+              >
+                Yêu thích{" "}
+                <Heart
+                  size={16}
+                  fill={isFav ? "currentColor" : "none"}
+                  className={isFav ? "text-red-500" : "text-gray-400"}
+                />
+              </button>
+            </div>
+          </>,
+          document.body
         )}
       </div>
     );
@@ -654,7 +733,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                     onClick={() => navigateToVocabWithFilter("Tổng từ đã học")}
                     className="bg-blue-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all"
                   >
-                    <span className="text-blue-600 font-bold text-xl">—</span>
+                    <span className="text-blue-600 font-bold text-xl">{vocabStats.totalLearned || '—'}</span>
                     <span className="text-sm text-gray-500 font-medium mt-1">
                       Tổng từ đã học
                     </span>
@@ -664,7 +743,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                     onClick={() => navigateToVocabWithFilter("Đã thuộc")}
                     className="bg-green-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all"
                   >
-                    <span className="text-green-600 font-bold text-xl">—</span>
+                    <span className="text-green-600 font-bold text-xl">{vocabStats.masteredCount || '—'}</span>
                     <span className="text-sm text-gray-500 font-medium mt-1">
                       Đã thuộc (Mastered)
                     </span>
@@ -674,7 +753,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                     onClick={() => navigateToVocabWithFilter("Chưa thuộc")}
                     className="bg-orange-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all"
                   >
-                    <span className="text-orange-500 font-bold text-xl">—</span>
+                    <span className="text-orange-500 font-bold text-xl">{vocabStats.learningCount || '—'}</span>
                     <span className="text-sm text-gray-500 font-medium mt-1 leading-tight">
                       Chưa thuộc (Learning)
                     </span>

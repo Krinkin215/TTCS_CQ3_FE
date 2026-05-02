@@ -33,6 +33,7 @@ import { initGame, finishGame } from "../utils/services/practiceService";
 import { fetchVocabReview } from "../utils/services/userService";
 import { fetchTopics } from "../utils/services/topicService";
 import { fetchLessons } from "../utils/services/lessonService";
+import { fetchCollections } from "../utils/services/collectionService";
 
 const STATUS_OPTIONS = [
   { id: "NEW", name: "Chưa học" },
@@ -128,9 +129,10 @@ export default function PracticePage({ onBack, initialFilters }) {
     let cancelled = false;
     const loadTopics = async () => {
       try {
-        const [topicsRes, lessonsRes] = await Promise.allSettled([
+        const [topicsRes, lessonsRes, collRes] = await Promise.allSettled([
           fetchTopics(),
           fetchLessons(),
+          fetchCollections(),
         ]);
 
         const topicsList =
@@ -146,6 +148,20 @@ export default function PracticePage({ onBack, initialFilters }) {
               ? lessonsRes.value
               : (lessonsRes.value?.items ?? lessonsRes.value?.data ?? [])
             : [];
+
+        // Collections cho chế độ "Bộ từ vựng"
+        if (collRes.status === "fulfilled") {
+          const collList = Array.isArray(collRes.value)
+            ? collRes.value
+            : (collRes.value?.items ?? collRes.value?.data ?? []);
+          if (!cancelled && Array.isArray(collList)) {
+            setCollections(collList.map((c) => ({
+              id: c.collectionId ?? c.id,
+              name: c.collectionName ?? c.name ?? '',
+              wordCount: c.vocabCount ?? c.wordCount ?? 0
+            })));
+          }
+        }
 
         const mappedTopics = topicsList.map((t) => {
           const topicId = t.id ?? t.topicId ?? t.topic_id;
@@ -388,20 +404,18 @@ export default function PracticePage({ onBack, initialFilters }) {
     if (gameId === "quiz" || gameId === "match" || gameId === "listen") {
       (async () => {
         try {
+          // Map frontend mode sang backend GameInitRequestDTO
+          const MODE_MAP = { topic: "TOPIC", collection: "COLLECTION", smart: "SMART_REVIEW" };
+          const backendMode = MODE_MAP[activeMode] ?? "TOPIC";
+          let sourceId = null;
+          if (activeMode === "topic") sourceId = selectedLessons[0] ?? selectedTopics[0] ?? null;
+          else if (activeMode === "collection") sourceId = selectedCollections[0] ?? null;
+
           const initPayload = {
-            mode: activeMode,
-            collectionIds: selectedCollections,
-            topicIds: selectedTopics,
-            lessonIds: selectedLessons,
-            statuses: selectedStatuses,
-            limit: wordCount,
-            // Smart mode: truyền danh sách vocab cần ôn (nếu backend hỗ trợ)
-            vocabIds:
-              activeMode === "smart"
-                ? smartReviewWords
-                    .map((w) => w.id ?? w.vocabId ?? w.vocab_id)
-                    .filter(Boolean)
-                : undefined,
+            mode: backendMode,
+            sourceId: sourceId,
+            wordCount: wordCount,
+            statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined,
           };
           const questions = await initGame(gameId, initPayload);
           const list = Array.isArray(questions)
@@ -409,15 +423,14 @@ export default function PracticePage({ onBack, initialFilters }) {
             : (questions?.items ?? questions?.data ?? []);
           if (Array.isArray(list) && list.length > 0) {
             const mapped = list.map((q, idx) => ({
-              id: q.id ?? q.questionId ?? q.question_id ?? idx + 1,
-              word: q.word ?? q.term ?? q.vocabulary?.word ?? "",
-              pronunciation:
-                q.pronunciation ?? q.vocabulary?.pronunciation ?? "",
-              type: q.type ?? q.word_type ?? q.vocabulary?.word_type ?? "",
-              meaning: q.meaning ?? q.vocabulary?.meaning ?? "",
-              example: q.example ?? q.vocabulary?.example ?? "",
-              options: q.options ?? q.choices ?? [],
-              correct: q.correct ?? q.correctIndex ?? q.correct_index ?? 0,
+              id: q.vocabId ?? q.id ?? idx + 1,
+              word: q.word ?? "",
+              pronunciation: q.pronunciation ?? "",
+              type: q.wordType ?? q.word_type ?? "",
+              meaning: q.meaning ?? "",
+              example: q.example ?? "",
+              options: q.options ?? [],
+              correct: q.correctIndex ?? 0,
               isFavorite: false,
               status: q.status ?? "NEW",
             }));
@@ -588,15 +601,15 @@ export default function PracticePage({ onBack, initialFilters }) {
       (sum, log) => sum + (log.pointsEarned || 0),
       0,
     );
-    const correctCount = quizLog.filter((l) => l.isCorrect).length;
+    const GAME_TYPE_MAP = { quiz: "QUIZ", match: "MATCH", listen: "LISTEN" };
     const finishPayload = {
-      mode: activeMode,
+      gameType: GAME_TYPE_MAP[activeGame] ?? "QUIZ",
       totalScore,
-      correctCount,
-      totalQuestions: quizLog.length,
-      details: quizLog.map((l) => ({
-        questionId: l.q?.id,
+      timeSpent: 0,
+      logs: quizLog.map((l) => ({
+        vocabId: l.q?.id,
         isCorrect: l.isCorrect,
+        timeSpent: 0,
         pointsEarned: l.pointsEarned ?? 0,
       })),
     };
@@ -608,6 +621,16 @@ export default function PracticePage({ onBack, initialFilters }) {
   // GIAO DIỆN GAME TRẮC NGHIỆM
   if (activeGame === "quiz") {
     const currentQ = quizData[currentQIndex];
+    if (!currentQ && quizState === "playing") {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-500 font-bold">Đang tải câu hỏi...</p>
+          </div>
+        </div>
+      );
+    }
     const correctAnswers = quizLog.filter((log) => log.isCorrect).length;
     const totalScore = quizLog.reduce(
       (sum, log) => sum + (log.pointsEarned || 0),
@@ -839,6 +862,16 @@ export default function PracticePage({ onBack, initialFilters }) {
 
   // GIAO DIỆN GAME NỐI TỪ
   if (activeGame === "match") {
+    if (quizData.length === 0 && quizState === "playing") {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-500 font-bold">Đang tải câu hỏi...</p>
+          </div>
+        </div>
+      );
+    }
     const correctAnswers = quizLog.filter((log) => log.isCorrect).length;
     const totalScore = quizLog.reduce(
       (sum, log) => sum + (log.pointsEarned || 0),
@@ -1086,6 +1119,16 @@ export default function PracticePage({ onBack, initialFilters }) {
   // GIAO DIỆN GAME NGHE - VIẾT
   if (activeGame === "listen") {
     const currentQ = quizData[currentQIndex];
+    if (!currentQ && quizState === "playing") {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-500 font-bold">Đang tải câu hỏi...</p>
+          </div>
+        </div>
+      );
+    }
     const correctAnswers = quizLog.filter((log) => log.isCorrect).length;
     const totalScore = quizLog.reduce(
       (sum, log) => sum + (log.pointsEarned || 0),

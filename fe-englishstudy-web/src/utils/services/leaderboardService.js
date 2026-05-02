@@ -14,6 +14,8 @@ function normalizeEntry(entry) {
   const streak = entry.streak ?? entry.currentStreak ?? entry.current_streak ?? entry.bestStreak ?? entry.best_streak ?? 0;
   const rank = entry.rank ?? entry.position ?? null;
 
+  const isCurrentUser = entry.isCurrentUser ?? entry.is_current_user ?? false;
+
   return {
     id: id ?? username ?? email,
     username,
@@ -22,14 +24,15 @@ function normalizeEntry(entry) {
     avatarUrl,
     score: Number(score) || 0,
     streak: Number(streak) || 0,
-    rank: rank != null ? Number(rank) : null
+    rank: rank != null ? Number(rank) : null,
+    isCurrentUser
   };
 }
 
 export async function fetchLeaderboard({ sortBy, timeFilter, limit }) {
   const data = await apiRequest('/api/leaderboard', {
     method: 'GET',
-    auth: false,
+    auth: true,
     query: { sortBy, timeFilter, limit }
   });
 
