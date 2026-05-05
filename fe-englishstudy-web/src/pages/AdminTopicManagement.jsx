@@ -97,7 +97,7 @@ export default function AdminTopicManagement() {
             return {
               id,
               title,
-              totalVocab: t.totalVocab ?? t.total_vocab ?? 0,
+              totalVocab: t.totalVocabulary ?? t.totalVocab ?? t.total_vocab ?? 0,
               color: "bg-gray-100 text-gray-700",
               imageUrl:
                 imageUrl ||

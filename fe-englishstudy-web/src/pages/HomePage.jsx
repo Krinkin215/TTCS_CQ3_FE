@@ -264,7 +264,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               id,
               title,
               name: title,
-              totalVocab: t.totalVocab ?? t.total_vocab ?? 0,
+              totalVocab: t.totalVocabulary ?? t.totalVocab ?? t.total_vocab ?? 0,
               masteredVocab: t.masteredVocab ?? t.mastered_vocab ?? 0,
               color: "bg-gray-100 text-gray-700",
               imageUrl:
