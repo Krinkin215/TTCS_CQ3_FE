@@ -243,11 +243,7 @@ export default function AdminTopicManagement() {
 
   // CÁC HÀM XỬ LÝ CHỦ ĐỀ
   const filteredTopics = topics
-    .filter((t) => t.title.toLowerCase().includes(searchTerm.toLowerCase()))
-    .map((t) => ({
-      ...t,
-      totalVocab: allWords.filter((w) => w.topicId === t.id).length,
-    }));
+    .filter((t) => t.title.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleDeleteTopicConfirm = async () => {
     if (!topicToDelete) return;

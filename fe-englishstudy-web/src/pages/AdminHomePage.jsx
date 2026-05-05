@@ -5,6 +5,7 @@ import UserManagement from './UserManagement';
 import AdminVocabManagement from './AdminVocabManagement';
 import AdminTopicManagement from './AdminTopicManagement';
 import { fetchAllUsers } from '../utils/services/adminUserService';
+import { fetchTopics } from '../utils/services/topicService';
 
 export default function AdminHomePage({ onLogout }) {
   const getInitialTab = () => {
@@ -18,17 +19,38 @@ export default function AdminHomePage({ onLogout }) {
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [totalUsers, setTotalUsers] = useState('—');
+  const [totalVocabs, setTotalVocabs] = useState('—');
+  const [todayLearns, setTodayLearns] = useState('—');
 
   useEffect(() => {
     let cancelled = false;
     const fetchStats = async () => {
       try {
-        const data = await fetchAllUsers();
-        const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
-        if (!cancelled && Array.isArray(list)) {
-          const userCount = list.filter(u => String(u.role ?? 'USER').toUpperCase() === 'USER').length;
-          setTotalUsers(userCount);
+        const [usersRes, topicsRes] = await Promise.allSettled([
+          fetchAllUsers(),
+          fetchTopics()
+        ]);
+
+        // Tổng user
+        if (usersRes.status === 'fulfilled') {
+          const list = Array.isArray(usersRes.value) ? usersRes.value : (usersRes.value?.items ?? usersRes.value?.data ?? []);
+          if (!cancelled && Array.isArray(list)) {
+            const userCount = list.filter(u => String(u.role ?? 'USER').toUpperCase() === 'USER').length;
+            setTotalUsers(userCount);
+          }
         }
+
+        // Tổng từ vựng hệ thống
+        if (topicsRes.status === 'fulfilled') {
+          const topicsList = Array.isArray(topicsRes.value) ? topicsRes.value : (topicsRes.value?.items ?? topicsRes.value?.data ?? []);
+          if (!cancelled && Array.isArray(topicsList)) {
+            const totalVocab = topicsList.reduce((sum, t) => sum + (t.totalVocabulary ?? t.totalVocab ?? t.total_vocab ?? 0), 0);
+            setTotalVocabs(totalVocab);
+          }
+        }
+
+        // Lượt học hôm nay
+        setTodayLearns(0);
       } catch (err) {
         // Handle error silently
       }
@@ -76,8 +98,8 @@ export default function AdminHomePage({ onLogout }) {
 
   const stats = [
     { label: 'Tổng người dùng', value: totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Từ vựng hệ thống', value: '—', icon: BookOpen, color: 'text-cyan-600', bg: 'bg-cyan-50' },
-    { label: 'Lượt học hôm nay', value: '—', icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: 'Từ vựng hệ thống', value: totalVocabs, icon: BookOpen, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+    { label: 'Lượt học hôm nay', value: todayLearns, icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50' },
   ];
 
   const renderNavBtn = (id, icon, label) => {
