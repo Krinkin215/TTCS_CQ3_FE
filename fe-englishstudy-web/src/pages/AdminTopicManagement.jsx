@@ -92,6 +92,7 @@ export default function AdminTopicManagement() {
                     id: l.id ?? l.lessonId ?? l.lesson_id,
                     name: l.name ?? l.title ?? "",
                     difficulty: l.difficulty ?? l.level ?? 1,
+                    wordCount: l.wordCount ?? l.totalVocabulary ?? l.totalVocab ?? l.total_vocab ?? 0,
                   }))
               : [];
             return {
@@ -341,6 +342,7 @@ export default function AdminTopicManagement() {
                 id: newLessonId,
                 name: created?.name ?? newLessonName,
                 difficulty: created?.difficulty ?? newLessonDifficulty,
+                wordCount: 0,
               },
             ],
           };
@@ -523,8 +525,32 @@ export default function AdminTopicManagement() {
     setShowTopicWordsModal(true);
   };
 
-  const openTopicLessons = (topic) => {
+  const openTopicLessons = async (topic) => {
     setActiveTopic(topic);
+    try {
+      const lessonRequests = topic.lessons.map((lesson) => fetchLessonVocabularies(lesson.id));
+      const lessonResults = await Promise.allSettled(lessonRequests);
+      const lessonsWithCount = topic.lessons.map((lesson, index) => {
+        const result = lessonResults[index];
+        const count =
+          result.status === 'fulfilled'
+            ? (Array.isArray(result.value)
+                ? result.value.length
+                : (result.value?.items ?? result.value?.data ?? []).length)
+            : 0;
+        return {
+          ...lesson,
+          wordCount: count,
+        };
+      });
+      const updatedTopic = { ...topic, lessons: lessonsWithCount };
+      setActiveTopic(updatedTopic);
+      setTopics((prevTopics) =>
+        prevTopics.map((t) => (t.id === topic.id ? updatedTopic : t)),
+      );
+    } catch {
+      // nếu fetch count lỗi thì vẫn mở modal với dữ liệu hiện có
+    }
     setShowTopicLessonsModal(true);
   };
 
@@ -1230,9 +1256,8 @@ export default function AdminTopicManagement() {
         <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
           <div className="space-y-4">
             {activeTopic?.lessons.map((lesson, idx) => {
-              const lessonWordCount = allWords.filter(
-                (w) => w.lessonId === lesson.id,
-              ).length;
+              const lessonWordCount =
+                lesson.wordCount ?? allWords.filter((w) => w.lessonId === lesson.id).length;
               const levelLabels = {
                 1: "A1",
                 2: "A2",
