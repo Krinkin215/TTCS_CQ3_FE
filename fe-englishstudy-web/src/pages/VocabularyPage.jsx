@@ -389,7 +389,7 @@ function VocabularyPage({ initialFilter }) {
         console.warn("Lỗi kết nối API từ điển, tạm bỏ qua check ngữ nghĩa.");
       }
 
-      // PASS TOÀN BỘ -> LƯU VỀ BACKEND (fallback local nếu backend lỗi)
+      // PASS TOÀN BỘ -> LƯU VỀ BACKEND
       try {
         const INT_TO_LEVEL = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
         const created = await createVocabulary({
@@ -404,18 +404,13 @@ function VocabularyPage({ initialFilter }) {
         currentVocabs.unshift({
           ...newWord,
           word: created?.word ?? wordTrimmed,
-          id: created?.id ?? Date.now() + Math.random(),
+          id: created?.vocabId ?? created?.id ?? Date.now() + Math.random(),
           createdBy: created?.createdBy
         });
         addedCount++;
-      } catch {
-        // fallback vẫn cho thêm local để không gián đoạn trải nghiệm
-        currentVocabs.unshift({
-          ...newWord,
-          word: wordTrimmed,
-          id: Date.now() + Math.random()
-        });
-        addedCount++;
+      } catch (err) {
+        console.error('Lỗi lưu từ vựng:', wordTrimmed, err);
+        apiErrorCount++;
       }
     }
 
@@ -430,7 +425,7 @@ function VocabularyPage({ initialFilter }) {
       if (addedCount > 0) alertMsg += `✅ Thành công: Thêm ${addedCount} từ mới.\n`;
       if (duplicateCount > 0) alertMsg += `⚠️ Bỏ qua: ${duplicateCount} từ (Đã có sẵn trong hệ thống).\n`;
       if (formatErrorCount > 0) alertMsg += `❌ Lỗi định dạng: ${formatErrorCount} từ (Có chứa số/kí tự lạ hoặc phiên âm thiếu dấu / /).\n`;
-      if (apiErrorCount > 0) alertMsg += `🌐 Từ vô nghĩa: Bỏ qua ${apiErrorCount} từ (Không tìm thấy trong từ điển tiếng Anh).\n`;
+      if (apiErrorCount > 0) alertMsg += `❌ Lỗi lưu: ${apiErrorCount} từ (Không tìm thấy trong từ điển hoặc từ đã tồn tại trong hệ thống).\n`;
       toast(alertMsg);
     }
 

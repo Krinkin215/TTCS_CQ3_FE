@@ -82,13 +82,8 @@ export async function apiRequest(path, options = {}) {
     }
   }
 
-  // Xử lý lỗi 401/403 khi không retry hoặc retry cũng thất bại
-  if (res.status === 401 || res.status === 403) {
-    clearTokens();
-    if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-      window.location.href = '/login';
-    }
-  }
+  // Chỉ xử lý 401 khi retry cũng thất bại (token hết hạn thật sự)
+  // 403 = Forbidden (không có quyền) → KHÔNG logout, chỉ throw error
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => '');

@@ -12,22 +12,37 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 function App() {
   const getInitialPage = () => {
     const path = window.location.pathname;
+    // Luôn hiển thị trang đăng nhập khi vào / hoặc /login
     if (path === '/' || path === '/login') return 'login';
     if (path === '/register') return 'register';
+    // Protected pages require a token
+    const token = getAccessToken();
+    if (!token) return 'login';
     if (path.startsWith('/admin')) return 'admin-home';
     if (path.startsWith('/home')) return 'user-home';
     return 'not-found';
   };
 
   const [currentPage, setCurrentPage] = useState(getInitialPage);
-  const [userRole, setUserRole] = useState(window.location.pathname.startsWith('/admin') ? 'admin' : 'user');
+  const [userRole, setUserRole] = useState('user');
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   useEffect(() => {
     const bootstrap = async () => {
       try {
         const token = getAccessToken();
-        if (!token) return;
+        if (!token) {
+          // No token → always go to login (unless on register)
+          if (currentPage !== 'register') setCurrentPage('login');
+          return;
+        }
+
+        // Nếu đang ở trang login hoặc register → KHÔNG tự redirect
+        // Chỉ validate token cho các protected pages (admin-home, user-home)
+        if (currentPage === 'login' || currentPage === 'register') {
+          return;
+        }
+
         const principal = await getMe();
         const roles = principal?.roles ?? principal?.authorities ?? [];
         const rolesStr = Array.isArray(roles)
@@ -35,13 +50,16 @@ function App() {
           : String(roles);
         const isAdmin = /ADMIN/i.test(rolesStr);
         setUserRole(isAdmin ? 'admin' : 'user');
-        
-        // Correct the current page if it was temporarily matched incorrectly
-        if (currentPage === 'login' || currentPage === 'register') {
-           setCurrentPage(isAdmin ? 'admin-home' : 'user-home');
+
+        // Nếu user đang ở protected page nhưng sai role → chuyển đúng page
+        if (currentPage === 'admin-home' && !isAdmin) {
+          setCurrentPage('user-home');
+        } else if (currentPage === 'user-home' && isAdmin) {
+          setCurrentPage('admin-home');
         }
       } catch {
         doLogout();
+        setCurrentPage('login');
       } finally {
         setIsBootstrapping(false);
       }
@@ -103,7 +121,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
-      {isBootstrapping ? (
+      {isBootstrapping && currentPage !== 'login' && currentPage !== 'register' ? (
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
           <div className="flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-cyan-200 border-t-cyan-600 rounded-full animate-spin"></div>
