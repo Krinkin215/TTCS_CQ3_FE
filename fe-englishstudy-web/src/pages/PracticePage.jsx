@@ -34,6 +34,10 @@ import { fetchVocabReview } from "../utils/services/userService";
 import { fetchTopics } from "../utils/services/topicService";
 import { fetchLessons } from "../utils/services/lessonService";
 import { fetchCollections } from "../utils/services/collectionService";
+import {
+  getCollectionStatusSummary,
+  getLessonStatusSummary,
+} from "../utils/services/progressService";
 
 const STATUS_OPTIONS = [
   { id: "NEW", name: "Chưa học" },
@@ -54,6 +58,10 @@ export default function PracticePage({ onBack, initialFilters }) {
 
   const [collections, setCollections] = useState([]);
   const [topics, setTopics] = useState([]);
+
+  // Status summary thực tế từ backend (thay thế ước tính)
+  const [statusSummary, setStatusSummary] = useState(null); // { newCount, learningCount, masteredCount, totalCount }
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
   const [smartReviewWords, setSmartReviewWords] = useState([]);
   const [isSmartLoading, setIsSmartLoading] = useState(false);
@@ -155,11 +163,13 @@ export default function PracticePage({ onBack, initialFilters }) {
             ? collRes.value
             : (collRes.value?.items ?? collRes.value?.data ?? []);
           if (!cancelled && Array.isArray(collList)) {
-            setCollections(collList.map((c) => ({
-              id: c.collectionId ?? c.id,
-              name: c.collectionName ?? c.name ?? '',
-              wordCount: c.vocabCount ?? c.wordCount ?? 0
-            })));
+            setCollections(
+              collList.map((c) => ({
+                id: c.collectionId ?? c.id,
+                name: c.collectionName ?? c.name ?? "",
+                wordCount: c.vocabCount ?? c.wordCount ?? 0,
+              })),
+            );
           }
         }
 
@@ -186,6 +196,13 @@ export default function PracticePage({ onBack, initialFilters }) {
                   name:
                     l.name ?? l.title ?? l.lessonName ?? l.lesson?.name ?? "",
                   difficulty: l.difficulty ?? l.level ?? 1,
+                  // Normalize wordCount từ nhiều tên field khác nhau của backend
+                  wordCount:
+                    l.wordCount ??
+                    l.vocabCount ??
+                    l.vocab_count ??
+                    l.totalVocab ??
+                    0,
                 }))
               : [],
           };
@@ -231,23 +248,69 @@ export default function PracticePage({ onBack, initialFilters }) {
       .flatMap((t) => t.lessons ?? []);
   }, [selectedTopics, topics]);
 
+  // Fetch status summary thực tế từ backend khi user chọn collection hoặc lesson
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSummary = async () => {
+      // Reset khi chọn lại
+      setStatusSummary(null);
+
+      if (activeMode === "collection" && selectedCollections.length === 1) {
+        setIsSummaryLoading(true);
+        try {
+          const data = await getCollectionStatusSummary(selectedCollections[0]);
+          if (!cancelled) setStatusSummary(data);
+        } catch {
+          /* ignore */
+        } finally {
+          if (!cancelled) setIsSummaryLoading(false);
+        }
+      } else if (activeMode === "topic" && selectedLessons.length === 1) {
+        setIsSummaryLoading(true);
+        try {
+          const data = await getLessonStatusSummary(selectedLessons[0]);
+          if (!cancelled) setStatusSummary(data);
+        } catch {
+          /* ignore */
+        } finally {
+          if (!cancelled) setIsSummaryLoading(false);
+        }
+      }
+    };
+    fetchSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeMode, selectedCollections, selectedLessons]);
+
   const availableCount = useMemo(() => {
+    // Ưu tiên dùng summary thực tế từ backend (khi chọn đúng 1 collection/lesson)
+    if (statusSummary) {
+      const total = statusSummary.totalCount ?? 0;
+      if (selectedStatuses.length === 0) return total;
+      // Lọc theo các status được chọn
+      let count = 0;
+      if (selectedStatuses.includes("NEW"))
+        count += statusSummary.newCount ?? 0;
+      if (selectedStatuses.includes("LEARNING"))
+        count += statusSummary.learningCount ?? 0;
+      if (selectedStatuses.includes("MASTERED"))
+        count += statusSummary.masteredCount ?? 0;
+      return count;
+    }
+
+    // Fallback: dùng wordCount từ metadata (khi chọn nhiều collections/lessons)
     let total = 0;
     if (activeMode === "collection") {
-      const selected = collections.filter((c) =>
-        selectedCollections.includes(c.id),
-      );
-      total = selected.reduce((sum, c) => sum + (c.wordCount || 50), 0);
+      total = collections
+        .filter((c) => selectedCollections.includes(c.id))
+        .reduce((sum, c) => sum + (c.wordCount ?? 0), 0);
     } else if (activeMode === "topic") {
-      const selected = availableLessons.filter((l) =>
-        selectedLessons.includes(l.id),
-      );
-      total = selected.reduce((sum, l) => sum + (l.wordCount || 20), 0);
+      total = availableLessons
+        .filter((l) => selectedLessons.includes(l.id))
+        .reduce((sum, l) => sum + (l.wordCount ?? 0), 0);
     } else {
       total = smartReviewWords.length;
-    }
-    if (selectedStatuses.length > 0 && selectedStatuses.length < 3) {
-      total = Math.floor(total * (selectedStatuses.length / 3));
     }
     return total;
   }, [
@@ -258,6 +321,7 @@ export default function PracticePage({ onBack, initialFilters }) {
     availableLessons,
     smartReviewWords.length,
     collections,
+    statusSummary,
   ]);
 
   const avgDifficulty = useMemo(() => {
@@ -405,17 +469,25 @@ export default function PracticePage({ onBack, initialFilters }) {
       (async () => {
         try {
           // Map frontend mode sang backend GameInitRequestDTO
-          const MODE_MAP = { topic: "TOPIC", collection: "COLLECTION", smart: "SMART_REVIEW" };
-          const backendMode = MODE_MAP[activeMode] ?? "TOPIC";
+          const MODE_MAP = {
+            topic: "TOPIC",
+            collection: "COLLECTION",
+            smart: "SMART_REVIEW",
+          };
+          let backendMode = MODE_MAP[activeMode] ?? "TOPIC";
           let sourceId = null;
-          if (activeMode === "topic") sourceId = selectedLessons[0] ?? selectedTopics[0] ?? null;
-          else if (activeMode === "collection") sourceId = selectedCollections[0] ?? null;
+          if (activeMode === "topic") {
+            sourceId = selectedLessons[0] ?? selectedTopics[0] ?? null;
+            backendMode = selectedLessons[0] ? "LESSON" : "TOPIC";
+          } else if (activeMode === "collection")
+            sourceId = selectedCollections[0] ?? null;
 
           const initPayload = {
             mode: backendMode,
             sourceId: sourceId,
             wordCount: wordCount,
-            statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined,
+            statuses:
+              selectedStatuses.length > 0 ? selectedStatuses : undefined,
           };
           const questions = await initGame(gameId, initPayload);
           const list = Array.isArray(questions)
@@ -1433,6 +1505,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                     selectedIds={selectedCollections}
                     onChange={setSelectedCollections}
                     placeholder="Tìm bộ từ..."
+                    singleSelect
                   />
                   <FilterBox
                     title="Trạng thái từ vựng"
@@ -1443,11 +1516,11 @@ export default function PracticePage({ onBack, initialFilters }) {
                   />
                   <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 flex flex-col justify-center items-center">
                     <label className="font-bold text-cyan-900 mb-4">
-                      Số lượng từ muốn ôn (Tối thiểu 20)
+                      Số lượng từ muốn ôn
                     </label>
                     <input
                       type="number"
-                      min="20"
+                      min="1"
                       max={availableCount}
                       value={wordCount}
                       onChange={(e) => {
@@ -1469,8 +1542,12 @@ export default function PracticePage({ onBack, initialFilters }) {
                     title="Chọn Chủ đề"
                     options={topics}
                     selectedIds={selectedTopics}
-                    onChange={setSelectedTopics}
+                    onChange={(ids) => {
+                      setSelectedTopics(ids);
+                      setSelectedLessons([]);
+                    }}
                     placeholder="Tìm chủ đề..."
+                    singleSelect
                   />
                   <FilterBox
                     title="Chọn Bài học"
@@ -1478,6 +1555,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                     selectedIds={selectedLessons}
                     onChange={setSelectedLessons}
                     placeholder="Tìm bài học..."
+                    singleSelect
                   />
                   <div className="space-y-6">
                     <FilterBox
@@ -1546,9 +1624,32 @@ export default function PracticePage({ onBack, initialFilters }) {
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-black text-cyan-950">Chọn Game</h2>
             </div>
-            <div className="px-4 py-2 bg-[#84cc16]/10 text-[#65a30d] rounded-xl font-bold border border-[#84cc16]/20 transition-all">
-              Sẵn sàng: {availableCount} từ vựng
-            </div>
+            {/* Hiển thị count theo status thực tế từ backend */}
+            {isSummaryLoading ? (
+              <div className="flex items-center gap-2 text-gray-400 text-sm font-bold">
+                <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                Đang tải...
+              </div>
+            ) : statusSummary ? (
+              <div className="flex items-center gap-2 text-xs font-bold">
+                <span className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg border border-gray-200">
+                  Chưa học: {statusSummary.newCount ?? 0}
+                </span>
+                <span className="px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg border border-yellow-200">
+                  Đang học: {statusSummary.learningCount ?? 0}
+                </span>
+                <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg border border-green-200">
+                  Đã thuộc: {statusSummary.masteredCount ?? 0}
+                </span>
+                <span className="px-3 py-1.5 bg-[#84cc16]/10 text-[#65a30d] rounded-lg border border-[#84cc16]/20">
+                  Sẵn sàng: {availableCount}
+                </span>
+              </div>
+            ) : (
+              <div className="px-4 py-2 bg-[#84cc16]/10 text-[#65a30d] rounded-xl font-bold border border-[#84cc16]/20 transition-all">
+                Sẵn sàng: {availableCount} từ vựng
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

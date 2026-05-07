@@ -7,6 +7,7 @@ export default function FilterBox({
   selectedIds,
   onChange,
   placeholder,
+  singleSelect = false,
 }) {
   const [search, setSearch] = useState("");
   const filtered = options.filter((o) =>
@@ -27,11 +28,16 @@ export default function FilterBox({
   };
 
   const toggleOne = (id) => {
-    onChange(
-      selectedIds.includes(id)
-        ? selectedIds.filter((i) => i !== id)
-        : [...selectedIds, id],
-    );
+    if (singleSelect) {
+      // Chỉ chọn 1: nếu đã chọn thì bỏ, nếu chưa thì chọn mới
+      onChange(selectedIds.includes(id) ? [] : [id]);
+    } else {
+      onChange(
+        selectedIds.includes(id)
+          ? selectedIds.filter((i) => i !== id)
+          : [...selectedIds, id],
+      );
+    }
   };
 
   return (
@@ -53,27 +59,30 @@ export default function FilterBox({
         />
       </div>
       <div className="flex-1 overflow-y-auto p-2">
-        <label className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isAllSelected}
-            onChange={toggleAll}
-            className="w-4 h-4 text-cyan-600 rounded"
-          />
-          <span className="text-sm font-bold text-gray-700">Chọn tất cả</span>
-        </label>
+        {!singleSelect && (
+          <label className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isAllSelected}
+              onChange={toggleAll}
+              className="w-4 h-4 text-cyan-600 rounded"
+            />
+            <span className="text-sm font-bold text-gray-700">Chọn tất cả</span>
+          </label>
+        )}
         {filtered.map((opt, index) => {
           const itemKey = opt.id ?? opt.name ?? opt.title ?? index;
+          const isSelected = selectedIds.includes(opt.id);
           return (
             <label
               key={itemKey}
               className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
             >
               <input
-                type="checkbox"
-                checked={selectedIds.includes(opt.id)}
+                type={singleSelect ? "radio" : "checkbox"}
+                checked={isSelected}
                 onChange={() => toggleOne(opt.id)}
-                className="w-4 h-4 text-cyan-600 rounded"
+                className=" w-4 h-4 text-cyan-600 rounded"
               />
               <span className="text-sm text-gray-600">
                 {opt.name || opt.title}

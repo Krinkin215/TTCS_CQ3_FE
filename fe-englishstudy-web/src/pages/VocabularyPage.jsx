@@ -141,7 +141,7 @@ function VocabularyPage({ initialFilter }) {
 
         // Map trạng thái từ thống kê tiến độ
         const statusMap = {};
-        if (statsRes.status === 'fulfilled' && statsRes.value) {
+        if (statsRes?.status === 'fulfilled' && statsRes.value) {
           const statsData = statsRes.value;
           const learnedItems = Array.isArray(statsData?.learnedVocabs)
             ? statsData.learnedVocabs
@@ -168,6 +168,7 @@ function VocabularyPage({ initialFilter }) {
 
         const formattedData = allVocabList.map(word => {
           const vid = word.vocabId || word.id;
+          const backendStatus = statusMap[vid] ?? word.status ?? 'NEW';
           return {
             id: vid,
             word: word.word || '',
@@ -176,7 +177,8 @@ function VocabularyPage({ initialFilter }) {
             meaning: word.meaning || '',
             example: word.example || '',
             level: LEVEL_MAP[word.level] ?? word.level ?? 1,
-            status: STATUS_MAP[statusMap[vid]] || word.status || 'Chưa học',
+            status: STATUS_MAP[backendStatus] || backendStatus || 'Chưa học',
+            pForget: word.pForget ?? null,
             isFavorite: favIds.includes(vid),
             topicId: word.topicId ?? null,
             topic: topicNameMap[word.topicId] || null,
