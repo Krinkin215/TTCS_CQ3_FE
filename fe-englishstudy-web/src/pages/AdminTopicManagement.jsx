@@ -49,6 +49,7 @@ import {
   fetchVocabularyById,
   adminImportVocabulariesCsv,
 } from "../utils/services/vocabService";
+import { formatWordType } from "../utils/wordFormatters";
 
 export default function AdminTopicManagement() {
   const [topics, setTopics] = useState([]);
@@ -215,7 +216,7 @@ export default function AdminTopicManagement() {
           await updateVocabulary(w.id, {
             word: w.word,
             pronunciation: w.pronunciation,
-            wordType: w.word_type,
+            wordType: formatWordType(w.word_type),
             meaning: w.meaning,
             level: INT_TO_LEVEL[w.level] ?? w.level ?? 'A1',
             example: w.example,
@@ -382,7 +383,7 @@ export default function AdminTopicManagement() {
             id: w.id ?? w.vocabId ?? w.vocab_id,
             word: w.word ?? "",
             pronunciation: w.pronunciation ?? "",
-            word_type: w.word_type ?? w.type ?? "",
+            word_type: formatWordType(w.word_type ?? w.type ?? ""),
             meaning: w.meaning ?? "",
             example: w.example ?? "",
             level: { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 }[w.level] ?? w.level ?? 1,
@@ -504,7 +505,7 @@ export default function AdminTopicManagement() {
             id: w.id ?? w.vocabId ?? w.vocab_id,
             word: w.word ?? "",
             pronunciation: w.pronunciation ?? "",
-            word_type: w.word_type ?? w.wordType ?? w.type ?? "",
+            word_type: formatWordType(w.word_type ?? w.wordType ?? w.type ?? ""),
             meaning: w.meaning ?? "",
             example: w.example ?? "",
             level: { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 }[w.level] ?? w.level ?? 1,
@@ -566,7 +567,7 @@ export default function AdminTopicManagement() {
             id: w.id ?? w.vocabId ?? w.vocab_id,
             word: w.word ?? "",
             pronunciation: w.pronunciation ?? "",
-            word_type: w.word_type ?? w.wordType ?? w.type ?? "",
+            word_type: formatWordType(w.word_type ?? w.wordType ?? w.type ?? ""),
             meaning: w.meaning ?? "",
             example: w.example ?? "",
             level: { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 }[w.level] ?? w.level ?? 1,
@@ -673,7 +674,7 @@ export default function AdminTopicManagement() {
                         pronunciation:
                           detail.pronunciation ?? item.pronunciation,
                         word_type:
-                          detail.word_type ?? detail.type ?? item.word_type,
+                          formatWordType(detail.word_type ?? detail.type ?? item.word_type),
                         meaning: detail.meaning ?? item.meaning,
                         level: detail.level ?? item.level,
                         example: detail.example ?? item.example,
@@ -747,7 +748,7 @@ export default function AdminTopicManagement() {
                         pronunciation:
                           detail.pronunciation ?? item.pronunciation,
                         word_type:
-                          detail.word_type ?? detail.wordType ?? detail.type ?? item.word_type,
+                          formatWordType(detail.word_type ?? detail.wordType ?? detail.type ?? item.word_type),
                         meaning: detail.meaning ?? item.meaning,
                         level: detail.level ?? item.level,
                         example: detail.example ?? item.example,

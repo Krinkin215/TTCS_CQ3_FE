@@ -51,12 +51,12 @@ function App() {
         const isAdmin = /ADMIN/i.test(rolesStr);
         setUserRole(isAdmin ? 'admin' : 'user');
 
-        // Nếu user đang ở protected page nhưng sai role → chuyển đúng page
+        // Nếu user thường đang ở trang admin → đẩy về trang chủ user
         if (currentPage === 'admin-home' && !isAdmin) {
           setCurrentPage('user-home');
-        } else if (currentPage === 'user-home' && isAdmin) {
-          setCurrentPage('admin-home');
+          window.history.replaceState(null, '', '/home');
         }
+        // Cho phép admin xem giao diện user bình thường, không tự động force sang admin-home.
       } catch {
         doLogout();
         setCurrentPage('login');
@@ -106,13 +106,13 @@ function App() {
     if (currentPage === 'register') {
       return <RegisterPage onNavigateToLogin={() => setCurrentPage('login')} />;
     }
-    if (currentPage === 'user-home' && userRole === 'user') {
+    if (currentPage === 'user-home') {
       return <HomePage onLogout={() => { doLogout(); setCurrentPage('login'); }} />;
     }
     if (currentPage === 'admin-home' && userRole === 'admin') {
       return <AdminHomePage onLogout={() => { doLogout(); setCurrentPage('login'); }} />;
     }
-    if (currentPage === 'not-found' || (currentPage === 'user-home' && userRole === 'admin') || (currentPage === 'admin-home' && userRole === 'user')) {
+    if (currentPage === 'not-found' || (currentPage === 'admin-home' && userRole === 'user')) {
       return <NotFoundPage onNavigateHome={() => setCurrentPage(userRole === 'admin' ? 'admin-home' : 'user-home')} />;
     }
     return null;

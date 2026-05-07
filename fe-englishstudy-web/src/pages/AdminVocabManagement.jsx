@@ -16,8 +16,8 @@ import VocabTable from "../components/VocabTable";
 import SearchBar from "../components/SearchBar";
 import ConfirmModal from "../components/ConfirmModal";
 import FilterDropdown from "../components/FilterDropdown";
-import { adminImportVocabulariesCsv } from "../utils/services/vocabService";
 import {
+  adminImportVocabulariesCsv,
   createVocabulary,
   updateVocabulary,
   deleteVocabulary,
@@ -27,6 +27,7 @@ import {
   fetchTopicVocabularies,
 } from "../utils/services/topicService";
 import { fetchLessons } from "../utils/services/lessonService";
+import { formatWordType } from "../utils/wordFormatters";
 
 const FILTER_OPTIONS = {
   types: ["Danh từ", "Động từ", "Tính từ", "Trạng từ"],
@@ -117,7 +118,7 @@ export default function AdminVocabManagement() {
               lessonId: v.lessonId ?? v.lesson_id ?? v.lesson?.id,
               lessonName: v.lessonName ?? v.lesson_name ?? v.lesson?.name,
               topic: topicName,
-              word_type: v.word_type ?? v.wordType ?? v.type ?? "Danh từ",
+              word_type: formatWordType(v.word_type ?? v.wordType ?? v.type ?? "Danh từ"),
             }));
             allVocabs = [...allVocabs, ...mapped];
           });
@@ -325,7 +326,7 @@ export default function AdminVocabManagement() {
         const created = await createVocabulary({
           word: wordTrimmed,
           pronunciation: newWord.pronunciation?.trim() || "",
-          wordType: newWord.word_type || "",
+          wordType: formatWordType(newWord.word_type || ""),
           meaning: newWord.meaning?.trim() || "",
           level: INT_TO_LEVEL[newWord.level] ?? newWord.level ?? 'A1',
           example: newWord.example || "",
@@ -464,7 +465,7 @@ export default function AdminVocabManagement() {
           await updateVocabulary(w.id, {
             word: w.word,
             pronunciation: w.pronunciation,
-            wordType: w.word_type,
+            wordType: formatWordType(w.word_type),
             meaning: w.meaning,
             level: INT_TO_LEVEL[w.level] ?? w.level ?? 'A1',
             example: w.example,

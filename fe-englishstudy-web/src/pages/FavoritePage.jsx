@@ -7,6 +7,7 @@ import AddToCollectionModal from '../components/AddToCollectionModal';
 import SearchBar from '../components/SearchBar';
 import { fetchCollections, addVocabToCollection } from '../utils/services/collectionService';
 import { fetchFavorites, removeFavorite } from '../utils/services/favouriteService';
+import { formatWordType } from '../utils/wordFormatters';
 
 
 const ITEMS_PER_PAGE = 10;
@@ -33,7 +34,7 @@ function FavoritePage() {
               id: w.vocabId ?? w.id,
               word: w.word ?? '',
               pronunciation: w.pronunciation ?? '',
-              word_type: w.wordType ?? w.word_type ?? '',
+              word_type: formatWordType(w.wordType ?? w.word_type ?? ''),
               meaning: w.meaning ?? '',
               example: w.example ?? '',
               level: LEVEL_MAP[w.level] ?? w.level ?? 1,

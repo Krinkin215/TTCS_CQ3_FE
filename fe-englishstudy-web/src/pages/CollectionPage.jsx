@@ -12,6 +12,7 @@ import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle
 import { fetchCollections, createCollection as apiCreateCollection, deleteCollection as apiDeleteCollection, fetchCollectionVocabs, addVocabToCollection, updateCollectionName, removeVocabFromCollection } from '../utils/services/collectionService';
 import { addFavorite, removeFavorite, fetchFavorites } from '../utils/services/favouriteService';
 import { fetchVocabularyById, updateVocabulary, deleteVocabulary, fetchUserVocabularies } from '../utils/services/vocabService';
+import { formatWordType } from '../utils/wordFormatters';
 
 const COLLECTION_NAME_LIMIT = 50;
 const MY_VOCAB_NAME = 'Từ vựng của tôi';
@@ -54,6 +55,15 @@ function CollectionPage({ onNavigateToPractice }) {
 
           // Luôn đặt "Từ vựng của tôi" ở đầu
           setCollections([myVocabCollection, ...otherCollections]);
+
+          // Lấy số lượng thực tế cho "Từ vựng của tôi" ngầm trong lúc tải
+          fetchUserVocabularies().then(userVocabs => {
+             if (cancelled) return;
+             const actualCount = Array.isArray(userVocabs) ? userVocabs.length : (userVocabs?.items?.length ?? userVocabs?.data?.length ?? 0);
+             setCollections(prev => prev.map(c => 
+                 c.name === MY_VOCAB_NAME ? { ...c, wordCount: actualCount } : c
+             ));
+          }).catch(() => {});
         }
       } catch {
         // API lỗi → vẫn hiển thị "Từ vựng của tôi" rỗng
@@ -164,7 +174,7 @@ function CollectionPage({ onNavigateToPractice }) {
         return updateVocabulary(word.id, {
           word: word.word.trim(),
           pronunciation: word.pronunciation,
-          wordType: word.word_type,
+          wordType: formatWordType(word.word_type),
           meaning: word.meaning,
           example: word.example,
           level: INT_TO_LEVEL[word.level] || 'A1'
@@ -376,7 +386,7 @@ function CollectionPage({ onNavigateToPractice }) {
             id: vid,
             word: detail?.word ?? w.word ?? '',
             pronunciation: detail?.pronunciation ?? w.pronunciation ?? '',
-            word_type: detail?.wordType ?? w.wordType ?? w.word_type ?? '',
+            word_type: formatWordType(detail?.wordType ?? w.wordType ?? w.word_type ?? ''),
             meaning: detail?.meaning ?? w.meaning ?? '',
             example: detail?.example ?? w.example ?? '',
             level: LEVEL_MAP[detail?.level] ?? LEVEL_MAP[w.level] ?? w.level ?? 1,
@@ -384,6 +394,12 @@ function CollectionPage({ onNavigateToPractice }) {
           };
         }));
       }
+
+      // Cập nhật wordCount thực tế cho card hiển thị
+      const actualCount = Array.isArray(list) ? list.length : 0;
+      setCollections(prev => prev.map(c =>
+        c.id === collection.id ? { ...c, wordCount: actualCount } : c
+      ));
     } catch {
       // API lỗi, giữ mảng rỗng
     }

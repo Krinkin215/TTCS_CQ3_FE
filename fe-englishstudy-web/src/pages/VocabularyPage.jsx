@@ -11,6 +11,7 @@ import { addVocabToCollection, fetchCollections } from '../utils/services/collec
 import { getLearnedVocabStats } from '../utils/services/progressService';
 import { fetchTopics, fetchTopicVocabularies } from '../utils/services/topicService';
 import { getMe } from '../utils/services/authService';
+import { formatWordType } from '../utils/wordFormatters';
 
 
 
@@ -172,7 +173,7 @@ function VocabularyPage({ initialFilter }) {
           return {
             id: vid,
             word: word.word || '',
-            word_type: word.wordType || word.word_type || '',
+            word_type: formatWordType(word.wordType || word.word_type || ''),
             pronunciation: word.pronunciation || '',
             meaning: word.meaning || '',
             example: word.example || '',
@@ -336,7 +337,7 @@ function VocabularyPage({ initialFilter }) {
         if (parts.length >= 2 && parts[0] && parts[3]) {
           return {
             id: Date.now() + idx,
-            word: parts[0], pronunciation: parts[1] || '', word_type: parts[2] || '',
+            word: parts[0], pronunciation: parts[1] || '', word_type: formatWordType(parts[2] || ''),
             meaning: parts[3] || '', level: LEVEL_TO_INT[parts[4]] || 1, example: parts[5] || '',
             isFavorite: false
           };
@@ -395,7 +396,7 @@ function VocabularyPage({ initialFilter }) {
         const created = await createVocabulary({
           word: wordTrimmed,
           pronunciation: newWord.pronunciation?.trim() || '',
-          wordType: newWord.word_type || '',
+          wordType: formatWordType(newWord.word_type || ''),
           meaning: newWord.meaning?.trim() || '',
           level: INT_TO_LEVEL[newWord.level] ?? newWord.level ?? 'A1',
           example: newWord.example || ''

@@ -6,6 +6,7 @@ import { fetchCollectionVocabs } from '../utils/services/collectionService';
 import { fetchVocabularyById, fetchUserVocabularies } from '../utils/services/vocabService';
 import { saveVocabProgress } from '../utils/services/userService';
 import { addFavorite, removeFavorite, fetchFavorites } from '../utils/services/favouriteService';
+import { formatWordType } from '../utils/wordFormatters';
 
 const MY_VOCAB_NAME = 'Từ vựng của tôi';
 
@@ -70,7 +71,7 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
           id: w.vocabId ?? w.id ?? `${lesson?.id ?? collection?.id}-${idx}`,
           word: w.word ?? '',
           pronunciation: w.pronunciation ?? '',
-          word_type: w.wordType ?? w.word_type ?? '',
+          word_type: formatWordType(w.wordType ?? w.word_type ?? ''),
           meaning: w.meaning ?? '',
           example: w.example ?? '',
           level: LEVEL_MAP[w.level] ?? w.level ?? 1,

@@ -38,6 +38,7 @@ import {
   getCollectionStatusSummary,
   getLessonStatusSummary,
 } from "../utils/services/progressService";
+import { formatWordType } from "../utils/wordFormatters";
 
 const STATUS_OPTIONS = [
   { id: "NEW", name: "Chưa học" },
@@ -505,7 +506,7 @@ export default function PracticePage({ onBack, initialFilters }) {
               id: q.vocabId ?? q.id ?? idx + 1,
               word: q.word ?? "",
               pronunciation: q.pronunciation ?? "",
-              type: q.wordType ?? q.word_type ?? "",
+              type: formatWordType(q.wordType ?? q.word_type ?? ""),
               meaning: q.meaning ?? "",
               example: q.example ?? "",
               options: q.options ?? [],
