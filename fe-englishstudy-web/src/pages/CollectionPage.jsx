@@ -59,7 +59,13 @@ function CollectionPage({ onNavigateToPractice }) {
           // Lấy số lượng thực tế cho "Từ vựng của tôi" ngầm trong lúc tải
           fetchUserVocabularies().then(userVocabs => {
              if (cancelled) return;
-             const actualCount = Array.isArray(userVocabs) ? userVocabs.length : (userVocabs?.items?.length ?? userVocabs?.data?.length ?? 0);
+             const list = Array.isArray(userVocabs) ? userVocabs : (userVocabs?.items ?? userVocabs?.data ?? []);
+             // Filter only truly user-created words (no topic/lesson)
+             const actualCount = list.filter(w => {
+               const hasTopic = w.topicId != null || w.topic_id != null;
+               const hasLesson = w.lessonId != null || w.lesson_id != null || w.lessonName != null;
+               return !hasTopic && !hasLesson;
+             }).length;
              setCollections(prev => prev.map(c => 
                  c.name === MY_VOCAB_NAME ? { ...c, wordCount: actualCount } : c
              ));
@@ -361,9 +367,18 @@ function CollectionPage({ onNavigateToPractice }) {
         vocabPromise,
         fetchFavorites(),
       ]);
-      const list = data.status === 'fulfilled'
+      let list = data.status === 'fulfilled'
         ? (Array.isArray(data.value) ? data.value : (data.value?.items ?? data.value?.data ?? []))
         : [];
+
+      // For "Từ vựng của tôi", filter only truly user-created words (no topic/lesson)
+      if (isMyVocab) {
+        list = list.filter(w => {
+          const hasTopic = w.topicId != null || w.topic_id != null;
+          const hasLesson = w.lessonId != null || w.lesson_id != null || w.lessonName != null;
+          return !hasTopic && !hasLesson;
+        });
+      }
       const favIds = favData.status === 'fulfilled'
         ? (Array.isArray(favData.value) ? favData.value : (favData.value?.items ?? favData.value?.data ?? [])).map(f => f.vocabId ?? f.id)
         : [];

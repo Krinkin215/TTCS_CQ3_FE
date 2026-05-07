@@ -10,6 +10,7 @@ import { addFavorite, removeFavorite, fetchFavorites } from '../utils/services/f
 import { addVocabToCollection, fetchCollections } from '../utils/services/collectionService';
 import { getLearnedVocabStats } from '../utils/services/progressService';
 import { fetchTopics, fetchTopicVocabularies } from '../utils/services/topicService';
+import { fetchLessons } from '../utils/services/lessonService';
 import { getMe } from '../utils/services/authService';
 import { formatWordType } from '../utils/wordFormatters';
 
@@ -94,15 +95,16 @@ function VocabularyPage({ initialFilter }) {
           userId = u?.userId ?? u?.user_id ?? u?.id ?? null;
         } catch { /* ignore */ }
 
-        // Load từ vựng user tạo + collections + topics + favorites song song
+        // Load từ vựng user tạo + collections + topics + lessons + favorites song song
         const apiCalls = [
           fetchUserVocabularies(),
           fetchCollections(),
           fetchTopics(),
+          fetchLessons(),
           fetchFavorites(),
         ];
         if (userId) apiCalls.push(getLearnedVocabStats(userId));
-        const [vocabRes, collRes, topicsRes, favRes, statsRes] = await Promise.allSettled(apiCalls);
+        const [vocabRes, collRes, topicsRes, lessonsRes, favRes, statsRes] = await Promise.allSettled(apiCalls);
 
         // Từ vựng do user tạo
         const userVocabList = vocabRes.status === 'fulfilled'
@@ -114,22 +116,39 @@ function VocabularyPage({ initialFilter }) {
           ? (Array.isArray(topicsRes.value) ? topicsRes.value : (topicsRes.value?.items ?? topicsRes.value?.data ?? []))
           : [];
 
+        // Lessons list để map lessonId -> topicId
+        const lessonsList = lessonsRes.status === 'fulfilled'
+          ? (Array.isArray(lessonsRes.value) ? lessonsRes.value : (lessonsRes.value?.items ?? lessonsRes.value?.data ?? []))
+          : [];
+
         const topicVocabResults = await Promise.allSettled(
           topicsList.map(t => fetchTopicVocabularies(t.topicId ?? t.id))
         );
 
-        // Admin vocabularies with topicId added
+        // Admin vocabularies with topicId added and isUserCreated flag
         const adminVocabList = [];
         topicsList.forEach((t, idx) => {
           const res = topicVocabResults[idx];
           if (res.status === 'fulfilled' && Array.isArray(res.value)) {
             const tid = t.topicId ?? t.id;
-            res.value.forEach(v => { v.topicId = tid; });
+            res.value.forEach(v => {
+              v.topicId = tid;
+              v._isUserCreated = false; // Mark as system word
+            });
             adminVocabList.push(...res.value);
           }
         });
 
+        // Mark user vocab as user-created ONLY if it doesn't belong to any system topic/lesson
+        // (system words returned in user list should not be considered user-created)
+        userVocabList.forEach(v => {
+          const hasTopic = v.topicId != null || v.topic_id != null;
+          const hasLesson = v.lessonId != null || v.lesson_id != null || v.lessonName != null;
+          v._isUserCreated = !hasTopic && !hasLesson;
+        });
+
         // Merge user vocab + admin vocab, deduplicate by vocabId
+        // User vocab takes precedence over admin vocab
         const seen = new Set();
         const allVocabList = [];
         for (const w of [...userVocabList, ...adminVocabList]) {
@@ -167,9 +186,31 @@ function VocabularyPage({ initialFilter }) {
           topicNameMap[t.topicId ?? t.id] = t.topicName ?? t.name ?? t.title ?? '';
         });
 
+        // Map lessonId -> topicId để điền topic cho từ có lesson nhưng thiếu topic
+        const lessonTopicMap = {};
+        // Ưu tiên dùng lessonsList nếu có, nếu không thì dùng t.lessons trong topics
+        if (lessonsList.length > 0) {
+          lessonsList.forEach(l => {
+            const lid = l.lessonId ?? l.id ?? l.lesson_id;
+            const tid = l.topicId ?? l.topic_id ?? l.topic?.id;
+            if (lid != null && tid != null) lessonTopicMap[String(lid)] = tid;
+          });
+        } else {
+          // Fallback: dùng lessons trong từng topic
+          topicsList.forEach(t => {
+            const tid = t.topicId ?? t.id;
+            const lessons = Array.isArray(t.lessons) ? t.lessons : (Array.isArray(t.lessonList) ? t.lessonList : []);
+            lessons.forEach(l => {
+              const lid = l.lessonId ?? l.id ?? l.lesson_id;
+              if (lid != null) lessonTopicMap[String(lid)] = tid;
+            });
+          });
+        }
+
         const formattedData = allVocabList.map(word => {
           const vid = word.vocabId || word.id;
           const backendStatus = statusMap[vid] ?? word.status ?? 'NEW';
+          const resolvedTopicId = word.topicId ?? (word.lessonId ? lessonTopicMap[String(word.lessonId)] : null) ?? null;
           return {
             id: vid,
             word: word.word || '',
@@ -181,8 +222,9 @@ function VocabularyPage({ initialFilter }) {
             status: STATUS_MAP[backendStatus] || backendStatus || 'Chưa học',
             pForget: word.pForget ?? null,
             isFavorite: favIds.includes(vid),
-            topicId: word.topicId ?? null,
-            topic: topicNameMap[word.topicId] || null,
+            isUserCreated: word._isUserCreated ?? false,
+            topicId: resolvedTopicId,
+            topic: topicNameMap[resolvedTopicId] || null,
             lessonId: word.lessonId ?? null,
             lesson: word.lessonName ?? null,
             lessonName: word.lessonName ?? null
@@ -201,12 +243,14 @@ function VocabularyPage({ initialFilter }) {
             }));
             // Đảm bảo "Từ vựng của tôi" luôn hiển thị đầu tiên
             const myVocabName = 'Từ vựng của tôi';
+            const userCreatedCount = formattedData.filter(w => w.isUserCreated).length;
             const myIdx = mapped.findIndex(c => c.name === myVocabName);
             if (myIdx !== -1) {
               const myVocab = mapped.splice(myIdx, 1)[0];
+              myVocab.wordCount = userCreatedCount;
               setCollections([myVocab, ...mapped]);
             } else {
-              setCollections([{ id: 0, name: myVocabName, wordCount: 0 }, ...mapped]);
+              setCollections([{ id: 0, name: myVocabName, wordCount: userCreatedCount }, ...mapped]);
             }
           }
         }
@@ -284,13 +328,19 @@ function VocabularyPage({ initialFilter }) {
     if (activeFilters.statuses.length > 0 && !activeFilters.statuses.includes(wordStatus)) return false;
 
     if (activeFilters.collections.length > 0) {
-      const wColls = word.collectionIds || [];
-      const isMatch = activeFilters.collections.some(id => wColls.includes(id));
+      const myVocabColl = collections.find(c => c.name === 'Từ vựng của tôi');
+      const myVocabCollId = myVocabColl?.id;
+      const isMatch = activeFilters.collections.some(filterId => {
+        // Check if this is "Từ vựng của tôi" collection (id could be 0 or any number)
+        const isMyVocabColl = myVocabColl && String(filterId) === String(myVocabCollId);
+        if (isMyVocabColl) return word.isUserCreated;
+        const wColls = word.collectionIds || [];
+        return wColls.some(id => String(id) === String(filterId));
+      });
       if (!isMatch) return false;
     }
     if (activeFilters.topics.length > 0) {
-      const wTopics = word.topicIds || [];
-      if (!activeFilters.topics.some(id => wTopics.includes(id))) return false;
+      if (!activeFilters.topics.some(id => String(id) === String(word.topicId))) return false;
     }
 
     return true;
@@ -654,9 +704,33 @@ function VocabularyPage({ initialFilter }) {
                   type="checkbox"
                   checked={activeFilters.statuses.includes(status)}
                   onChange={() => {
-                    const newStatuses = activeFilters.statuses.includes(status)
+                    let newStatuses = activeFilters.statuses.includes(status)
                       ? activeFilters.statuses.filter(s => s !== status)
                       : [...activeFilters.statuses, status];
+
+                    // Khi chọn "Đã học" → tự động chọn "Đã thuộc" + "Chưa thuộc"
+                    if (status === 'Đã học' && !activeFilters.statuses.includes('Đã học')) {
+                      if (!newStatuses.includes('Đã thuộc')) newStatuses.push('Đã thuộc');
+                      if (!newStatuses.includes('Chưa thuộc')) newStatuses.push('Chưa thuộc');
+                    }
+                    // Khi bỏ "Đã học" → tự động bỏ "Đã thuộc" + "Chưa thuộc"
+                    if (status === 'Đã học' && activeFilters.statuses.includes('Đã học')) {
+                      newStatuses = newStatuses.filter(s => s !== 'Đã thuộc' && s !== 'Chưa thuộc');
+                    }
+
+                    const hasDaThuoc = newStatuses.includes('Đã thuộc');
+                    const hasChuaThuoc = newStatuses.includes('Chưa thuộc');
+                    const hasDaHoc = newStatuses.includes('Đã học');
+
+                    // Khi cả "Đã thuộc" + "Chưa thuộc" đều được chọn → tự động chọn "Đã học"
+                    if (hasDaThuoc && hasChuaThuoc && !hasDaHoc) {
+                      newStatuses.push('Đã học');
+                    }
+                    // Khi bỏ 1 trong "Đã thuộc"/"Chưa thuộc" mà "Đã học" đang bật → tự động bỏ "Đã học"
+                    if (hasDaHoc && (!hasDaThuoc || !hasChuaThuoc) && status !== 'Đã học') {
+                      newStatuses = newStatuses.filter(s => s !== 'Đã học');
+                    }
+
                     setActiveFilters({ ...activeFilters, statuses: newStatuses });
                   }}
                   className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500 cursor-pointer"

@@ -41,9 +41,10 @@ import {
 import { formatWordType } from "../utils/wordFormatters";
 
 const STATUS_OPTIONS = [
-  { id: "NEW", name: "Chưa học" },
-  { id: "LEARNING", name: "Đang học" },
   { id: "MASTERED", name: "Đã thuộc" },
+  { id: "LEARNED", name: "Đã học" },
+  { id: "LEARNING", name: "Chưa thuộc" },
+  { id: "NEW", name: "Chưa học" },
 ];
 
 export default function PracticePage({ onBack, initialFilters }) {
@@ -56,6 +57,41 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [selectedLessons, setSelectedLessons] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [wordCount, setWordCount] = useState(20);
+
+  const toggleStatus = (newStatuses) => {
+    setSelectedStatuses((prev) => {
+      let updated = newStatuses;
+
+      const hasLearned = updated.includes("LEARNED");
+      const hasMastered = updated.includes("MASTERED");
+      const hasLearning = updated.includes("LEARNING");
+
+      // Khi chọn "Đã học" → tự động chọn "Đã thuộc" + "Chưa thuộc"
+      if (hasLearned && !prev.includes("LEARNED")) {
+        if (!updated.includes("MASTERED")) updated = [...updated, "MASTERED"];
+        if (!updated.includes("LEARNING")) updated = [...updated, "LEARNING"];
+      }
+
+      // Khi bỏ "Đã học" → tự động bỏ "Đã thuộc" + "Chưa thuộc"
+      if (!hasLearned && prev.includes("LEARNED")) {
+        updated = updated.filter((s) => s !== "MASTERED" && s !== "LEARNING");
+      }
+
+      // Khi cả "Đã thuộc" + "Chưa thuộc" đều được chọn → tự động chọn "Đã học"
+      const hasMasteredNow = updated.includes("MASTERED");
+      const hasLearningNow = updated.includes("LEARNING");
+      if (hasMasteredNow && hasLearningNow && !updated.includes("LEARNED")) {
+        updated = [...updated, "LEARNED"];
+      }
+
+      // Khi bỏ 1 trong "Đã thuộc"/"Chưa thuộc" mà "Đã học" đang bật → tự động bỏ "Đã học"
+      if (updated.includes("LEARNED") && (!hasMasteredNow || !hasLearningNow)) {
+        updated = updated.filter((s) => s !== "LEARNED");
+      }
+
+      return updated;
+    });
+  };
 
   const [collections, setCollections] = useState([]);
   const [topics, setTopics] = useState([]);
@@ -495,7 +531,9 @@ export default function PracticePage({ onBack, initialFilters }) {
             sourceId: sourceId,
             wordCount: wordCount,
             statuses:
-              selectedStatuses.length > 0 ? selectedStatuses : undefined,
+              selectedStatuses.length > 0
+                ? selectedStatuses.filter((s) => s !== "LEARNED")
+                : undefined,
           };
           const questions = await initGame(gameId, initPayload);
           const list = Array.isArray(questions)
@@ -1519,7 +1557,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                     title="Trạng thái từ vựng"
                     options={STATUS_OPTIONS}
                     selectedIds={selectedStatuses}
-                    onChange={setSelectedStatuses}
+                    onChange={toggleStatus}
                     placeholder="Tìm trạng thái..."
                   />
                   <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 flex flex-col justify-center items-center">
@@ -1570,7 +1608,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                       title="Trạng thái từ vựng"
                       options={STATUS_OPTIONS}
                       selectedIds={selectedStatuses}
-                      onChange={setSelectedStatuses}
+                      onChange={toggleStatus}
                       placeholder="Tìm trạng thái..."
                     />
                   </div>
