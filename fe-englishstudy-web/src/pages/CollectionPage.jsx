@@ -11,9 +11,10 @@ import FilterDropdown from '../components/FilterDropdown';
 import { Plus, Edit2, Eye, Trash2, X, Check, Search, FolderClosed, AlertTriangle, Bookmark, Volume2, ChevronDown, ChevronUp, MoreVertical, Heart, FolderPlus, ChevronRight, Filter } from 'lucide-react';
 import { fetchCollections, createCollection as apiCreateCollection, deleteCollection as apiDeleteCollection, fetchCollectionVocabs, addVocabToCollection, updateCollectionName, removeVocabFromCollection } from '../utils/services/collectionService';
 import { addFavorite, removeFavorite, fetchFavorites } from '../utils/services/favouriteService';
-import { fetchVocabularyById } from '../utils/services/vocabService';
+import { fetchVocabularyById, updateVocabulary, deleteVocabulary, fetchUserVocabularies } from '../utils/services/vocabService';
 
 const COLLECTION_NAME_LIMIT = 50;
+const MY_VOCAB_NAME = 'Từ vựng của tôi';
 
 
 function CollectionPage({ onNavigateToPractice }) {
@@ -28,15 +29,35 @@ function CollectionPage({ onNavigateToPractice }) {
         const data = await fetchCollections();
         const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
         if (!cancelled && Array.isArray(list)) {
-          setCollections(list.map(c => ({
+          const mapped = list.map(c => ({
             id: c.collectionId ?? c.id,
             name: c.collectionName ?? c.name ?? '',
             wordCount: c.vocabCount ?? c.wordCount ?? 0,
             masteredVocab: c.masteredVocab ?? 0
-          })));
+          }));
+
+          // Tìm bộ "Từ vựng của tôi" từ backend
+          const myVocabIdx = mapped.findIndex(c => c.name === MY_VOCAB_NAME);
+          let myVocabCollection;
+          const otherCollections = [];
+
+          if (myVocabIdx !== -1) {
+            // Tồn tại trong backend → lưu backendId, đặt id = 0
+            const found = mapped[myVocabIdx];
+            myVocabCollection = { ...found, backendId: found.id, id: 0 };
+            mapped.forEach((c, i) => { if (i !== myVocabIdx) otherCollections.push(c); });
+          } else {
+            // Chưa tồn tại → tạo virtual entry
+            myVocabCollection = { id: 0, backendId: null, name: MY_VOCAB_NAME, wordCount: 0, masteredVocab: 0 };
+            otherCollections.push(...mapped);
+          }
+
+          // Luôn đặt "Từ vựng của tôi" ở đầu
+          setCollections([myVocabCollection, ...otherCollections]);
         }
       } catch {
-        // API lỗi, giữ mảng rỗng
+        // API lỗi → vẫn hiển thị "Từ vựng của tôi" rỗng
+        if (!cancelled) setCollections([{ id: 0, backendId: null, name: MY_VOCAB_NAME, wordCount: 0, masteredVocab: 0 }]);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -99,7 +120,7 @@ function CollectionPage({ onNavigateToPractice }) {
     setEditingWords(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
   };
 
-  const handleSaveEditedWords = () => {
+  const handleSaveEditedWords = async () => {
     const wordRegex = /^[a-zA-Z\s-]+$/;
     const pronunRegex = /^\/.*\/$/;
     let formatErrorCount = 0;
@@ -136,14 +157,30 @@ function CollectionPage({ onNavigateToPractice }) {
       return;
     }
 
+    const INT_TO_LEVEL = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
 
-    setCollectionWords(prev => prev.map(cw => {
-      const edited = editingWords.find(ew => ew.id === cw.id);
-      return edited ? edited : cw;
-    }));
+    try {
+      await Promise.all(editingWords.map(word => {
+        return updateVocabulary(word.id, {
+          word: word.word.trim(),
+          pronunciation: word.pronunciation,
+          wordType: word.word_type,
+          meaning: word.meaning,
+          example: word.example,
+          level: INT_TO_LEVEL[word.level] || 'A1'
+        });
+      }));
 
-    toast.success("✅ Đã cập nhật thông tin từ vựng thành công!");
-    setShowEditWordModal(false);
+      setCollectionWords(prev => prev.map(cw => {
+        const edited = editingWords.find(ew => ew.id === cw.id);
+        return edited ? edited : cw;
+      }));
+
+      toast.success("✅ Đã cập nhật thông tin từ vựng thành công!");
+      setShowEditWordModal(false);
+    } catch (error) {
+      toast.error("Cập nhật từ vựng thất bại!");
+    }
   };
 
   const handleOpenAddToCollectionModal = (word) => {
@@ -154,7 +191,7 @@ function CollectionPage({ onNavigateToPractice }) {
   };
 
   const targetFilteredCollections = collections.filter(c =>
-    c.name.toLowerCase().includes(addModalSearchTerm.toLowerCase()) && c.id !== 0
+    c.name.toLowerCase().includes(addModalSearchTerm.toLowerCase()) && c.name !== 'Từ vựng của tôi'
   );
 
   const handleConfirmAddToCollections = async (targetCollectionIds) => {
@@ -299,8 +336,19 @@ function CollectionPage({ onNavigateToPractice }) {
     setShowWordFilterDropdown(false);
 
     try {
+      const isMyVocab = collection.name === MY_VOCAB_NAME;
+      const apiId = collection.backendId ?? collection.id; // dùng backendId nếu có
+
+      let vocabPromise;
+      if (isMyVocab && !collection.backendId) {
+        // Collection chưa tồn tại trong backend → lấy từ vựng do user tạo
+        vocabPromise = fetchUserVocabularies();
+      } else {
+        vocabPromise = fetchCollectionVocabs(apiId);
+      }
+
       const [data, favData] = await Promise.allSettled([
-        fetchCollectionVocabs(collection.id),
+        vocabPromise,
         fetchFavorites(),
       ]);
       const list = data.status === 'fulfilled'
@@ -311,14 +359,18 @@ function CollectionPage({ onNavigateToPractice }) {
         : [];
 
       if (Array.isArray(list) && list.length > 0) {
-        // CollectionVocabResponse chỉ có vocabId, word, meaning, pronunciation
-        // → cần fetch chi tiết từng từ để có wordType, level, example
-        const detailResults = await Promise.allSettled(
-          list.map(w => fetchVocabularyById(w.vocabId ?? w.id))
-        );
+        // Nếu lấy từ fetchUserVocabularies, dữ liệu đã đầy đủ
+        // Nếu lấy từ fetchCollectionVocabs, cần fetch chi tiết
+        const needsDetail = !isMyVocab || collection.backendId;
+        let detailResults = [];
+        if (needsDetail) {
+          detailResults = await Promise.allSettled(
+            list.map(w => fetchVocabularyById(w.vocabId ?? w.id))
+          );
+        }
         const LEVEL_MAP = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
         setCollectionWords(list.map((w, idx) => {
-          const detail = detailResults[idx]?.status === 'fulfilled' ? detailResults[idx].value : null;
+          const detail = needsDetail && detailResults[idx]?.status === 'fulfilled' ? detailResults[idx].value : w;
           const vid = w.vocabId ?? w.id;
           return {
             id: vid,
@@ -355,8 +407,8 @@ function CollectionPage({ onNavigateToPractice }) {
     if (!wordToDelete) return;
 
     try {
-      if (activeCollection?.id === 0) {
-        // Xóa khỏi hệ thống - không có API xóa vocab khỏi collection cho "Từ vựng của tôi"
+      if (activeCollection?.name === 'Từ vựng của tôi') {
+        await deleteVocabulary(wordToDelete.id);
       } else {
         await removeVocabFromCollection(activeCollection.id, wordToDelete.id);
       }
@@ -431,7 +483,7 @@ function CollectionPage({ onNavigateToPractice }) {
               className="fixed w-48 bg-white border border-gray-100 shadow-xl rounded-lg py-1 z-[9999] text-left"
               style={{ top: menuPos.top, left: menuPos.left }}
             >
-              {activeCollection?.id === 0 && (
+              {activeCollection?.name === 'Từ vựng của tôi' && (
                 <button
                   onClick={() => { closeMenu(); handleOpenEditModal([item]); }}
                   className="w-full px-4 py-2 text-sm text-cyan-700 hover:bg-cyan-50 text-left font-medium flex items-center gap-2 border-b border-gray-100"
@@ -455,7 +507,7 @@ function CollectionPage({ onNavigateToPractice }) {
                 onClick={() => { closeMenu(); handleWordDeleteClick(item); }}
                 className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
               >
-                {activeCollection?.id === 0 ? 'Xóa khỏi hệ thống' : 'Xóa khỏi bộ từ này'}
+                {activeCollection?.name === 'Từ vựng của tôi' ? 'Xóa khỏi hệ thống' : 'Xóa khỏi bộ từ này'}
               </button>
             </div>
           </>,
@@ -500,10 +552,15 @@ function CollectionPage({ onNavigateToPractice }) {
 
       {/* danh sách bộ từ */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-10">
-        {filteredCollections.map(collection => (
+        {filteredCollections.map((collection, idx) => {
+          // Số thứ tự: bỏ qua "Từ vựng của tôi", đếm từ 1
+          const displayIndex = filteredCollections
+            .slice(0, idx)
+            .filter(c => c.name !== MY_VOCAB_NAME).length + 1;
+          return (
           <div
-            key={collection.id}
-            className="relative bg-white rounded-2xl shadow-sm border border-cyan-100 p-5 flex flex-col justify-between min-h-[14rem] transition-all group hover:shadow-lg hover:-translate-y-1"
+            key={collection.name === MY_VOCAB_NAME ? 'my-vocab' : collection.id}
+            className={`relative bg-white rounded-2xl shadow-sm border p-5 flex flex-col justify-between min-h-[14rem] transition-all group hover:shadow-lg hover:-translate-y-1 ${collection.name === MY_VOCAB_NAME ? 'border-orange-200 ring-1 ring-orange-100' : 'border-cyan-100'}`}
           >
 
             
@@ -516,7 +573,7 @@ function CollectionPage({ onNavigateToPractice }) {
                   </span>
                 ) : (
                   <span className="flex items-center justify-center w-12 h-12 bg-cyan-100/50 text-cyan-600 font-bold text-xl rounded-xl">
-                    {collection.id < 10 ? `0${collection.id}` : collection.id}
+                    {displayIndex < 10 ? `0${displayIndex}` : displayIndex}
                   </span>
                 )}
               </div>
@@ -601,7 +658,8 @@ function CollectionPage({ onNavigateToPractice }) {
             </div>
 
           </div>
-        ))}
+        );
+        })}
       </div>
 
       
@@ -805,10 +863,10 @@ function CollectionPage({ onNavigateToPractice }) {
         isOpen={showWordDeleteModal}
         onClose={() => setShowWordDeleteModal(false)}
         onConfirm={confirmWordDelete}
-        title={activeCollection?.id === 0 ? 'Xác nhận xóa khỏi hệ thống?' : 'Xác nhận xóa từ vựng?'}
+        title={activeCollection?.name === 'Từ vựng của tôi' ? 'Xác nhận xóa khỏi hệ thống?' : 'Xác nhận xóa từ vựng?'}
         message={
           <>
-            Bạn có chắc chắn muốn xóa từ <strong>"{wordToDelete?.word}"</strong> khỏi {activeCollection?.id === 0 ? 'hệ thống' : 'bộ từ vựng này'} không?
+            Bạn có chắc chắn muốn xóa từ <strong>"{wordToDelete?.word}"</strong> khỏi {activeCollection?.name === 'Từ vựng của tôi' ? 'hệ thống' : 'bộ từ vựng này'} không?
           </>
         }
         confirmText="Xóa ngay"

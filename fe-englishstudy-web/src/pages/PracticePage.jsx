@@ -163,13 +163,20 @@ export default function PracticePage({ onBack, initialFilters }) {
             ? collRes.value
             : (collRes.value?.items ?? collRes.value?.data ?? []);
           if (!cancelled && Array.isArray(collList)) {
-            setCollections(
-              collList.map((c) => ({
-                id: c.collectionId ?? c.id,
-                name: c.collectionName ?? c.name ?? "",
-                wordCount: c.vocabCount ?? c.wordCount ?? 0,
-              })),
-            );
+            const mapped = collList.map((c) => ({
+              id: c.collectionId ?? c.id,
+              name: c.collectionName ?? c.name ?? "",
+              wordCount: c.vocabCount ?? c.wordCount ?? 0,
+            }));
+            // Đảm bảo "Từ vựng của tôi" luôn hiển thị đầu tiên
+            const myVocabName = 'Từ vựng của tôi';
+            const myIdx = mapped.findIndex(c => c.name === myVocabName);
+            if (myIdx !== -1) {
+              const myVocab = mapped.splice(myIdx, 1)[0];
+              setCollections([myVocab, ...mapped]);
+            } else {
+              setCollections([{ id: 0, name: myVocabName, wordCount: 0 }, ...mapped]);
+            }
           }
         }
 

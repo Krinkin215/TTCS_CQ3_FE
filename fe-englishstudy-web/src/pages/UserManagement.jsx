@@ -285,6 +285,7 @@ export default function UserManagement() {
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
           itemName="tài khoản"
+          showPageNumbers={true}
         />
       </div>
 

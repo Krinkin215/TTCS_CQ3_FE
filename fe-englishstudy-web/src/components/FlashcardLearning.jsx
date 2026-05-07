@@ -3,8 +3,11 @@ import { Volume2, X, ChevronLeft, ChevronRight, CheckCircle2, Gamepad2, RotateCc
 import { playAudio as playGlobalAudio } from '../utils/audio';
 import { fetchLessonVocabularies } from '../utils/services/lessonService';
 import { fetchCollectionVocabs } from '../utils/services/collectionService';
+import { fetchVocabularyById, fetchUserVocabularies } from '../utils/services/vocabService';
 import { saveVocabProgress } from '../utils/services/userService';
 import { addFavorite, removeFavorite, fetchFavorites } from '../utils/services/favouriteService';
+
+const MY_VOCAB_NAME = 'Từ vựng của tôi';
 
 export default function FlashcardLearning({ topic, lesson, collection, onExit, onNextLesson, onPrevLesson, onPractice }) {
   const [localWords, setLocalWords] = React.useState([]);
@@ -13,6 +16,7 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
   React.useEffect(() => {
     const run = async () => {
       let vocabList = [];
+      let isCollectionSource = false;
 
       // Load vocab theo lesson hoặc collection
       if (!collection && lesson?.id) {
@@ -21,9 +25,19 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
           const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
           if (Array.isArray(list)) vocabList = list;
         } catch { /* ignore */ }
-      } else if (collection?.id) {
+      } else if (collection) {
+        isCollectionSource = true;
+        const isMyVocab = collection.name === MY_VOCAB_NAME;
+        const apiId = collection.backendId ?? collection.id;
+
         try {
-          const res = await fetchCollectionVocabs(collection.id);
+          let res;
+          if (isMyVocab && !collection.backendId) {
+            // "Từ vựng của tôi" chưa có backend collection → lấy từ user vocabs
+            res = await fetchUserVocabularies();
+          } else {
+            res = await fetchCollectionVocabs(apiId);
+          }
           const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
           if (Array.isArray(list)) vocabList = list;
         } catch { /* ignore */ }
@@ -38,13 +52,28 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
       } catch { /* ignore */ }
 
       if (Array.isArray(vocabList) && vocabList.length > 0) {
-        const mapped = vocabList.map((w, idx) => ({
+        // Nếu nguồn là collection (CollectionVocabResponse) → thiếu wordType, example
+        // → cần fetch chi tiết từng từ
+        let detailedList = vocabList;
+        if (isCollectionSource) {
+          const detailResults = await Promise.allSettled(
+            vocabList.map(w => fetchVocabularyById(w.vocabId ?? w.id))
+          );
+          detailedList = vocabList.map((w, idx) => {
+            const detail = detailResults[idx]?.status === 'fulfilled' ? detailResults[idx].value : null;
+            return detail ? { ...w, ...detail } : w;
+          });
+        }
+
+        const LEVEL_MAP = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+        const mapped = detailedList.map((w, idx) => ({
           id: w.vocabId ?? w.id ?? `${lesson?.id ?? collection?.id}-${idx}`,
           word: w.word ?? '',
           pronunciation: w.pronunciation ?? '',
           word_type: w.wordType ?? w.word_type ?? '',
           meaning: w.meaning ?? '',
           example: w.example ?? '',
+          level: LEVEL_MAP[w.level] ?? w.level ?? 1,
           isFavorite: loadedFavIds.includes(w.vocabId ?? w.id),
           status: w.status ?? 'LEARNING'
         }));

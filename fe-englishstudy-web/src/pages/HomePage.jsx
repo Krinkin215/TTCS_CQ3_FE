@@ -767,7 +767,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                     className="bg-blue-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all"
                   >
                     <span className="text-blue-600 font-bold text-xl">
-                      {vocabStats.totalLearned || "—"}
+                      {vocabStats.totalLearned ?? "—"}
                     </span>
                     <span className="text-sm text-gray-500 font-medium mt-1">
                       Tổng từ đã học
@@ -779,7 +779,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                     className="bg-green-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all"
                   >
                     <span className="text-green-600 font-bold text-xl">
-                      {vocabStats.masteredCount || "—"}
+                      {vocabStats.masteredCount ?? "—"}
                     </span>
                     <span className="text-sm text-gray-500 font-medium mt-1">
                       Đã thuộc (Mastered)
@@ -791,7 +791,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                     className="bg-orange-50 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all"
                   >
                     <span className="text-orange-500 font-bold text-xl">
-                      {vocabStats.learningCount || "—"}
+                      {vocabStats.learningCount ?? "—"}
                     </span>
                     <span className="text-sm text-gray-500 font-medium mt-1 leading-tight">
                       Chưa thuộc (Learning)

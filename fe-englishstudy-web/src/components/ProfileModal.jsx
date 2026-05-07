@@ -1,4 +1,4 @@
-import { toast } from 'react-hot-toast';
+﻿import { toast } from 'react-hot-toast';
 import React, { useState, useEffect } from "react";
 import {
   X,
@@ -201,19 +201,6 @@ export default function ProfileModal({
             </div>
 
             <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Tên người dùng
-                </label>
-                <input
-                  type="text"
-                  value={formData.username || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 transition-all"
-                />
-              </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
                   Họ và tên

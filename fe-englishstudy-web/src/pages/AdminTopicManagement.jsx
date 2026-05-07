@@ -952,40 +952,9 @@ export default function AdminTopicManagement() {
             Ảnh chủ đề
           </label>
 
-          {/* tab switch */}
-          <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl w-fit">
-            <button
-              onClick={() => {
-                setNewTopicImageTab("url");
-                setNewTopicImage("");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${newTopicImageTab === "url" ? "bg-white shadow text-cyan-700" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              URL ảnh
-            </button>
-            <button
-              onClick={() => {
-                setNewTopicImageTab("upload");
-                setNewTopicImage("");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${newTopicImageTab === "upload" ? "bg-white shadow text-cyan-700" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              Tải ảnh lên
-            </button>
-          </div>
-
           <div className="flex gap-4 items-start">
             {/* input */}
             <div className="flex-1">
-              {newTopicImageTab === "url" ? (
-                <input
-                  type="text"
-                  value={newTopicImage}
-                  onChange={(e) => setNewTopicImage(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none text-sm"
-                  placeholder="https://example.com/image.png"
-                />
-              ) : (
                 <div>
                   <input
                     type="file"
@@ -1003,7 +972,6 @@ export default function AdminTopicManagement() {
                       : "📁 Nhấn để chọn file ảnh..."}
                   </button>
                 </div>
-              )}
               <p className="text-xs text-gray-400 mt-1.5">
                 Để trống sẽ dùng ảnh mặc định
               </p>
@@ -1037,7 +1005,6 @@ export default function AdminTopicManagement() {
               setShowCreateTopicModal(false);
               setNewTopicName("");
               setNewTopicImage("");
-              setNewTopicImageTab("url");
             }}
             className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
           >
