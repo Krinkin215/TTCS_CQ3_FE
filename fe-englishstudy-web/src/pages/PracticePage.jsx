@@ -28,6 +28,7 @@ import {
 import StatusBadge from "../components/StatusBadge";
 import FilterBox from "../components/FilterBox";
 import VocabResultList from "../components/VocabResultList";
+import Pagination from "../components/Pagination";
 import { playAudio } from "../utils/audio";
 import { initGame, finishGame } from "../utils/services/practiceService";
 import { fetchVocabReview } from "../utils/services/userService";
@@ -46,6 +47,10 @@ const STATUS_OPTIONS = [
   { id: "LEARNING", name: "Chưa thuộc" },
   { id: "NEW", name: "Chưa học" },
 ];
+
+const MIN_SMART_P_FORGET = 0.5;
+const SMART_WORDS_PER_PAGE = 10;
+const HIDDEN_SMART_REVIEW_WORDS_KEY = "hiddenSmartReviewWordIds";
 
 export default function PracticePage({ onBack, initialFilters }) {
   const [activeMode, setActiveMode] = useState("topic");
@@ -101,6 +106,15 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
   const [smartReviewWords, setSmartReviewWords] = useState([]);
+  const [selectedSmartWordIds, setSelectedSmartWordIds] = useState([]);
+  const [smartReviewPage, setSmartReviewPage] = useState(1);
+  const [hiddenSmartWordIds, setHiddenSmartWordIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(HIDDEN_SMART_REVIEW_WORDS_KEY)) ?? [];
+    } catch {
+      return [];
+    }
+  });
   const [isSmartLoading, setIsSmartLoading] = useState(false);
 
   const [gameSettings, setGameSettings] = useState({
@@ -206,13 +220,16 @@ export default function PracticePage({ onBack, initialFilters }) {
               wordCount: c.vocabCount ?? c.wordCount ?? 0,
             }));
             // Đảm bảo "Từ vựng của tôi" luôn hiển thị đầu tiên
-            const myVocabName = 'Từ vựng của tôi';
-            const myIdx = mapped.findIndex(c => c.name === myVocabName);
+            const myVocabName = "Từ vựng của tôi";
+            const myIdx = mapped.findIndex((c) => c.name === myVocabName);
             if (myIdx !== -1) {
               const myVocab = mapped.splice(myIdx, 1)[0];
               setCollections([myVocab, ...mapped]);
             } else {
-              setCollections([{ id: 0, name: myVocabName, wordCount: 0 }, ...mapped]);
+              setCollections([
+                { id: 0, name: myVocabName, wordCount: 0 },
+                ...mapped,
+              ]);
             }
           }
         }
@@ -273,9 +290,15 @@ export default function PracticePage({ onBack, initialFilters }) {
         const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
         if (!cancelled && Array.isArray(list)) {
           setSmartReviewWords(list);
+          setSelectedSmartWordIds([]);
+          setSmartReviewPage(1);
         }
       } catch {
-        if (!cancelled) setSmartReviewWords([]);
+        if (!cancelled) {
+          setSmartReviewWords([]);
+          setSelectedSmartWordIds([]);
+          setSmartReviewPage(1);
+        }
       } finally {
         if (!cancelled) setIsSmartLoading(false);
       }
@@ -291,6 +314,108 @@ export default function PracticePage({ onBack, initialFilters }) {
       .filter((t) => selectedTopics.includes(t.id))
       .flatMap((t) => t.lessons ?? []);
   }, [selectedTopics, topics]);
+
+  const getSmartWordId = (word) => word.vocabId ?? word.id;
+
+  const getPForgetValue = (word) => {
+    const raw = word.pforget;
+    if (raw === null || raw === undefined || raw === "") return null;
+    const value = Number(raw);
+    if (Number.isNaN(value)) return null;
+    return value > 1 ? value / 100 : value;
+  };
+
+  const formatPForgetPercent = (word) => {
+    const value = getPForgetValue(word);
+    if (value === null) return "--";
+    return `${Math.round(value * 100)}%`;
+  };
+
+  const sortedSmartReviewWords = useMemo(() => {
+    const reviewableWords = smartReviewWords.filter((word) => {
+      const pForget = getPForgetValue(word);
+      const wordId = getSmartWordId(word);
+      // Smart review chỉ hiển thị các từ có xác suất quên từ 50% trở lên.
+      return (
+        pForget !== null &&
+        pForget >= MIN_SMART_P_FORGET &&
+        !hiddenSmartWordIds.includes(wordId)
+      );
+    });
+
+    return reviewableWords.sort((a, b) => {
+      const left = getPForgetValue(a) ?? -1;
+      const right = getPForgetValue(b) ?? -1;
+      return right - left;
+    });
+  }, [hiddenSmartWordIds, smartReviewWords]);
+
+  const selectedSmartWords = useMemo(() => {
+    const selectedSet = new Set(selectedSmartWordIds);
+    return sortedSmartReviewWords.filter((word) =>
+      selectedSet.has(getSmartWordId(word)),
+    );
+  }, [selectedSmartWordIds, sortedSmartReviewWords]);
+
+  const smartGameWords = useMemo(() => {
+    if (selectedSmartWords.length > 0) return selectedSmartWords;
+    // Khi người dùng không tick từ nào, mặc định lấy 10 từ có xác suất quên cao nhất.
+    return sortedSmartReviewWords.slice(0, 10);
+  }, [selectedSmartWords, sortedSmartReviewWords]);
+
+  const smartReviewTotalPages = Math.max(
+    1,
+    Math.ceil(sortedSmartReviewWords.length / SMART_WORDS_PER_PAGE),
+  );
+
+  const paginatedSmartReviewWords = useMemo(() => {
+    const startIndex = (smartReviewPage - 1) * SMART_WORDS_PER_PAGE;
+    // Bảng smart review dùng phân trang 10 từ/trang giống Trang từ vựng.
+    return sortedSmartReviewWords.slice(
+      startIndex,
+      startIndex + SMART_WORDS_PER_PAGE,
+    );
+  }, [smartReviewPage, sortedSmartReviewWords]);
+
+  useEffect(() => {
+    if (smartReviewPage > smartReviewTotalPages) {
+      setSmartReviewPage(smartReviewTotalPages);
+    }
+  }, [smartReviewPage, smartReviewTotalPages]);
+
+  const toggleSmartWord = (wordId) => {
+    if (wordId === null || wordId === undefined) return;
+    setSelectedSmartWordIds((prev) =>
+      prev.includes(wordId)
+        ? prev.filter((id) => id !== wordId)
+        : [...prev, wordId],
+    );
+  };
+
+  const toggleAllSmartWords = () => {
+    const selectableIds = paginatedSmartReviewWords
+      .map(getSmartWordId)
+      .filter((id) => id !== null && id !== undefined);
+    const allSelected =
+      selectableIds.length > 0 &&
+      selectableIds.every((id) => selectedSmartWordIds.includes(id));
+    setSelectedSmartWordIds(allSelected ? [] : selectableIds);
+  };
+
+  const removeSmartWord = (targetWordId) => {
+    if (targetWordId === null || targetWordId === undefined) return;
+
+    setSmartReviewWords((prev) =>
+      prev.filter((word) => getSmartWordId(word) !== targetWordId),
+    );
+    setSelectedSmartWordIds((prev) => prev.filter((id) => id !== targetWordId));
+    setHiddenSmartWordIds((prev) => {
+      if (prev.includes(targetWordId)) return prev;
+      const next = [...prev, targetWordId];
+      localStorage.setItem(HIDDEN_SMART_REVIEW_WORDS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Fetch status summary thực tế từ backend khi user chọn collection hoặc lesson
   useEffect(() => {
@@ -354,7 +479,7 @@ export default function PracticePage({ onBack, initialFilters }) {
         .filter((l) => selectedLessons.includes(l.id))
         .reduce((sum, l) => sum + (l.wordCount ?? 0), 0);
     } else {
-      total = smartReviewWords.length;
+      total = smartGameWords.length;
     }
     return total;
   }, [
@@ -363,7 +488,7 @@ export default function PracticePage({ onBack, initialFilters }) {
     selectedLessons,
     selectedStatuses,
     availableLessons,
-    smartReviewWords.length,
+    smartGameWords.length,
     collections,
     statusSummary,
   ]);
@@ -526,10 +651,22 @@ export default function PracticePage({ onBack, initialFilters }) {
           } else if (activeMode === "collection")
             sourceId = selectedCollections[0] ?? null;
 
+          const smartVocabIds =
+            activeMode === "smart"
+              ? smartGameWords
+                  .map(getSmartWordId)
+                  .filter((id) => id !== null && id !== undefined)
+              : [];
+
           const initPayload = {
             mode: backendMode,
             sourceId: sourceId,
-            wordCount: wordCount,
+            wordCount:
+              activeMode === "smart" ? smartVocabIds.length : wordCount,
+            vocabIds:
+              activeMode === "smart" && smartVocabIds.length > 0
+                ? smartVocabIds
+                : undefined,
             statuses:
               selectedStatuses.length > 0
                 ? selectedStatuses.filter((s) => s !== "LEARNED")
@@ -1649,16 +1786,200 @@ export default function PracticePage({ onBack, initialFilters }) {
         )}
         {activeMode === "smart" && (
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-lg font-bold text-cyan-950 mb-2">
-              Ôn tập thông minh
-            </h2>
-            <p className="text-gray-500 font-medium">
-              Hệ thống sẽ lấy danh sách từ bạn cần ôn tập để tạo bài luyện phù
-              hợp.
-            </p>
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-cyan-950 mb-2">
+                  Ôn tập thông minh
+                </h2>
+                <p className="text-gray-500 font-medium">
+                  Chọn từ muốn luyện hoặc để trống để chơi với 10 từ có xác suất
+                  quên cao nhất.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-bold">
+                <span className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-lg border border-cyan-100">
+                  Đã chọn: {selectedSmartWordIds.length}
+                </span>
+                <span className="px-3 py-1.5 bg-[#84cc16]/10 text-[#65a30d] rounded-lg border border-[#84cc16]/20">
+                  Sẽ chơi: {smartGameWords.length}
+                </span>
+              </div>
+            </div>
             {isSmartLoading && (
               <div className="mt-4 text-sm font-bold text-gray-400">
                 Đang tải danh sách từ cần ôn...
+              </div>
+            )}
+            {!isSmartLoading && sortedSmartReviewWords.length === 0 && (
+              <div className="mt-5 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm font-bold text-gray-400">
+                Chưa có từ vựng nào có xác suất quên từ 50% trở lên.
+              </div>
+            )}
+            {!isSmartLoading && sortedSmartReviewWords.length > 0 && (
+              <div className="mt-5 overflow-hidden rounded-xl border border-gray-100">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-100">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="w-14 px-4 py-3 text-left">
+                          <input
+                            type="checkbox"
+                            checked={
+                              paginatedSmartReviewWords.length > 0 &&
+                              paginatedSmartReviewWords
+                                .map(getSmartWordId)
+                                .filter((id) => id !== null && id !== undefined)
+                                .every((id) =>
+                                  selectedSmartWordIds.includes(id),
+                                )
+                            }
+                            onChange={toggleAllSmartWords}
+                            className="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                            aria-label="Chọn tất cả từ cần ôn"
+                          />
+                        </th>
+                        <th className="w-16 px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-gray-500">
+                          STT
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-500">
+                          Từ vựng
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-500">
+                          Phiên âm
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-500">
+                          Loại từ
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-500">
+                          Nghĩa
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-gray-500">
+                          Cấp độ
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-gray-500">
+                          Audio
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-gray-500">
+                          Xác suất quên
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-gray-500">
+                          Xoá
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {paginatedSmartReviewWords.map((item, index) => {
+                        const wordId = getSmartWordId(item);
+                        const selected = selectedSmartWordIds.includes(wordId);
+                        const pForgetValue = getPForgetValue(item);
+                        const orderNumber =
+                          (smartReviewPage - 1) * SMART_WORDS_PER_PAGE +
+                          index +
+                          1;
+                        return (
+                          <tr
+                            key={wordId}
+                            onClick={() => toggleSmartWord(wordId)}
+                            className={`cursor-pointer transition-colors ${
+                              selected ? "bg-cyan-50/70" : "hover:bg-gray-50"
+                            }`}
+                          >
+                            <td className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => toggleSmartWord(wordId)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                                aria-label={`Chọn từ ${item.word ?? ""}`}
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-center text-sm font-bold text-gray-400">
+                              {orderNumber}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-black text-cyan-950">
+                                {item.word}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-500">
+                              {item.pronunciation
+                                ? `/${item.pronunciation}/`
+                                : "--"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600">
+                                {formatWordType(
+                                  item.wordType ?? item.word_type,
+                                )}
+                              </span>
+                            </td>
+                            <td className="max-w-md px-4 py-3 text-sm font-semibold text-gray-600">
+                              {item.meaning}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-600">
+                                {item.level ?? "--"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  playAudio(item.word);
+                                }}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-50 text-cyan-700 transition-colors hover:bg-cyan-100"
+                                title="Nghe phát âm"
+                                aria-label={`Nghe phát âm từ ${item.word ?? ""}`}
+                              >
+                                <Volume2 size={18} />
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span
+                                className={`inline-flex min-w-16 justify-center rounded-lg px-3 py-1.5 text-sm font-black ${
+                                  pForgetValue === null
+                                    ? "bg-gray-100 text-gray-400"
+                                    : pForgetValue >= 0.7
+                                      ? "bg-red-50 text-red-600"
+                                      : pForgetValue >= 0.4
+                                        ? "bg-yellow-50 text-yellow-700"
+                                        : "bg-green-50 text-green-700"
+                                }`}
+                              >
+                                {formatPForgetPercent(item)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeSmartWord(wordId);
+                                }}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition-colors hover:bg-red-100"
+                                title="Xoá khỏi danh sách ôn tập"
+                                aria-label={`Xoá từ ${item.word ?? ""}`}
+                              >
+                                <X size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  currentPage={smartReviewPage}
+                  totalPages={smartReviewTotalPages}
+                  totalItems={sortedSmartReviewWords.length}
+                  itemsPerPage={SMART_WORDS_PER_PAGE}
+                  onPageChange={setSmartReviewPage}
+                  itemName="từ vựng"
+                  showPageNumbers={true}
+                />
               </div>
             )}
           </div>
