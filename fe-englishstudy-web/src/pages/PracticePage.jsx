@@ -110,7 +110,9 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [smartReviewPage, setSmartReviewPage] = useState(1);
   const [hiddenSmartWordIds, setHiddenSmartWordIds] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(HIDDEN_SMART_REVIEW_WORDS_KEY)) ?? [];
+      return (
+        JSON.parse(localStorage.getItem(HIDDEN_SMART_REVIEW_WORDS_KEY)) ?? []
+      );
     } catch {
       return [];
     }
@@ -146,6 +148,21 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [favoriteIds, setFavoriteIds] = useState([]);
   const [historyLogView, setHistoryLogView] = useState(null);
   const feedbackRef = useRef(null);
+  const questionStartedAtRef = useRef(performance.now());
+  const gameStartedAtRef = useRef(performance.now());
+
+  const markGameStart = () => {
+    const now = performance.now();
+    gameStartedAtRef.current = now;
+    questionStartedAtRef.current = now;
+  };
+
+  const markQuestionStart = () => {
+    questionStartedAtRef.current = performance.now();
+  };
+
+  const getElapsedSeconds = (startedAt = questionStartedAtRef.current) =>
+    Math.max(1, Math.round((performance.now() - startedAt) / 1000));
 
   useEffect(() => {
     if (selectedAns !== null || matchFeedback !== null) {
@@ -549,7 +566,11 @@ export default function PracticePage({ onBack, initialFilters }) {
     setSelectedAns(index);
     const currentQ = quizData[currentQIndex];
     const isCorrect = index === currentQ.correct;
+    const responseTime = getElapsedSeconds();
 
+    console.log(
+      `[QUIZ] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
+    );
     let points = 0;
     if (isCorrect) {
       let basePoints = getDynamicPoints(1);
@@ -563,7 +584,7 @@ export default function PracticePage({ onBack, initialFilters }) {
 
     setQuizLog((prev) => [
       ...prev,
-      { q: currentQ, isCorrect, pointsEarned: points },
+      { q: currentQ, isCorrect, pointsEarned: points, timeSpent: responseTime },
     ]);
   };
 
@@ -575,31 +596,34 @@ export default function PracticePage({ onBack, initialFilters }) {
       setHintsUsed(0);
       setRevealedIndices([]);
       setTimeLeft(gameSettings.timePerQuestion || 15);
+      markQuestionStart();
     } else {
       setQuizState("result");
     }
   };
 
-  const handleRetryGame = (gameId) => {
+  const handleRetryGame = (gameId, nextQuizData = quizData) => {
+    const normalizedGameId = typeof gameId === "string" ? gameId : activeGame;
     setQuizState("playing");
     setCurrentQIndex(0);
     setSelectedAns(null);
     setQuizLog([]);
     setHasSubmittedResult(false);
-    if (gameId === "match") {
+    markGameStart();
+    if (normalizedGameId === "match") {
       setMatchLives(5);
       setMatchedIds([]);
       setSelectedMatch(null);
       setMatchFeedback(null);
       setMatchErrors({});
-      setTimeLeft((gameSettings.timePerQuestion || 15) * quizData.length);
+      setTimeLeft((gameSettings.timePerQuestion || 15) * nextQuizData.length);
       const items = [];
-      quizData.forEach((q) => {
+      nextQuizData.forEach((q) => {
         items.push({ id: q.id, text: q.word, type: "word" });
         items.push({ id: q.id, text: q.meaning, type: "meaning" });
       });
       setMatchItems(items.sort(() => Math.random() - 0.5));
-    } else if (gameId === "listen") {
+    } else if (normalizedGameId === "listen") {
       setListenInput("");
       setHintsUsed(0);
       setRevealedIndices([]);
@@ -636,6 +660,7 @@ export default function PracticePage({ onBack, initialFilters }) {
 
     if (gameId === "quiz" || gameId === "match" || gameId === "listen") {
       (async () => {
+        let preparedQuestions = [];
         try {
           // Map frontend mode sang backend GameInitRequestDTO
           const MODE_MAP = {
@@ -689,6 +714,7 @@ export default function PracticePage({ onBack, initialFilters }) {
               isFavorite: false,
               status: q.status ?? "NEW",
             }));
+            preparedQuestions = mapped;
             setQuizData(mapped);
             setFavoriteIds([]);
           } else {
@@ -698,7 +724,7 @@ export default function PracticePage({ onBack, initialFilters }) {
           setQuizData([]);
         } finally {
           setActiveGame(gameId);
-          handleRetryGame(gameId);
+          handleRetryGame(gameId, preparedQuestions);
         }
       })();
     } else {
@@ -735,12 +761,17 @@ export default function PracticePage({ onBack, initialFilters }) {
           points = Math.max(0, points - deduction);
         }
 
+        const responseTime = getElapsedSeconds();
+        console.log(
+          `[LISTEN] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
+        );
         setQuizLog((prev) => [
           ...prev,
           {
             q: currentQ,
             isCorrect: true,
             pointsEarned: points,
+            timeSpent: responseTime,
             originalPoints,
             deduction,
             errors,
@@ -768,6 +799,7 @@ export default function PracticePage({ onBack, initialFilters }) {
   };
 
   const handleMatchNext = () => {
+    markQuestionStart();
     setMatchFeedback(null);
     if (matchedIds.length === quizData.length) {
       setQuizState("result");
@@ -781,6 +813,11 @@ export default function PracticePage({ onBack, initialFilters }) {
     const isCorrect =
       !isTimeout &&
       listenInput.trim().toLowerCase() === currentQ.word.toLowerCase();
+    const responseTime = getElapsedSeconds();
+
+    console.log(
+      `[LISTEN] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
+    );
 
     setSelectedAns(isCorrect ? 1 : 0);
     let points = isCorrect
@@ -795,7 +832,7 @@ export default function PracticePage({ onBack, initialFilters }) {
       : 0;
     setQuizLog((prev) => [
       ...prev,
-      { q: currentQ, isCorrect, pointsEarned: points },
+      { q: currentQ, isCorrect, pointsEarned: points, timeSpent: responseTime },
     ]);
   };
 
@@ -836,10 +873,12 @@ export default function PracticePage({ onBack, initialFilters }) {
   useEffect(() => {
     // Xử lý khi Hết Mạng
     if (activeGame === "match" && matchLives === 0 && quizState === "playing") {
+      const timeForCurrentQ = getElapsedSeconds();
       const allFailedLogs = quizData.map((q) => ({
         q,
         isCorrect: false,
         pointsEarned: 0,
+        timeSpent: timeForCurrentQ,
       }));
       setQuizLog(allFailedLogs);
       setQuizState("result");
@@ -860,11 +899,11 @@ export default function PracticePage({ onBack, initialFilters }) {
     const finishPayload = {
       gameType: GAME_TYPE_MAP[activeGame] ?? "QUIZ",
       totalScore,
-      timeSpent: 0,
+      timeSpent: getElapsedSeconds(gameStartedAtRef.current),
       logs: quizLog.map((l) => ({
         vocabId: l.q?.id,
         isCorrect: l.isCorrect,
-        timeSpent: 0,
+        timeSpent: l.timeSpent ?? 1,
         pointsEarned: l.pointsEarned ?? 0,
       })),
     };
