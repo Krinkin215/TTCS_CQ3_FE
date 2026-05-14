@@ -39,6 +39,10 @@ import {
   getCollectionStatusSummary,
   getLessonStatusSummary,
 } from "../utils/services/progressService";
+import {
+  addFavorite,
+  removeFavorite,
+} from "../utils/services/favouriteService";
 import { formatWordType } from "../utils/wordFormatters";
 
 const STATUS_OPTIONS = [
@@ -51,6 +55,18 @@ const STATUS_OPTIONS = [
 const MIN_SMART_P_FORGET = 0.5;
 const SMART_WORDS_PER_PAGE = 10;
 const HIDDEN_SMART_REVIEW_WORDS_KEY = "hiddenSmartReviewWordIds";
+const GAME_HISTORY_STORAGE_KEY = "englishstudy_game_history";
+
+const loadGameHistory = () => {
+  try {
+    const raw = localStorage.getItem(GAME_HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 export default function PracticePage({ onBack, initialFilters }) {
   const [activeMode, setActiveMode] = useState("topic");
@@ -146,9 +162,22 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [quizData, setQuizData] = useState([]);
   const [hasSubmittedResult, setHasSubmittedResult] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState([]);
+  const [toggleFavoriteLoading, setToggleFavoriteLoading] = useState(null);
+  const [gameHistory, setGameHistory] = useState(loadGameHistory);
   const [historyLogView, setHistoryLogView] = useState(null);
   const feedbackRef = useRef(null);
   const questionStartedAtRef = useRef(performance.now());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        GAME_HISTORY_STORAGE_KEY,
+        JSON.stringify(gameHistory),
+      );
+    } catch {
+      // Ignore storage failures in private mode or quota limits
+    }
+  }, [gameHistory]);
   const gameStartedAtRef = useRef(performance.now());
 
   const markGameStart = () => {
@@ -175,10 +204,22 @@ export default function PracticePage({ onBack, initialFilters }) {
     }
   }, [selectedAns, matchFeedback]);
 
-  const toggleFavorite = (id) => {
-    setFavoriteIds((prev) =>
-      prev.includes(id) ? prev.filter((fId) => fId !== id) : [...prev, id],
-    );
+  const toggleFavorite = async (id) => {
+    setToggleFavoriteLoading(id);
+    try {
+      const isFavorite = favoriteIds.includes(id);
+      if (isFavorite) {
+        await removeFavorite(id);
+        setFavoriteIds((prev) => prev.filter((fId) => fId !== id));
+      } else {
+        await addFavorite(id);
+        setFavoriteIds((prev) => [...prev, id]);
+      }
+    } catch (error) {
+      console.error("Lỗi khi cập nhật yêu thích:", error);
+    } finally {
+      setToggleFavoriteLoading(null);
+    }
   };
 
   useEffect(() => {
@@ -554,12 +595,12 @@ export default function PracticePage({ onBack, initialFilters }) {
     return () => clearInterval(timer);
   }, [activeGame, quizState, selectedAns, matchFeedback, timeLeft]);
 
-  const getDynamicPoints = (baseModifier) => {
-    const timeBonus = (30 - gameSettings.timePerQuestion) * 0.5;
-    const diffBonus = avgDifficulty * 2;
-    const rawScore = baseModifier * (10 + diffBonus + timeBonus);
-    return Math.round(rawScore);
-  };
+  // const getDynamicPoints = (baseModifier) => {
+  //   const timeBonus = (30 - gameSettings.timePerQuestion) * 0.5;
+  //   const diffBonus = avgDifficulty * 2;
+  //   const rawScore = baseModifier * (10 + diffBonus + timeBonus);
+  //   return Math.round(rawScore);
+  // };
 
   const handleAnswer = (index) => {
     if (selectedAns !== null) return;
@@ -568,18 +609,15 @@ export default function PracticePage({ onBack, initialFilters }) {
     const isCorrect = index === currentQ.correct;
     const responseTime = getElapsedSeconds();
 
-    console.log(
-      `[QUIZ] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
-    );
+    // console.log(
+    //   `[QUIZ] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
+    // );
     let points = 0;
     if (isCorrect) {
-      let basePoints = getDynamicPoints(1);
-      let statusMultiplier = 1;
-      if (currentQ.status === "NEW") statusMultiplier = 1.2;
-      else if (currentQ.status === "LEARNING") statusMultiplier = 1.0;
-      else if (currentQ.status === "MASTERED") statusMultiplier = 0.5;
-
-      points = Math.round(basePoints * statusMultiplier);
+      if (currentQ.status === "NEW") points = 10;
+      else if (currentQ.status === "LEARNING") points = 5;
+      else if (currentQ.status === "MASTERED") points = 3;
+      else points = 5; // fallback
     }
 
     setQuizLog((prev) => [
@@ -743,28 +781,19 @@ export default function PracticePage({ onBack, initialFilters }) {
         const currentQ = quizData.find((q) => q.id === item.id);
         setMatchFeedback(currentQ);
 
-        let basePoints = getDynamicPoints(1.2);
-        let statusMultiplier =
-          currentQ.status === "NEW"
-            ? 1.2
-            : currentQ.status === "MASTERED"
-              ? 0.5
-              : 1.0;
-        let points = Math.round(basePoints * statusMultiplier);
-        let originalPoints = points;
-        let deduction = 0;
-
-        // Trừ điểm dựa trên số lần sai
+        let points = 0;
+        if (currentQ.status === "NEW") points = 10;
+        else if (currentQ.status === "LEARNING") points = 5;
+        else if (currentQ.status === "MASTERED") points = 3;
+        else points = 5; // fallback
+        const originalPoints = points;
+        const deduction = 0;
         const errors = matchErrors[item.id] || 0;
-        if (errors > 0) {
-          deduction = Math.round(points * 0.2) * errors; // Trừ 20% mỗi lần sai
-          points = Math.max(0, points - deduction);
-        }
 
         const responseTime = getElapsedSeconds();
-        console.log(
-          `[LISTEN] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
-        );
+        // console.log(
+        //   `[LISTEN] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
+        // );
         setQuizLog((prev) => [
           ...prev,
           {
@@ -815,21 +844,18 @@ export default function PracticePage({ onBack, initialFilters }) {
       listenInput.trim().toLowerCase() === currentQ.word.toLowerCase();
     const responseTime = getElapsedSeconds();
 
-    console.log(
-      `[LISTEN] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
-    );
+    // console.log(
+    //   `[LISTEN] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
+    // );
 
     setSelectedAns(isCorrect ? 1 : 0);
-    let points = isCorrect
-      ? Math.round(
-          getDynamicPoints(1.5) *
-            (currentQ.status === "NEW"
-              ? 1.2
-              : currentQ.status === "MASTERED"
-                ? 0.5
-                : 1.0),
-        )
-      : 0;
+    let points = 0;
+    if (isCorrect) {
+      if (currentQ.status === "NEW") points = 10;
+      else if (currentQ.status === "LEARNING") points = 5;
+      else if (currentQ.status === "MASTERED") points = 3;
+      else points = 5; // fallback
+    }
     setQuizLog((prev) => [
       ...prev,
       { q: currentQ, isCorrect, pointsEarned: points, timeSpent: responseTime },
@@ -885,19 +911,74 @@ export default function PracticePage({ onBack, initialFilters }) {
     }
   }, [matchLives, activeGame, quizState, quizData]);
 
+  const getGameDisplayName = (gameId) => {
+    if (gameId === "quiz") return "Trắc nghiệm";
+    if (gameId === "match") return "Nối từ";
+    if (gameId === "listen") return "Nghe - Viết";
+    return "Luyện tập";
+  };
+
+  const getHistoryGameIcon = (gameId) => {
+    switch (gameId) {
+      case "quiz":
+        return {
+          icon: CheckSquare,
+          bg: "bg-blue-100",
+          text: "text-blue-600",
+        };
+
+      case "match":
+        return {
+          icon: Gamepad2,
+          bg: "bg-purple-100",
+          text: "text-purple-600",
+        };
+
+      case "listen":
+        return {
+          icon: () => <div className="font-bold text-xl">🎧</div>,
+          bg: "bg-orange-100",
+          text: "text-orange-600",
+        };
+
+      default:
+        return {
+          icon: Gamepad2,
+          bg: "bg-gray-100",
+          text: "text-gray-600",
+        };
+    }
+  };
+
+  const formatHistoryDate = (timestamp) => {
+    try {
+      return new Date(timestamp).toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    } catch {
+      return timestamp;
+    }
+  };
+
   useEffect(() => {
     if (!activeGame) return;
     if (quizState !== "result") return;
     if (hasSubmittedResult) return;
     if (quizLog.length === 0) return;
 
+    const correctAnswers = quizLog.filter((log) => log.isCorrect).length;
     const totalScore = quizLog.reduce(
       (sum, log) => sum + (log.pointsEarned || 0),
       0,
     );
-    const GAME_TYPE_MAP = { quiz: "QUIZ", match: "MATCH", listen: "LISTEN" };
     const finishPayload = {
-      gameType: GAME_TYPE_MAP[activeGame] ?? "QUIZ",
+      gameType:
+        { quiz: "QUIZ", match: "MATCH", listen: "LISTEN" }[activeGame] ??
+        "QUIZ",
       totalScore,
       timeSpent: getElapsedSeconds(gameStartedAtRef.current),
       logs: quizLog.map((l) => ({
@@ -908,6 +989,21 @@ export default function PracticePage({ onBack, initialFilters }) {
       })),
     };
 
+    setGameHistory((prev) => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        gameId: activeGame,
+        gameName: getGameDisplayName(activeGame),
+        timestamp: new Date().toISOString(),
+        correctAnswers,
+        wrongAnswers: quizLog.length - correctAnswers,
+        totalQuestions: quizLog.length,
+        score: totalScore,
+        timeSpent: getElapsedSeconds(gameStartedAtRef.current),
+        logs: quizLog,
+      },
+      ...prev,
+    ]);
     setHasSubmittedResult(true);
     finishGame(activeGame, finishPayload).catch(() => {});
   }, [activeGame, quizState, quizLog, hasSubmittedResult, activeMode]);
@@ -1047,16 +1143,21 @@ export default function PracticePage({ onBack, initialFilters }) {
                       </button>
                       <button
                         onClick={() => toggleFavorite(currentQ.id)}
-                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors"
+                        disabled={toggleFavoriteLoading === currentQ.id}
+                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Heart
-                          size={24}
-                          className={
-                            favoriteIds.includes(currentQ.id)
-                              ? "fill-red-500 text-red-500"
-                              : "text-gray-400"
-                          }
-                        />
+                        {toggleFavoriteLoading === currentQ.id ? (
+                          <div className="w-6 h-6 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                        ) : (
+                          <Heart
+                            size={24}
+                            className={
+                              favoriteIds.includes(currentQ.id)
+                                ? "fill-red-500 text-red-500"
+                                : "text-gray-400"
+                            }
+                          />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1145,6 +1246,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                   logs={quizLog}
                   favoriteIds={favoriteIds}
                   onToggleFavorite={toggleFavorite}
+                  toggleFavoriteLoading={toggleFavoriteLoading}
                 />
               </div>
             </div>
@@ -1304,16 +1406,21 @@ export default function PracticePage({ onBack, initialFilters }) {
                       </button>
                       <button
                         onClick={() => toggleFavorite(matchFeedback.id)}
-                        className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm"
+                        disabled={toggleFavoriteLoading === matchFeedback.id}
+                        className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Heart
-                          size={18}
-                          className={
-                            favoriteIds.includes(matchFeedback.id)
-                              ? "fill-red-500 text-red-500"
-                              : "text-gray-400"
-                          }
-                        />
+                        {toggleFavoriteLoading === matchFeedback.id ? (
+                          <div className="w-4.5 h-4.5 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
+                        ) : (
+                          <Heart
+                            size={18}
+                            className={
+                              favoriteIds.includes(matchFeedback.id)
+                                ? "fill-red-500 text-red-500"
+                                : "text-gray-400"
+                            }
+                          />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1401,6 +1508,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                   logs={quizLog}
                   favoriteIds={favoriteIds}
                   onToggleFavorite={toggleFavorite}
+                  toggleFavoriteLoading={toggleFavoriteLoading}
                 />
               </div>
             </div>
@@ -1568,16 +1676,21 @@ export default function PracticePage({ onBack, initialFilters }) {
                       </button>
                       <button
                         onClick={() => toggleFavorite(currentQ.id)}
-                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors"
+                        disabled={toggleFavoriteLoading === currentQ.id}
+                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Heart
-                          size={24}
-                          className={
-                            favoriteIds.includes(currentQ.id)
-                              ? "fill-red-500 text-red-500"
-                              : "text-gray-400"
-                          }
-                        />
+                        {toggleFavoriteLoading === currentQ.id ? (
+                          <div className="w-6 h-6 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                        ) : (
+                          <Heart
+                            size={24}
+                            className={
+                              favoriteIds.includes(currentQ.id)
+                                ? "fill-red-500 text-red-500"
+                                : "text-gray-400"
+                            }
+                          />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1664,6 +1777,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                   logs={quizLog}
                   favoriteIds={favoriteIds}
                   onToggleFavorite={toggleFavorite}
+                  toggleFavoriteLoading={toggleFavoriteLoading}
                 />
               </div>
             </div>
@@ -2119,7 +2233,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                 </button>
 
                 <span className="mt-auto px-4 py-1.5 bg-white/60 rounded-lg text-sm font-bold backdrop-blur-sm border border-white transition-all">
-                  +{getDynamicPoints(game.baseModifier)} điểm / câu
+                  Từ 3-10 điểm / câu
                 </span>
               </div>
             ))}
@@ -2136,63 +2250,72 @@ export default function PracticePage({ onBack, initialFilters }) {
 
           <div className="p-6">
             <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
-                      <CheckSquare size={24} />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-cyan-950">
-                        Trắc nghiệm từ vựng
-                      </h4>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                        <span className="flex items-center gap-1">
-                          <Clock size={12} /> 14:30 - 14:45 (Hôm nay)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-center">
-                      <div className="text-sm font-bold text-green-600">
-                        18 Đúng
-                      </div>
-                      <div className="text-sm font-bold text-red-500">
-                        2 Sai
-                      </div>
-                    </div>
-                    <div className="w-px h-8 bg-gray-200"></div>
-                    <div className="text-center w-20">
-                      <div className="text-xs text-gray-500 uppercase font-bold">
-                        Điểm
-                      </div>
-                      <div className="text-lg font-black text-yellow-600">
-                        +180
-                      </div>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setHistoryLogView(
-                          quizLog.length > 0
-                            ? quizLog
-                            : quizData.map((q, idx) => ({
-                                q,
-                                isCorrect: idx % 2 === 0,
-                                pointsEarned: idx % 2 === 0 ? 15 : 0,
-                              })),
-                        )
-                      }
-                      className="px-4 py-2 bg-white border border-gray-200 text-cyan-700 font-bold rounded-lg hover:bg-cyan-50 transition-colors text-sm"
-                    >
-                      Chi tiết
-                    </button>
-                  </div>
+              {gameHistory.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-gray-500">
+                  Chưa có lịch sử chơi. Hãy bắt đầu một lượt luyện tập để xem
+                  kết quả ở đây.
                 </div>
-              ))}
+              ) : (
+                gameHistory.slice(0, 3).map((record) => (
+                  <div
+                    key={record.id}
+                    className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      {(() => {
+                        const GameIcon = getHistoryGameIcon(record.gameId);
+
+                        return (
+                          <div
+                            className={`w-12 h-12 ${GameIcon.bg} ${GameIcon.text} rounded-xl flex items-center justify-center`}
+                          >
+                            <GameIcon.icon size={24} />
+                          </div>
+                        );
+                      })()}
+                      <div>
+                        <h4 className="font-bold text-cyan-950">
+                          {record.gameName}
+                        </h4>
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                          <span className="flex items-center gap-1">
+                            <Clock size={12} />{" "}
+                            {formatHistoryDate(record.timestamp)}
+                          </span>
+                          <span className="px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-500">
+                            {record.totalQuestions} câu
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <div className="text-sm font-bold text-green-600">
+                          {record.correctAnswers} Đúng
+                        </div>
+                        <div className="text-sm font-bold text-red-500">
+                          {record.wrongAnswers} Sai
+                        </div>
+                      </div>
+                      <div className="w-px h-8 bg-gray-200"></div>
+                      <div className="text-center w-20">
+                        <div className="text-xs text-gray-500 uppercase font-bold">
+                          Điểm
+                        </div>
+                        <div className="text-lg font-black text-yellow-600">
+                          +{record.score}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setHistoryLogView(record.logs)}
+                        className="px-4 py-2 bg-white border border-gray-200 text-cyan-700 font-bold rounded-lg hover:bg-cyan-50 transition-colors text-sm"
+                      >
+                        Chi tiết
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -2276,6 +2399,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                 logs={historyLogView}
                 favoriteIds={favoriteIds}
                 onToggleFavorite={toggleFavorite}
+                toggleFavoriteLoading={toggleFavoriteLoading}
               />
             </div>
           </div>
