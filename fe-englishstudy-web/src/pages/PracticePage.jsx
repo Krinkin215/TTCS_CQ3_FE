@@ -2057,7 +2057,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                             </td>
                             <td className="px-4 py-3 text-sm font-semibold text-gray-500">
                               {item.pronunciation
-                                ? `/${item.pronunciation}/`
+                                ? `${item.pronunciation}`
                                 : "--"}
                             </td>
                             <td className="px-4 py-3">
