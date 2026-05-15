@@ -28,6 +28,7 @@ import {
 import StatusBadge from "../components/StatusBadge";
 import FilterBox from "../components/FilterBox";
 import VocabResultList from "../components/VocabResultList";
+import Pagination from "../components/Pagination";
 import { playAudio } from "../utils/audio";
 import { initGame, finishGame } from "../utils/services/practiceService";
 import { fetchVocabReview } from "../utils/services/userService";
@@ -38,6 +39,10 @@ import {
   getCollectionStatusSummary,
   getLessonStatusSummary,
 } from "../utils/services/progressService";
+import {
+  addFavorite,
+  removeFavorite,
+} from "../utils/services/favouriteService";
 import { formatWordType } from "../utils/wordFormatters";
 
 const STATUS_OPTIONS = [
@@ -46,6 +51,22 @@ const STATUS_OPTIONS = [
   { id: "LEARNING", name: "Chưa thuộc" },
   { id: "NEW", name: "Chưa học" },
 ];
+
+const MIN_SMART_P_FORGET = 0.5;
+const SMART_WORDS_PER_PAGE = 10;
+const HIDDEN_SMART_REVIEW_WORDS_KEY = "hiddenSmartReviewWordIds";
+const GAME_HISTORY_STORAGE_KEY = "englishstudy_game_history";
+
+const loadGameHistory = () => {
+  try {
+    const raw = localStorage.getItem(GAME_HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 export default function PracticePage({ onBack, initialFilters }) {
   const [activeMode, setActiveMode] = useState("topic");
@@ -101,6 +122,17 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
   const [smartReviewWords, setSmartReviewWords] = useState([]);
+  const [selectedSmartWordIds, setSelectedSmartWordIds] = useState([]);
+  const [smartReviewPage, setSmartReviewPage] = useState(1);
+  const [hiddenSmartWordIds, setHiddenSmartWordIds] = useState(() => {
+    try {
+      return (
+        JSON.parse(localStorage.getItem(HIDDEN_SMART_REVIEW_WORDS_KEY)) ?? []
+      );
+    } catch {
+      return [];
+    }
+  });
   const [isSmartLoading, setIsSmartLoading] = useState(false);
 
   const [gameSettings, setGameSettings] = useState({
@@ -130,8 +162,36 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [quizData, setQuizData] = useState([]);
   const [hasSubmittedResult, setHasSubmittedResult] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState([]);
+  const [toggleFavoriteLoading, setToggleFavoriteLoading] = useState(null);
+  const [gameHistory, setGameHistory] = useState(loadGameHistory);
   const [historyLogView, setHistoryLogView] = useState(null);
   const feedbackRef = useRef(null);
+  const questionStartedAtRef = useRef(performance.now());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        GAME_HISTORY_STORAGE_KEY,
+        JSON.stringify(gameHistory),
+      );
+    } catch {
+      // Ignore storage failures in private mode or quota limits
+    }
+  }, [gameHistory]);
+  const gameStartedAtRef = useRef(performance.now());
+
+  const markGameStart = () => {
+    const now = performance.now();
+    gameStartedAtRef.current = now;
+    questionStartedAtRef.current = now;
+  };
+
+  const markQuestionStart = () => {
+    questionStartedAtRef.current = performance.now();
+  };
+
+  const getElapsedSeconds = (startedAt = questionStartedAtRef.current) =>
+    Math.max(1, Math.round((performance.now() - startedAt) / 1000));
 
   useEffect(() => {
     if (selectedAns !== null || matchFeedback !== null) {
@@ -144,10 +204,22 @@ export default function PracticePage({ onBack, initialFilters }) {
     }
   }, [selectedAns, matchFeedback]);
 
-  const toggleFavorite = (id) => {
-    setFavoriteIds((prev) =>
-      prev.includes(id) ? prev.filter((fId) => fId !== id) : [...prev, id],
-    );
+  const toggleFavorite = async (id) => {
+    setToggleFavoriteLoading(id);
+    try {
+      const isFavorite = favoriteIds.includes(id);
+      if (isFavorite) {
+        await removeFavorite(id);
+        setFavoriteIds((prev) => prev.filter((fId) => fId !== id));
+      } else {
+        await addFavorite(id);
+        setFavoriteIds((prev) => [...prev, id]);
+      }
+    } catch (error) {
+      console.error("Lỗi khi cập nhật yêu thích:", error);
+    } finally {
+      setToggleFavoriteLoading(null);
+    }
   };
 
   useEffect(() => {
@@ -206,13 +278,16 @@ export default function PracticePage({ onBack, initialFilters }) {
               wordCount: c.vocabCount ?? c.wordCount ?? 0,
             }));
             // Đảm bảo "Từ vựng của tôi" luôn hiển thị đầu tiên
-            const myVocabName = 'Từ vựng của tôi';
-            const myIdx = mapped.findIndex(c => c.name === myVocabName);
+            const myVocabName = "Từ vựng của tôi";
+            const myIdx = mapped.findIndex((c) => c.name === myVocabName);
             if (myIdx !== -1) {
               const myVocab = mapped.splice(myIdx, 1)[0];
               setCollections([myVocab, ...mapped]);
             } else {
-              setCollections([{ id: 0, name: myVocabName, wordCount: 0 }, ...mapped]);
+              setCollections([
+                { id: 0, name: myVocabName, wordCount: 0 },
+                ...mapped,
+              ]);
             }
           }
         }
@@ -273,9 +348,15 @@ export default function PracticePage({ onBack, initialFilters }) {
         const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
         if (!cancelled && Array.isArray(list)) {
           setSmartReviewWords(list);
+          setSelectedSmartWordIds([]);
+          setSmartReviewPage(1);
         }
       } catch {
-        if (!cancelled) setSmartReviewWords([]);
+        if (!cancelled) {
+          setSmartReviewWords([]);
+          setSelectedSmartWordIds([]);
+          setSmartReviewPage(1);
+        }
       } finally {
         if (!cancelled) setIsSmartLoading(false);
       }
@@ -291,6 +372,108 @@ export default function PracticePage({ onBack, initialFilters }) {
       .filter((t) => selectedTopics.includes(t.id))
       .flatMap((t) => t.lessons ?? []);
   }, [selectedTopics, topics]);
+
+  const getSmartWordId = (word) => word.vocabId ?? word.id;
+
+  const getPForgetValue = (word) => {
+    const raw = word.pforget;
+    if (raw === null || raw === undefined || raw === "") return null;
+    const value = Number(raw);
+    if (Number.isNaN(value)) return null;
+    return value > 1 ? value / 100 : value;
+  };
+
+  const formatPForgetPercent = (word) => {
+    const value = getPForgetValue(word);
+    if (value === null) return "--";
+    return `${Math.round(value * 100)}%`;
+  };
+
+  const sortedSmartReviewWords = useMemo(() => {
+    const reviewableWords = smartReviewWords.filter((word) => {
+      const pForget = getPForgetValue(word);
+      const wordId = getSmartWordId(word);
+      // Smart review chỉ hiển thị các từ có xác suất quên từ 50% trở lên.
+      return (
+        pForget !== null &&
+        pForget >= MIN_SMART_P_FORGET &&
+        !hiddenSmartWordIds.includes(wordId)
+      );
+    });
+
+    return reviewableWords.sort((a, b) => {
+      const left = getPForgetValue(a) ?? -1;
+      const right = getPForgetValue(b) ?? -1;
+      return right - left;
+    });
+  }, [hiddenSmartWordIds, smartReviewWords]);
+
+  const selectedSmartWords = useMemo(() => {
+    const selectedSet = new Set(selectedSmartWordIds);
+    return sortedSmartReviewWords.filter((word) =>
+      selectedSet.has(getSmartWordId(word)),
+    );
+  }, [selectedSmartWordIds, sortedSmartReviewWords]);
+
+  const smartGameWords = useMemo(() => {
+    if (selectedSmartWords.length > 0) return selectedSmartWords;
+    // Khi người dùng không tick từ nào, mặc định lấy 10 từ có xác suất quên cao nhất.
+    return sortedSmartReviewWords.slice(0, 10);
+  }, [selectedSmartWords, sortedSmartReviewWords]);
+
+  const smartReviewTotalPages = Math.max(
+    1,
+    Math.ceil(sortedSmartReviewWords.length / SMART_WORDS_PER_PAGE),
+  );
+
+  const paginatedSmartReviewWords = useMemo(() => {
+    const startIndex = (smartReviewPage - 1) * SMART_WORDS_PER_PAGE;
+    // Bảng smart review dùng phân trang 10 từ/trang giống Trang từ vựng.
+    return sortedSmartReviewWords.slice(
+      startIndex,
+      startIndex + SMART_WORDS_PER_PAGE,
+    );
+  }, [smartReviewPage, sortedSmartReviewWords]);
+
+  useEffect(() => {
+    if (smartReviewPage > smartReviewTotalPages) {
+      setSmartReviewPage(smartReviewTotalPages);
+    }
+  }, [smartReviewPage, smartReviewTotalPages]);
+
+  const toggleSmartWord = (wordId) => {
+    if (wordId === null || wordId === undefined) return;
+    setSelectedSmartWordIds((prev) =>
+      prev.includes(wordId)
+        ? prev.filter((id) => id !== wordId)
+        : [...prev, wordId],
+    );
+  };
+
+  const toggleAllSmartWords = () => {
+    const selectableIds = paginatedSmartReviewWords
+      .map(getSmartWordId)
+      .filter((id) => id !== null && id !== undefined);
+    const allSelected =
+      selectableIds.length > 0 &&
+      selectableIds.every((id) => selectedSmartWordIds.includes(id));
+    setSelectedSmartWordIds(allSelected ? [] : selectableIds);
+  };
+
+  const removeSmartWord = (targetWordId) => {
+    if (targetWordId === null || targetWordId === undefined) return;
+
+    setSmartReviewWords((prev) =>
+      prev.filter((word) => getSmartWordId(word) !== targetWordId),
+    );
+    setSelectedSmartWordIds((prev) => prev.filter((id) => id !== targetWordId));
+    setHiddenSmartWordIds((prev) => {
+      if (prev.includes(targetWordId)) return prev;
+      const next = [...prev, targetWordId];
+      localStorage.setItem(HIDDEN_SMART_REVIEW_WORDS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Fetch status summary thực tế từ backend khi user chọn collection hoặc lesson
   useEffect(() => {
@@ -354,7 +537,7 @@ export default function PracticePage({ onBack, initialFilters }) {
         .filter((l) => selectedLessons.includes(l.id))
         .reduce((sum, l) => sum + (l.wordCount ?? 0), 0);
     } else {
-      total = smartReviewWords.length;
+      total = smartGameWords.length;
     }
     return total;
   }, [
@@ -363,7 +546,7 @@ export default function PracticePage({ onBack, initialFilters }) {
     selectedLessons,
     selectedStatuses,
     availableLessons,
-    smartReviewWords.length,
+    smartGameWords.length,
     collections,
     statusSummary,
   ]);
@@ -412,33 +595,34 @@ export default function PracticePage({ onBack, initialFilters }) {
     return () => clearInterval(timer);
   }, [activeGame, quizState, selectedAns, matchFeedback, timeLeft]);
 
-  const getDynamicPoints = (baseModifier) => {
-    const timeBonus = (30 - gameSettings.timePerQuestion) * 0.5;
-    const diffBonus = avgDifficulty * 2;
-    const rawScore = baseModifier * (10 + diffBonus + timeBonus);
-    return Math.round(rawScore);
-  };
+  // const getDynamicPoints = (baseModifier) => {
+  //   const timeBonus = (30 - gameSettings.timePerQuestion) * 0.5;
+  //   const diffBonus = avgDifficulty * 2;
+  //   const rawScore = baseModifier * (10 + diffBonus + timeBonus);
+  //   return Math.round(rawScore);
+  // };
 
   const handleAnswer = (index) => {
     if (selectedAns !== null) return;
     setSelectedAns(index);
     const currentQ = quizData[currentQIndex];
     const isCorrect = index === currentQ.correct;
+    const responseTime = getElapsedSeconds();
 
+    // console.log(
+    //   `[QUIZ] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
+    // );
     let points = 0;
     if (isCorrect) {
-      let basePoints = getDynamicPoints(1);
-      let statusMultiplier = 1;
-      if (currentQ.status === "NEW") statusMultiplier = 1.2;
-      else if (currentQ.status === "LEARNING") statusMultiplier = 1.0;
-      else if (currentQ.status === "MASTERED") statusMultiplier = 0.5;
-
-      points = Math.round(basePoints * statusMultiplier);
+      if (currentQ.status === "NEW") points = 10;
+      else if (currentQ.status === "LEARNING") points = 5;
+      else if (currentQ.status === "MASTERED") points = 3;
+      else points = 5; // fallback
     }
 
     setQuizLog((prev) => [
       ...prev,
-      { q: currentQ, isCorrect, pointsEarned: points },
+      { q: currentQ, isCorrect, pointsEarned: points, timeSpent: responseTime },
     ]);
   };
 
@@ -450,31 +634,34 @@ export default function PracticePage({ onBack, initialFilters }) {
       setHintsUsed(0);
       setRevealedIndices([]);
       setTimeLeft(gameSettings.timePerQuestion || 15);
+      markQuestionStart();
     } else {
       setQuizState("result");
     }
   };
 
-  const handleRetryGame = (gameId) => {
+  const handleRetryGame = (gameId, nextQuizData = quizData) => {
+    const normalizedGameId = typeof gameId === "string" ? gameId : activeGame;
     setQuizState("playing");
     setCurrentQIndex(0);
     setSelectedAns(null);
     setQuizLog([]);
     setHasSubmittedResult(false);
-    if (gameId === "match") {
+    markGameStart();
+    if (normalizedGameId === "match") {
       setMatchLives(5);
       setMatchedIds([]);
       setSelectedMatch(null);
       setMatchFeedback(null);
       setMatchErrors({});
-      setTimeLeft((gameSettings.timePerQuestion || 15) * quizData.length);
+      setTimeLeft((gameSettings.timePerQuestion || 15) * nextQuizData.length);
       const items = [];
-      quizData.forEach((q) => {
+      nextQuizData.forEach((q) => {
         items.push({ id: q.id, text: q.word, type: "word" });
         items.push({ id: q.id, text: q.meaning, type: "meaning" });
       });
       setMatchItems(items.sort(() => Math.random() - 0.5));
-    } else if (gameId === "listen") {
+    } else if (normalizedGameId === "listen") {
       setListenInput("");
       setHintsUsed(0);
       setRevealedIndices([]);
@@ -511,6 +698,7 @@ export default function PracticePage({ onBack, initialFilters }) {
 
     if (gameId === "quiz" || gameId === "match" || gameId === "listen") {
       (async () => {
+        let preparedQuestions = [];
         try {
           // Map frontend mode sang backend GameInitRequestDTO
           const MODE_MAP = {
@@ -526,10 +714,22 @@ export default function PracticePage({ onBack, initialFilters }) {
           } else if (activeMode === "collection")
             sourceId = selectedCollections[0] ?? null;
 
+          const smartVocabIds =
+            activeMode === "smart"
+              ? smartGameWords
+                  .map(getSmartWordId)
+                  .filter((id) => id !== null && id !== undefined)
+              : [];
+
           const initPayload = {
             mode: backendMode,
             sourceId: sourceId,
-            wordCount: wordCount,
+            wordCount:
+              activeMode === "smart" ? smartVocabIds.length : wordCount,
+            vocabIds:
+              activeMode === "smart" && smartVocabIds.length > 0
+                ? smartVocabIds
+                : undefined,
             statuses:
               selectedStatuses.length > 0
                 ? selectedStatuses.filter((s) => s !== "LEARNED")
@@ -552,6 +752,7 @@ export default function PracticePage({ onBack, initialFilters }) {
               isFavorite: false,
               status: q.status ?? "NEW",
             }));
+            preparedQuestions = mapped;
             setQuizData(mapped);
             setFavoriteIds([]);
           } else {
@@ -561,7 +762,7 @@ export default function PracticePage({ onBack, initialFilters }) {
           setQuizData([]);
         } finally {
           setActiveGame(gameId);
-          handleRetryGame(gameId);
+          handleRetryGame(gameId, preparedQuestions);
         }
       })();
     } else {
@@ -580,30 +781,26 @@ export default function PracticePage({ onBack, initialFilters }) {
         const currentQ = quizData.find((q) => q.id === item.id);
         setMatchFeedback(currentQ);
 
-        let basePoints = getDynamicPoints(1.2);
-        let statusMultiplier =
-          currentQ.status === "NEW"
-            ? 1.2
-            : currentQ.status === "MASTERED"
-              ? 0.5
-              : 1.0;
-        let points = Math.round(basePoints * statusMultiplier);
-        let originalPoints = points;
-        let deduction = 0;
-
-        // Trừ điểm dựa trên số lần sai
+        let points = 0;
+        if (currentQ.status === "NEW") points = 10;
+        else if (currentQ.status === "LEARNING") points = 5;
+        else if (currentQ.status === "MASTERED") points = 3;
+        else points = 5; // fallback
+        const originalPoints = points;
+        const deduction = 0;
         const errors = matchErrors[item.id] || 0;
-        if (errors > 0) {
-          deduction = Math.round(points * 0.2) * errors; // Trừ 20% mỗi lần sai
-          points = Math.max(0, points - deduction);
-        }
 
+        const responseTime = getElapsedSeconds();
+        // console.log(
+        //   `[LISTEN] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
+        // );
         setQuizLog((prev) => [
           ...prev,
           {
             q: currentQ,
             isCorrect: true,
             pointsEarned: points,
+            timeSpent: responseTime,
             originalPoints,
             deduction,
             errors,
@@ -631,6 +828,7 @@ export default function PracticePage({ onBack, initialFilters }) {
   };
 
   const handleMatchNext = () => {
+    markQuestionStart();
     setMatchFeedback(null);
     if (matchedIds.length === quizData.length) {
       setQuizState("result");
@@ -644,21 +842,23 @@ export default function PracticePage({ onBack, initialFilters }) {
     const isCorrect =
       !isTimeout &&
       listenInput.trim().toLowerCase() === currentQ.word.toLowerCase();
+    const responseTime = getElapsedSeconds();
+
+    // console.log(
+    //   `[LISTEN] Câu ${currentQIndex + 1} - ${currentQ.word}: ${responseTime}s`,
+    // );
 
     setSelectedAns(isCorrect ? 1 : 0);
-    let points = isCorrect
-      ? Math.round(
-          getDynamicPoints(1.5) *
-            (currentQ.status === "NEW"
-              ? 1.2
-              : currentQ.status === "MASTERED"
-                ? 0.5
-                : 1.0),
-        )
-      : 0;
+    let points = 0;
+    if (isCorrect) {
+      if (currentQ.status === "NEW") points = 10;
+      else if (currentQ.status === "LEARNING") points = 5;
+      else if (currentQ.status === "MASTERED") points = 3;
+      else points = 5; // fallback
+    }
     setQuizLog((prev) => [
       ...prev,
-      { q: currentQ, isCorrect, pointsEarned: points },
+      { q: currentQ, isCorrect, pointsEarned: points, timeSpent: responseTime },
     ]);
   };
 
@@ -699,15 +899,70 @@ export default function PracticePage({ onBack, initialFilters }) {
   useEffect(() => {
     // Xử lý khi Hết Mạng
     if (activeGame === "match" && matchLives === 0 && quizState === "playing") {
+      const timeForCurrentQ = getElapsedSeconds();
       const allFailedLogs = quizData.map((q) => ({
         q,
         isCorrect: false,
         pointsEarned: 0,
+        timeSpent: timeForCurrentQ,
       }));
       setQuizLog(allFailedLogs);
       setQuizState("result");
     }
   }, [matchLives, activeGame, quizState, quizData]);
+
+  const getGameDisplayName = (gameId) => {
+    if (gameId === "quiz") return "Trắc nghiệm";
+    if (gameId === "match") return "Nối từ";
+    if (gameId === "listen") return "Nghe - Viết";
+    return "Luyện tập";
+  };
+
+  const getHistoryGameIcon = (gameId) => {
+    switch (gameId) {
+      case "quiz":
+        return {
+          icon: CheckSquare,
+          bg: "bg-blue-100",
+          text: "text-blue-600",
+        };
+
+      case "match":
+        return {
+          icon: Gamepad2,
+          bg: "bg-purple-100",
+          text: "text-purple-600",
+        };
+
+      case "listen":
+        return {
+          icon: () => <div className="font-bold text-xl">🎧</div>,
+          bg: "bg-orange-100",
+          text: "text-orange-600",
+        };
+
+      default:
+        return {
+          icon: Gamepad2,
+          bg: "bg-gray-100",
+          text: "text-gray-600",
+        };
+    }
+  };
+
+  const formatHistoryDate = (timestamp) => {
+    try {
+      return new Date(timestamp).toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    } catch {
+      return timestamp;
+    }
+  };
 
   useEffect(() => {
     if (!activeGame) return;
@@ -715,23 +970,40 @@ export default function PracticePage({ onBack, initialFilters }) {
     if (hasSubmittedResult) return;
     if (quizLog.length === 0) return;
 
+    const correctAnswers = quizLog.filter((log) => log.isCorrect).length;
     const totalScore = quizLog.reduce(
       (sum, log) => sum + (log.pointsEarned || 0),
       0,
     );
-    const GAME_TYPE_MAP = { quiz: "QUIZ", match: "MATCH", listen: "LISTEN" };
     const finishPayload = {
-      gameType: GAME_TYPE_MAP[activeGame] ?? "QUIZ",
+      gameType:
+        { quiz: "QUIZ", match: "MATCH", listen: "LISTEN" }[activeGame] ??
+        "QUIZ",
       totalScore,
-      timeSpent: 0,
+      timeSpent: getElapsedSeconds(gameStartedAtRef.current),
       logs: quizLog.map((l) => ({
         vocabId: l.q?.id,
         isCorrect: l.isCorrect,
-        timeSpent: 0,
+        timeSpent: l.timeSpent ?? 1,
         pointsEarned: l.pointsEarned ?? 0,
       })),
     };
 
+    setGameHistory((prev) => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        gameId: activeGame,
+        gameName: getGameDisplayName(activeGame),
+        timestamp: new Date().toISOString(),
+        correctAnswers,
+        wrongAnswers: quizLog.length - correctAnswers,
+        totalQuestions: quizLog.length,
+        score: totalScore,
+        timeSpent: getElapsedSeconds(gameStartedAtRef.current),
+        logs: quizLog,
+      },
+      ...prev,
+    ]);
     setHasSubmittedResult(true);
     finishGame(activeGame, finishPayload).catch(() => {});
   }, [activeGame, quizState, quizLog, hasSubmittedResult, activeMode]);
@@ -871,16 +1143,21 @@ export default function PracticePage({ onBack, initialFilters }) {
                       </button>
                       <button
                         onClick={() => toggleFavorite(currentQ.id)}
-                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors"
+                        disabled={toggleFavoriteLoading === currentQ.id}
+                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Heart
-                          size={24}
-                          className={
-                            favoriteIds.includes(currentQ.id)
-                              ? "fill-red-500 text-red-500"
-                              : "text-gray-400"
-                          }
-                        />
+                        {toggleFavoriteLoading === currentQ.id ? (
+                          <div className="w-6 h-6 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                        ) : (
+                          <Heart
+                            size={24}
+                            className={
+                              favoriteIds.includes(currentQ.id)
+                                ? "fill-red-500 text-red-500"
+                                : "text-gray-400"
+                            }
+                          />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -969,6 +1246,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                   logs={quizLog}
                   favoriteIds={favoriteIds}
                   onToggleFavorite={toggleFavorite}
+                  toggleFavoriteLoading={toggleFavoriteLoading}
                 />
               </div>
             </div>
@@ -1128,16 +1406,21 @@ export default function PracticePage({ onBack, initialFilters }) {
                       </button>
                       <button
                         onClick={() => toggleFavorite(matchFeedback.id)}
-                        className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm"
+                        disabled={toggleFavoriteLoading === matchFeedback.id}
+                        className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Heart
-                          size={18}
-                          className={
-                            favoriteIds.includes(matchFeedback.id)
-                              ? "fill-red-500 text-red-500"
-                              : "text-gray-400"
-                          }
-                        />
+                        {toggleFavoriteLoading === matchFeedback.id ? (
+                          <div className="w-4.5 h-4.5 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
+                        ) : (
+                          <Heart
+                            size={18}
+                            className={
+                              favoriteIds.includes(matchFeedback.id)
+                                ? "fill-red-500 text-red-500"
+                                : "text-gray-400"
+                            }
+                          />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1225,6 +1508,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                   logs={quizLog}
                   favoriteIds={favoriteIds}
                   onToggleFavorite={toggleFavorite}
+                  toggleFavoriteLoading={toggleFavoriteLoading}
                 />
               </div>
             </div>
@@ -1392,16 +1676,21 @@ export default function PracticePage({ onBack, initialFilters }) {
                       </button>
                       <button
                         onClick={() => toggleFavorite(currentQ.id)}
-                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors"
+                        disabled={toggleFavoriteLoading === currentQ.id}
+                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Heart
-                          size={24}
-                          className={
-                            favoriteIds.includes(currentQ.id)
-                              ? "fill-red-500 text-red-500"
-                              : "text-gray-400"
-                          }
-                        />
+                        {toggleFavoriteLoading === currentQ.id ? (
+                          <div className="w-6 h-6 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                        ) : (
+                          <Heart
+                            size={24}
+                            className={
+                              favoriteIds.includes(currentQ.id)
+                                ? "fill-red-500 text-red-500"
+                                : "text-gray-400"
+                            }
+                          />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1488,6 +1777,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                   logs={quizLog}
                   favoriteIds={favoriteIds}
                   onToggleFavorite={toggleFavorite}
+                  toggleFavoriteLoading={toggleFavoriteLoading}
                 />
               </div>
             </div>
@@ -1649,16 +1939,200 @@ export default function PracticePage({ onBack, initialFilters }) {
         )}
         {activeMode === "smart" && (
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-lg font-bold text-cyan-950 mb-2">
-              Ôn tập thông minh
-            </h2>
-            <p className="text-gray-500 font-medium">
-              Hệ thống sẽ lấy danh sách từ bạn cần ôn tập để tạo bài luyện phù
-              hợp.
-            </p>
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-cyan-950 mb-2">
+                  Ôn tập thông minh
+                </h2>
+                <p className="text-gray-500 font-medium">
+                  Chọn từ muốn luyện hoặc để trống để chơi với 10 từ có xác suất
+                  quên cao nhất.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-bold">
+                <span className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-lg border border-cyan-100">
+                  Đã chọn: {selectedSmartWordIds.length}
+                </span>
+                <span className="px-3 py-1.5 bg-[#84cc16]/10 text-[#65a30d] rounded-lg border border-[#84cc16]/20">
+                  Sẽ chơi: {smartGameWords.length}
+                </span>
+              </div>
+            </div>
             {isSmartLoading && (
               <div className="mt-4 text-sm font-bold text-gray-400">
                 Đang tải danh sách từ cần ôn...
+              </div>
+            )}
+            {!isSmartLoading && sortedSmartReviewWords.length === 0 && (
+              <div className="mt-5 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm font-bold text-gray-400">
+                Chưa có từ vựng nào có xác suất quên từ 50% trở lên.
+              </div>
+            )}
+            {!isSmartLoading && sortedSmartReviewWords.length > 0 && (
+              <div className="mt-5 overflow-hidden rounded-xl border border-gray-100">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-100">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="w-14 px-4 py-3 text-left">
+                          <input
+                            type="checkbox"
+                            checked={
+                              paginatedSmartReviewWords.length > 0 &&
+                              paginatedSmartReviewWords
+                                .map(getSmartWordId)
+                                .filter((id) => id !== null && id !== undefined)
+                                .every((id) =>
+                                  selectedSmartWordIds.includes(id),
+                                )
+                            }
+                            onChange={toggleAllSmartWords}
+                            className="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                            aria-label="Chọn tất cả từ cần ôn"
+                          />
+                        </th>
+                        <th className="w-16 px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-gray-500">
+                          STT
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-500">
+                          Từ vựng
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-500">
+                          Phiên âm
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-500">
+                          Loại từ
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-500">
+                          Nghĩa
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-gray-500">
+                          Cấp độ
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-gray-500">
+                          Audio
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-gray-500">
+                          Xác suất quên
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-gray-500">
+                          Xoá
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {paginatedSmartReviewWords.map((item, index) => {
+                        const wordId = getSmartWordId(item);
+                        const selected = selectedSmartWordIds.includes(wordId);
+                        const pForgetValue = getPForgetValue(item);
+                        const orderNumber =
+                          (smartReviewPage - 1) * SMART_WORDS_PER_PAGE +
+                          index +
+                          1;
+                        return (
+                          <tr
+                            key={wordId}
+                            onClick={() => toggleSmartWord(wordId)}
+                            className={`cursor-pointer transition-colors ${
+                              selected ? "bg-cyan-50/70" : "hover:bg-gray-50"
+                            }`}
+                          >
+                            <td className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => toggleSmartWord(wordId)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                                aria-label={`Chọn từ ${item.word ?? ""}`}
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-center text-sm font-bold text-gray-400">
+                              {orderNumber}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-black text-cyan-950">
+                                {item.word}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-500">
+                              {item.pronunciation
+                                ? `/${item.pronunciation}/`
+                                : "--"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600">
+                                {formatWordType(
+                                  item.wordType ?? item.word_type,
+                                )}
+                              </span>
+                            </td>
+                            <td className="max-w-md px-4 py-3 text-sm font-semibold text-gray-600">
+                              {item.meaning}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-600">
+                                {item.level ?? "--"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  playAudio(item.word);
+                                }}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-50 text-cyan-700 transition-colors hover:bg-cyan-100"
+                                title="Nghe phát âm"
+                                aria-label={`Nghe phát âm từ ${item.word ?? ""}`}
+                              >
+                                <Volume2 size={18} />
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span
+                                className={`inline-flex min-w-16 justify-center rounded-lg px-3 py-1.5 text-sm font-black ${
+                                  pForgetValue === null
+                                    ? "bg-gray-100 text-gray-400"
+                                    : pForgetValue >= 0.7
+                                      ? "bg-red-50 text-red-600"
+                                      : pForgetValue >= 0.4
+                                        ? "bg-yellow-50 text-yellow-700"
+                                        : "bg-green-50 text-green-700"
+                                }`}
+                              >
+                                {formatPForgetPercent(item)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeSmartWord(wordId);
+                                }}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition-colors hover:bg-red-100"
+                                title="Xoá khỏi danh sách ôn tập"
+                                aria-label={`Xoá từ ${item.word ?? ""}`}
+                              >
+                                <X size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  currentPage={smartReviewPage}
+                  totalPages={smartReviewTotalPages}
+                  totalItems={sortedSmartReviewWords.length}
+                  itemsPerPage={SMART_WORDS_PER_PAGE}
+                  onPageChange={setSmartReviewPage}
+                  itemName="từ vựng"
+                  showPageNumbers={true}
+                />
               </div>
             )}
           </div>
@@ -1759,7 +2233,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                 </button>
 
                 <span className="mt-auto px-4 py-1.5 bg-white/60 rounded-lg text-sm font-bold backdrop-blur-sm border border-white transition-all">
-                  +{getDynamicPoints(game.baseModifier)} điểm / câu
+                  Từ 3-10 điểm / câu
                 </span>
               </div>
             ))}
@@ -1776,63 +2250,72 @@ export default function PracticePage({ onBack, initialFilters }) {
 
           <div className="p-6">
             <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
-                      <CheckSquare size={24} />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-cyan-950">
-                        Trắc nghiệm từ vựng
-                      </h4>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                        <span className="flex items-center gap-1">
-                          <Clock size={12} /> 14:30 - 14:45 (Hôm nay)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-center">
-                      <div className="text-sm font-bold text-green-600">
-                        18 Đúng
-                      </div>
-                      <div className="text-sm font-bold text-red-500">
-                        2 Sai
-                      </div>
-                    </div>
-                    <div className="w-px h-8 bg-gray-200"></div>
-                    <div className="text-center w-20">
-                      <div className="text-xs text-gray-500 uppercase font-bold">
-                        Điểm
-                      </div>
-                      <div className="text-lg font-black text-yellow-600">
-                        +180
-                      </div>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setHistoryLogView(
-                          quizLog.length > 0
-                            ? quizLog
-                            : quizData.map((q, idx) => ({
-                                q,
-                                isCorrect: idx % 2 === 0,
-                                pointsEarned: idx % 2 === 0 ? 15 : 0,
-                              })),
-                        )
-                      }
-                      className="px-4 py-2 bg-white border border-gray-200 text-cyan-700 font-bold rounded-lg hover:bg-cyan-50 transition-colors text-sm"
-                    >
-                      Chi tiết
-                    </button>
-                  </div>
+              {gameHistory.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-gray-500">
+                  Chưa có lịch sử chơi. Hãy bắt đầu một lượt luyện tập để xem
+                  kết quả ở đây.
                 </div>
-              ))}
+              ) : (
+                gameHistory.slice(0, 3).map((record) => (
+                  <div
+                    key={record.id}
+                    className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      {(() => {
+                        const GameIcon = getHistoryGameIcon(record.gameId);
+
+                        return (
+                          <div
+                            className={`w-12 h-12 ${GameIcon.bg} ${GameIcon.text} rounded-xl flex items-center justify-center`}
+                          >
+                            <GameIcon.icon size={24} />
+                          </div>
+                        );
+                      })()}
+                      <div>
+                        <h4 className="font-bold text-cyan-950">
+                          {record.gameName}
+                        </h4>
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                          <span className="flex items-center gap-1">
+                            <Clock size={12} />{" "}
+                            {formatHistoryDate(record.timestamp)}
+                          </span>
+                          <span className="px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-500">
+                            {record.totalQuestions} câu
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <div className="text-sm font-bold text-green-600">
+                          {record.correctAnswers} Đúng
+                        </div>
+                        <div className="text-sm font-bold text-red-500">
+                          {record.wrongAnswers} Sai
+                        </div>
+                      </div>
+                      <div className="w-px h-8 bg-gray-200"></div>
+                      <div className="text-center w-20">
+                        <div className="text-xs text-gray-500 uppercase font-bold">
+                          Điểm
+                        </div>
+                        <div className="text-lg font-black text-yellow-600">
+                          +{record.score}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setHistoryLogView(record.logs)}
+                        className="px-4 py-2 bg-white border border-gray-200 text-cyan-700 font-bold rounded-lg hover:bg-cyan-50 transition-colors text-sm"
+                      >
+                        Chi tiết
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -1916,6 +2399,7 @@ export default function PracticePage({ onBack, initialFilters }) {
                 logs={historyLogView}
                 favoriteIds={favoriteIds}
                 onToggleFavorite={toggleFavorite}
+                toggleFavoriteLoading={toggleFavoriteLoading}
               />
             </div>
           </div>

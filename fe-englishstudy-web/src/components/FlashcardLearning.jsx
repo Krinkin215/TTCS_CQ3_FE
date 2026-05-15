@@ -145,7 +145,8 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
       localWords.map((w) =>
         saveVocabProgress({
           vocabId: w.id,
-          isCorrect: true
+          isCorrect: true,
+          responseTime: 1
         }).catch(() => {})
       )
     ).catch(() => {});

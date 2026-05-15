@@ -34,6 +34,7 @@ import {
   updateTopic as apiUpdateTopic,
   deleteTopic as apiDeleteTopic,
   fetchTopicVocabularies,
+  uploadTopicImage,
 } from "../utils/services/topicService";
 import {
   fetchLessons,
@@ -126,7 +127,8 @@ export default function AdminTopicManagement() {
   const [showEditTopicModal, setShowEditTopicModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(null);
   const [newTopicName, setNewTopicName] = useState("");
-  const [newTopicImage, setNewTopicImage] = useState("");
+  const [newTopicImage, setNewTopicImage] = useState(""); // URL preview
+  const [newTopicImageFile, setNewTopicImageFile] = useState(null); // File thực để upload
   const [newTopicImageTab, setNewTopicImageTab] = useState("url"); // 'url' | 'upload'
   const topicImageFileRef = useRef(null);
 
@@ -263,26 +265,41 @@ export default function AdminTopicManagement() {
   const handleCreateTopic = async () => {
     if (!newTopicName.trim()) return;
     try {
+      // Tạo topic trước (không kèm ảnh nếu sẽ upload file)
       const created = await apiCreateTopic({
         topicName: newTopicName,
-        image: newTopicImage,
+        image: newTopicImageFile ? "" : newTopicImage, // chỉ truyền URL nếu không có file
       }).catch(() => null);
-      const newId = created?.id ?? created?.topicId ?? Date.now();
+      const newId = created?.id ?? created?.topicId ?? null;
+
+      let finalImageUrl = created?.image ?? created?.imageUrl ?? newTopicImage.trim();
+
+      // Nếu có file ảnh được chọn → upload lên Cloudinary
+      if (newId && newTopicImageFile) {
+        try {
+          const uploadedUrl = await uploadTopicImage(newId, newTopicImageFile);
+          finalImageUrl = uploadedUrl;
+        } catch {
+          toast.error("Tạo topic thành công nhưng upload ảnh thất bại.");
+        }
+      }
+
       setTopics([
         ...topics,
         {
-          id: newId,
+          id: newId ?? Date.now(),
           title: created?.topicName ?? created?.title ?? newTopicName,
           totalVocab: created?.totalVocab ?? 0,
           color: "bg-gray-100 text-gray-700",
           imageUrl:
-            (created?.image ?? created?.imageUrl ?? newTopicImage.trim()) ||
+            finalImageUrl ||
             "https://cdn-icons-png.flaticon.com/512/616/616408.png",
           lessons: [],
         },
       ]);
       setNewTopicName("");
       setNewTopicImage("");
+      setNewTopicImageFile(null);
       setNewTopicImageTab("url");
       setShowCreateTopicModal(false);
     } catch {
@@ -293,17 +310,29 @@ export default function AdminTopicManagement() {
   const handleTopicImageFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setNewTopicImageFile(file);
     const reader = new FileReader();
-    reader.onload = (ev) => setNewTopicImage(ev.target.result);
+    reader.onload = (ev) => setNewTopicImage(ev.target.result); // chỉ để preview
     reader.readAsDataURL(file);
   };
 
   const handleEditTopic = async () => {
     if (!newTopicName.trim() || !editingTopic) return;
     try {
+      let finalImageUrl = newTopicImage;
+
+      // Nếu có file ảnh mới → upload lên Cloudinary trước
+      if (newTopicImageFile) {
+        try {
+          finalImageUrl = await uploadTopicImage(editingTopic.id, newTopicImageFile);
+        } catch {
+          toast.error("Upload ảnh thất bại, tên chủ đề vẫn được cập nhật.");
+        }
+      }
+
       await apiUpdateTopic(editingTopic.id, {
         topicName: newTopicName,
-        image: newTopicImage,
+        image: finalImageUrl,
       }).catch(() => null);
       setTopics(
         topics.map((t) =>
@@ -311,13 +340,15 @@ export default function AdminTopicManagement() {
             ? {
                 ...t,
                 title: newTopicName,
-                imageUrl: newTopicImage || t.imageUrl,
+                imageUrl: finalImageUrl || t.imageUrl,
               }
             : t,
         ),
       );
       setEditingTopic(null);
       setNewTopicName("");
+      setNewTopicImage("");
+      setNewTopicImageFile(null);
       setShowEditTopicModal(false);
     } catch {
       toast.error("Cập nhật chủ đề thất bại.");
@@ -1006,6 +1037,7 @@ export default function AdminTopicManagement() {
               setShowCreateTopicModal(false);
               setNewTopicName("");
               setNewTopicImage("");
+              setNewTopicImageFile(null);
             }}
             className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
           >
@@ -1023,8 +1055,8 @@ export default function AdminTopicManagement() {
 
       {/* modal đổi tên chủ đề */}
       <ModalWrapper isOpen={showEditTopicModal} zIndex="z-[200]">
-        <h3 className="text-xl font-bold text-cyan-950 mb-4">Đổi tên chủ đề</h3>
-        <div className="mb-6">
+      <h3 className="text-xl font-bold text-cyan-950 mb-4">Chỉnh sửa chủ đề</h3>
+        <div className="mb-5">
           <label className="block text-sm font-bold text-gray-700 mb-2">
             Tên chủ đề
           </label>
@@ -1036,9 +1068,59 @@ export default function AdminTopicManagement() {
             autoFocus
           />
         </div>
+
+        {/* ảnh chủ đề khi sửa */}
+        <div className="mb-6">
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Ảnh chủ đề
+          </label>
+          <div className="flex gap-4 items-start">
+            <div className="flex-1">
+              <input
+                type="file"
+                accept="image/*"
+                ref={topicImageFileRef}
+                onChange={handleTopicImageFileChange}
+                className="hidden"
+              />
+              <button
+                onClick={() => topicImageFileRef.current?.click()}
+                className="w-full px-4 py-3 border-2 border-dashed border-gray-300 hover:border-cyan-400 rounded-xl text-sm text-gray-500 hover:text-cyan-600 font-medium transition-colors bg-gray-50 hover:bg-cyan-50 text-left"
+              >
+                {newTopicImageFile
+                  ? "✓ Đã chọn ảnh mới — nhấn để đổi"
+                  : newTopicImage
+                  ? "✓ Đang dùng ảnh hiện tại — nhấn để đổi"
+                  : "📁 Nhấn để chọn file ảnh..."}
+              </button>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Để trống sẽ giữ nguyên ảnh cũ
+              </p>
+            </div>
+            <div className="shrink-0 w-16 h-16 rounded-xl border-2 border-gray-200 bg-gray-100 flex items-center justify-center overflow-hidden">
+              {newTopicImage ? (
+                <img
+                  src={newTopicImage}
+                  alt="preview"
+                  className="w-full h-full object-contain"
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+              ) : (
+                <img
+                  src="https://cdn-icons-png.flaticon.com/512/616/616408.png"
+                  alt="default"
+                  className="w-10 h-10 object-contain opacity-30"
+                />
+              )}
+            </div>
+          </div>
+        </div>
         <div className="flex justify-end gap-3">
           <button
-            onClick={() => setShowEditTopicModal(false)}
+            onClick={() => {
+              setShowEditTopicModal(false);
+              setNewTopicImageFile(null);
+            }}
             className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
           >
             Hủy
