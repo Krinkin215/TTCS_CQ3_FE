@@ -43,6 +43,7 @@ import {
   addFavorite,
   removeFavorite,
 } from "../utils/services/favouriteService";
+import { getMe } from "../utils/services/authService";
 import { formatWordType } from "../utils/wordFormatters";
 
 const STATUS_OPTIONS = [
@@ -57,9 +58,20 @@ const SMART_WORDS_PER_PAGE = 10;
 const HIDDEN_SMART_REVIEW_WORDS_KEY = "hiddenSmartReviewWordIds";
 const GAME_HISTORY_STORAGE_KEY = "englishstudy_game_history";
 
-const loadGameHistory = () => {
+const getGameHistoryStorageKey = (userId) =>
+  userId ? `${GAME_HISTORY_STORAGE_KEY}_${userId}` : null;
+
+const getUserIdFromPrincipal = (principal) => {
+  const user = principal?.user ?? principal;
+  return user?.userId ?? user?.user_id ?? user?.id ?? user?.email ?? null;
+};
+
+const loadGameHistory = (userId) => {
+  const storageKey = getGameHistoryStorageKey(userId);
+  if (!storageKey) return [];
+
   try {
-    const raw = localStorage.getItem(GAME_HISTORY_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -68,7 +80,7 @@ const loadGameHistory = () => {
   }
 };
 
-export default function PracticePage({ onBack, initialFilters }) {
+export default function PracticePage({ onBack, initialFilters, onGameFinished }) {
   const [activeMode, setActiveMode] = useState("topic");
   const [activeTab, setActiveTab] = useState("history");
   const [instructionGame, setInstructionGame] = useState(null);
@@ -163,21 +175,49 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [hasSubmittedResult, setHasSubmittedResult] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState([]);
   const [toggleFavoriteLoading, setToggleFavoriteLoading] = useState(null);
-  const [gameHistory, setGameHistory] = useState(loadGameHistory);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
+  const [gameHistory, setGameHistory] = useState([]);
   const [historyLogView, setHistoryLogView] = useState(null);
   const feedbackRef = useRef(null);
   const questionStartedAtRef = useRef(performance.now());
 
   useEffect(() => {
+    let cancelled = false;
+
+    getMe()
+      .then((principal) => {
+        if (cancelled) return;
+        setCurrentUserId(getUserIdFromPrincipal(principal));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCurrentUserId(null);
+        setGameHistory([]);
+        setIsHistoryLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setHistoryLogView(null);
+    setGameHistory(loadGameHistory(currentUserId));
+    setIsHistoryLoaded(Boolean(currentUserId));
+  }, [currentUserId]);
+
+  useEffect(() => {
+    const storageKey = getGameHistoryStorageKey(currentUserId);
+    if (!storageKey || !isHistoryLoaded) return;
+
     try {
-      localStorage.setItem(
-        GAME_HISTORY_STORAGE_KEY,
-        JSON.stringify(gameHistory),
-      );
+      localStorage.setItem(storageKey, JSON.stringify(gameHistory));
     } catch {
       // Ignore storage failures in private mode or quota limits
     }
-  }, [gameHistory]);
+  }, [currentUserId, gameHistory, isHistoryLoaded]);
   const gameStartedAtRef = useRef(performance.now());
 
   const markGameStart = () => {
@@ -992,6 +1032,7 @@ export default function PracticePage({ onBack, initialFilters }) {
     setGameHistory((prev) => [
       {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        userId: currentUserId,
         gameId: activeGame,
         gameName: getGameDisplayName(activeGame),
         timestamp: new Date().toISOString(),
@@ -1005,8 +1046,18 @@ export default function PracticePage({ onBack, initialFilters }) {
       ...prev,
     ]);
     setHasSubmittedResult(true);
-    finishGame(activeGame, finishPayload).catch(() => {});
-  }, [activeGame, quizState, quizLog, hasSubmittedResult, activeMode]);
+    finishGame(activeGame, finishPayload)
+      .then(() => onGameFinished?.())
+      .catch(() => {});
+  }, [
+    activeGame,
+    quizState,
+    quizLog,
+    hasSubmittedResult,
+    activeMode,
+    currentUserId,
+    onGameFinished,
+  ]);
 
   // GIAO DIỆN GAME TRẮC NGHIỆM
   if (activeGame === "quiz") {

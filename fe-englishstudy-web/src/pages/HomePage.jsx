@@ -1,5 +1,5 @@
 import { toast } from "react-hot-toast";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   Home,
@@ -66,6 +66,44 @@ const TOPIC_COLORS = [
   "bg-red-100 text-red-700",
   "bg-indigo-100 text-indigo-700",
 ];
+
+const mapPrincipalToUserData = (principal) => {
+  const u = principal.user || principal;
+
+  let joinDateFormatted =
+    u.createdAt || u.created_at || u.joinDate || u.join_date || "";
+  if (joinDateFormatted && joinDateFormatted.includes("T")) {
+    joinDateFormatted = joinDateFormatted.split("T")[0];
+  }
+
+  return {
+    username: u.username ?? u.userName ?? principal.username ?? "",
+    fullName: u.fullName ?? u.full_name ?? "",
+    email: u.email ?? principal.username ?? "",
+    date_of_birth: u.dateOfBirth ?? u.date_of_birth ?? "",
+    joinDate: joinDateFormatted,
+    streak: u.streak?.currentStreak ?? u.streak ?? principal.streak ?? 0,
+    bestStreak:
+      u.streak?.longestStreak ??
+      u.bestStreak ??
+      u.best_streak ??
+      principal.bestStreak ??
+      0,
+    lastStudyDate:
+      u.streak?.lastStudyDate ??
+      u.streak?.lastStudy ??
+      u.lastStudyDate ??
+      u.last_study_date ??
+      u.lastActiveDate ??
+      u.last_active_date ??
+      "",
+    totalXP: u.totalXP ?? u.totalScore ?? u.score ?? principal.totalXP ?? 0,
+    avatarChar: (u.fullName ?? u.username ?? principal.username ?? "U")
+      .slice(0, 1)
+      .toUpperCase(),
+    avatarUrl: u.avatarUrl ?? u.avatar_url ?? principal.avatarUrl ?? null,
+  };
+};
 
 function HomePage({ onLogout, onNavigateToPractice }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -170,48 +208,19 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     avatarUrl: null,
   });
 
+  const refreshUserData = useCallback(async () => {
+    const principal = await getMe();
+    if (!principal) return;
+    setUserData(mapPrincipalToUserData(principal));
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
       try {
         const principal = await getMe();
         if (cancelled || !principal) return;
-        const u = principal.user || principal;
-
-        let joinDateFormatted =
-          u.createdAt || u.created_at || u.joinDate || u.join_date || "";
-        if (joinDateFormatted && joinDateFormatted.includes("T")) {
-          joinDateFormatted = joinDateFormatted.split("T")[0];
-        }
-
-        const mapped = {
-          username: u.username ?? u.userName ?? principal.username ?? "",
-          fullName: u.fullName ?? u.full_name ?? "",
-          email: u.email ?? principal.username ?? "",
-          date_of_birth: u.dateOfBirth ?? u.date_of_birth ?? "",
-          joinDate: joinDateFormatted,
-          streak: u.streak?.currentStreak ?? u.streak ?? principal.streak ?? 0,
-          bestStreak:
-            u.streak?.longestStreak ??
-            u.bestStreak ??
-            u.best_streak ??
-            principal.bestStreak ??
-            0,
-          lastStudyDate:
-            u.streak?.lastStudyDate ??
-            u.lastStudyDate ??
-            u.last_study_date ??
-            u.lastActiveDate ??
-            u.last_active_date ??
-            "",
-          totalXP:
-            u.totalXP ?? u.totalScore ?? u.score ?? principal.totalXP ?? 0,
-          avatarChar: (u.fullName ?? u.username ?? principal.username ?? "U")
-            .slice(0, 1)
-            .toUpperCase(),
-          avatarUrl: u.avatarUrl ?? u.avatar_url ?? principal.avatarUrl ?? null,
-        };
-        setUserData(mapped);
+        setUserData(mapPrincipalToUserData(principal));
       } catch {
         // ignore — state rỗng, UI sẽ hiển thị trạng thái trống
       }
@@ -220,7 +229,6 @@ function HomePage({ onLogout, onNavigateToPractice }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1049,6 +1057,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           <PracticePage
             initialFilters={practiceInitialFilters}
             onBack={() => setActiveMenu("Trang chủ")}
+            onGameFinished={refreshUserData}
           />
         )}
 
