@@ -34,8 +34,8 @@ import {
   updateTopic as apiUpdateTopic,
   deleteTopic as apiDeleteTopic,
   fetchTopicVocabularies,
-  uploadTopicImage,
 } from "../utils/services/topicService";
+import { compressImageToDataUrl } from "../utils/imageCompress";
 import {
   fetchLessons,
   fetchLessonById,
@@ -51,6 +51,7 @@ import {
   adminImportVocabulariesCsv,
 } from "../utils/services/vocabService";
 import { formatWordType } from "../utils/wordFormatters";
+import { getFullImageUrl } from "../utils/urlHelper";
 
 export default function AdminTopicManagement() {
   const [topics, setTopics] = useState([]);
@@ -103,8 +104,7 @@ export default function AdminTopicManagement() {
               totalVocab: t.totalVocabulary ?? t.totalVocab ?? t.total_vocab ?? 0,
               color: "bg-gray-100 text-gray-700",
               imageUrl:
-                imageUrl ||
-                "https://cdn-icons-png.flaticon.com/512/616/616408.png",
+                getFullImageUrl(imageUrl) || null,
               lessons: topicLessons,
             };
           });
@@ -263,47 +263,69 @@ export default function AdminTopicManagement() {
   };
 
   const handleCreateTopic = async () => {
-    if (!newTopicName.trim()) return;
+    if (!newTopicName.trim()) {
+      toast.error("Vui lòng nhập tên chủ đề.");
+      return;
+    }
+    if (!newTopicImageFile) {
+      toast.error("Vui lòng tải lên ảnh cho chủ đề.");
+      return;
+    }
+
+    // Nén ảnh thành data URL nhỏ gọn
+    let imageValue = "";
     try {
-      // Tạo topic trước (không kèm ảnh nếu sẽ upload file)
-      const created = await apiCreateTopic({
-        topicName: newTopicName,
-        image: newTopicImageFile ? "" : newTopicImage, // chỉ truyền URL nếu không có file
-      }).catch(() => null);
-      const newId = created?.id ?? created?.topicId ?? null;
-
-      let finalImageUrl = created?.image ?? created?.imageUrl ?? newTopicImage.trim();
-
-      // Nếu có file ảnh được chọn → upload lên Cloudinary
-      if (newId && newTopicImageFile) {
-        try {
-          const uploadedUrl = await uploadTopicImage(newId, newTopicImageFile);
-          finalImageUrl = uploadedUrl;
-        } catch {
-          toast.error("Tạo topic thành công nhưng upload ảnh thất bại.");
-        }
-      }
-
-      setTopics([
-        ...topics,
-        {
-          id: newId ?? Date.now(),
-          title: created?.topicName ?? created?.title ?? newTopicName,
-          totalVocab: created?.totalVocab ?? 0,
-          color: "bg-gray-100 text-gray-700",
-          imageUrl:
-            finalImageUrl ||
-            "https://cdn-icons-png.flaticon.com/512/616/616408.png",
-          lessons: [],
-        },
-      ]);
-      setNewTopicName("");
-      setNewTopicImage("");
-      setNewTopicImageFile(null);
-      setNewTopicImageTab("url");
-      setShowCreateTopicModal(false);
+      imageValue = await compressImageToDataUrl(newTopicImageFile, 128, 0.6);
     } catch {
-      toast.error("Tạo chủ đề thất bại.");
+      toast.error("Không thể xử lý ảnh.");
+      return;
+    }
+
+    // Lưu giá trị và đóng modal ngay lập tức
+    const savedName = newTopicName;
+    const savedImage = imageValue;
+    const tempId = `temp_${Date.now()}`;
+    setShowCreateTopicModal(false);
+    setNewTopicName("");
+    setNewTopicImage("");
+    setNewTopicImageFile(null);
+    setNewTopicImageTab("url");
+
+    // Thêm topic tạm vào danh sách ngay lập tức (optimistic)
+    setTopics((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        title: savedName,
+        totalVocab: 0,
+        color: "bg-gray-100 text-gray-700",
+        imageUrl: savedImage || null,
+        lessons: [],
+      },
+    ]);
+
+    try {
+      const created = await apiCreateTopic({
+        topicName: savedName,
+        image: savedImage,
+      });
+
+      const newId = created?.id ?? created?.topicId;
+
+      // Cập nhật ID thật từ server
+      setTopics((prev) =>
+        prev.map((t) => (t.id === tempId ? { ...t, id: newId ?? tempId } : t)),
+      );
+      toast.success("Tạo chủ đề thành công!");
+    } catch (err) {
+      // Rollback: xóa topic tạm
+      setTopics((prev) => prev.filter((t) => t.id !== tempId));
+      const msg = err?.body || err?.message || "";
+      if (msg.includes("Duplicate") || msg.includes("unique") || msg.includes("constraint")) {
+        toast.error("Tên chủ đề đã tồn tại. Vui lòng chọn tên khác.");
+      } else {
+        toast.error("Tạo chủ đề thất bại: " + (msg || "Lỗi không xác định"));
+      }
     }
   };
 
@@ -321,35 +343,44 @@ export default function AdminTopicManagement() {
     try {
       let finalImageUrl = newTopicImage;
 
-      // Nếu có file ảnh mới → upload lên Cloudinary trước
+      // Nếu có file ảnh mới → nén thành data URL
       if (newTopicImageFile) {
         try {
-          finalImageUrl = await uploadTopicImage(editingTopic.id, newTopicImageFile);
+          finalImageUrl = await compressImageToDataUrl(newTopicImageFile, 128, 0.6);
         } catch {
-          toast.error("Upload ảnh thất bại, tên chủ đề vẫn được cập nhật.");
+          toast.error("Không thể xử lý ảnh.");
         }
       }
 
-      await apiUpdateTopic(editingTopic.id, {
-        topicName: newTopicName,
-        image: finalImageUrl,
-      }).catch(() => null);
-      setTopics(
-        topics.map((t) =>
-          t.id === editingTopic.id
-            ? {
-                ...t,
-                title: newTopicName,
-                imageUrl: finalImageUrl || t.imageUrl,
-              }
-            : t,
-        ),
-      );
+      // Đóng modal ngay lập tức
+      const savedName = newTopicName;
+      const savedImage = finalImageUrl;
+      const savedTopicId = editingTopic.id;
+      setShowEditTopicModal(false);
       setEditingTopic(null);
       setNewTopicName("");
       setNewTopicImage("");
       setNewTopicImageFile(null);
-      setShowEditTopicModal(false);
+
+      // Cập nhật local state ngay
+      setTopics((prev) =>
+        prev.map((t) =>
+          t.id === savedTopicId
+            ? {
+                ...t,
+                title: savedName,
+                imageUrl: savedImage || t.imageUrl,
+              }
+            : t,
+        ),
+      );
+
+      // Gửi API ở background
+      await apiUpdateTopic(savedTopicId, {
+        topicName: savedName,
+        image: savedImage || "",
+      });
+      toast.success("Cập nhật chủ đề thành công!");
     } catch {
       toast.error("Cập nhật chủ đề thất bại.");
     }
@@ -870,11 +901,17 @@ export default function AdminTopicManagement() {
                 <div
                   className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${topic.color}`}
                 >
-                  <img
-                    src={topic.imageUrl}
-                    alt={topic.title}
-                    className="w-full h-full object-contain"
-                  />
+                  {getFullImageUrl(topic.imageUrl) ? (
+                    <img
+                      src={getFullImageUrl(topic.imageUrl)}
+                      alt={topic.title}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-2xl font-bold">
+                      {(topic.title ?? "?").slice(0, 1)}
+                    </span>
+                  )}
                 </div>
                 {/* tiêu đề và nút sửa */}
                 <div className="flex items-center gap-1.5 mb-3 pr-10">

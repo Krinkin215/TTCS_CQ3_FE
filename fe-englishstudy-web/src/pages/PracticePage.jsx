@@ -166,7 +166,26 @@ export default function PracticePage({ onBack, initialFilters }) {
   const [gameHistory, setGameHistory] = useState(loadGameHistory);
   const [historyLogView, setHistoryLogView] = useState(null);
   const feedbackRef = useRef(null);
+  const containerRef = useRef(null);
   const questionStartedAtRef = useRef(performance.now());
+  const [popupStyle, setPopupStyle] = useState({});
+
+  useEffect(() => {
+    const updatePosition = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setPopupStyle({
+          left: `${rect.left}px`,
+          width: `${rect.width}px`,
+        });
+      }
+    };
+
+    updatePosition();
+    setTimeout(updatePosition, 50);
+    window.addEventListener("resize", updatePosition);
+    return () => window.removeEventListener("resize", updatePosition);
+  }, [activeGame, quizState, selectedAns, matchFeedback]);
 
   useEffect(() => {
     try {
@@ -655,12 +674,20 @@ export default function PracticePage({ onBack, initialFilters }) {
       setMatchFeedback(null);
       setMatchErrors({});
       setTimeLeft((gameSettings.timePerQuestion || 15) * nextQuizData.length);
-      const items = [];
+      const enItems = [];
+      const viItems = [];
       nextQuizData.forEach((q) => {
-        items.push({ id: q.id, text: q.word, type: "word" });
-        items.push({ id: q.id, text: q.meaning, type: "meaning" });
+        enItems.push({ id: q.id, text: q.word, type: "word" });
+        viItems.push({ id: q.id, text: q.meaning, type: "meaning" });
       });
-      setMatchItems(items.sort(() => Math.random() - 0.5));
+      enItems.sort(() => Math.random() - 0.5);
+      viItems.sort(() => Math.random() - 0.5);
+      const items = [];
+      for (let i = 0; i < enItems.length; i++) {
+        items.push(enItems[i]);
+        items.push(viItems[i]);
+      }
+      setMatchItems(items);
     } else if (normalizedGameId === "listen") {
       setListenInput("");
       setHintsUsed(0);
@@ -772,6 +799,7 @@ export default function PracticePage({ onBack, initialFilters }) {
 
   // GAME NỐI TỪ
   const handleMatchClick = (item) => {
+    if (matchFeedback) return;
     if (selectedMatch === null) {
       setSelectedMatch(item);
     } else {
@@ -1008,6 +1036,26 @@ export default function PracticePage({ onBack, initialFilters }) {
     finishGame(activeGame, finishPayload).catch(() => {});
   }, [activeGame, quizState, quizLog, hasSubmittedResult, activeMode]);
 
+  const [isMatchFeedbackHiding, setIsMatchFeedbackHiding] = useState(false);
+
+  const handleTriggerMatchHide = () => {
+    setIsMatchFeedbackHiding(true);
+    setTimeout(() => {
+      setIsMatchFeedbackHiding(false);
+      handleMatchNext();
+    }, 300);
+  };
+
+  useEffect(() => {
+    let timeout;
+    if (matchFeedback && activeGame === "match" && !isMatchFeedbackHiding) {
+      timeout = setTimeout(() => {
+        handleTriggerMatchHide();
+      }, 3000);
+    }
+    return () => clearTimeout(timeout);
+  }, [matchFeedback, activeGame, isMatchFeedbackHiding]);
+
   // GIAO DIỆN GAME TRẮC NGHIỆM
   if (activeGame === "quiz") {
     const currentQ = quizData[currentQIndex];
@@ -1038,7 +1086,7 @@ export default function PracticePage({ onBack, initialFilters }) {
       <div className="min-h-screen bg-gray-50 pb-20 p-6 animate-in fade-in duration-300">
         <div className="max-w-3xl mx-auto space-y-6">
           {quizState === "playing" && (
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+            <div className={`bg-white rounded-3xl p-8 shadow-sm border border-gray-100 relative transition-all duration-300 ${selectedAns !== null ? "pb-32 sm:pb-40" : ""}`}>
               <div className="flex justify-between items-center mb-6">
                 <span className="text-gray-500 font-bold">
                   Câu {currentQIndex + 1} / {quizData.length}
@@ -1103,72 +1151,61 @@ export default function PracticePage({ onBack, initialFilters }) {
               {selectedAns !== null && (
                 <div
                   ref={feedbackRef}
-                  className={`mt-8 p-6 rounded-2xl border-2 ${selectedAns === currentQ.correct ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"} animate-in fade-in zoom-in-95`}
+                  style={popupStyle}
+                  className={`fixed bottom-4 z-50 p-4 sm:p-5 rounded-2xl border-2 shadow-[0_-5px_40px_rgba(0,0,0,0.15)] animate-in slide-in-from-bottom duration-300 ${selectedAns === currentQ.correct ? "bg-green-50 border-green-500" : "bg-red-50 border-red-500"}`}
                 >
-                  <h3
-                    className={`text-3xl font-black mb-4 ${selectedAns === currentQ.correct ? "text-green-600" : "text-red-600"}`}
-                  >
-                    {selectedAns === currentQ.correct
-                      ? "Tuyệt vời!"
-                      : "Sai rồi!"}
-                  </h3>
-
-                  <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
-                    <div>
-                      <h4 className="text-2xl font-bold text-gray-900">
-                        {currentQ.word}
-                      </h4>
-                      <div className="flex items-center gap-3 text-gray-500 mt-1 mb-3">
-                        <span>{currentQ.pronunciation}</span>
-                        <span className="px-2 py-0.5 bg-gray-100 rounded text-sm font-semibold">
-                          {currentQ.type}
-                        </span>
-                        <StatusBadge status={currentQ.status} />
-                      </div>
-                      <p className="text-cyan-800 font-medium text-lg mb-2">
-                        {currentQ.meaning}
-                      </p>
-                      {currentQ.example && (
-                        <p className="text-gray-600 italic text-sm">
-                          VD: "{currentQ.example}"
+                  <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-4 justify-between">
+                    <div className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center w-full">
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <h4 className="text-xl font-bold text-gray-900">
+                            {currentQ.word}
+                          </h4>
+                          <span className="text-gray-500 text-sm">{currentQ.pronunciation}</span>
+                          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-semibold text-gray-600">
+                            {currentQ.type}
+                          </span>
+                        </div>
+                        <p className={`font-medium text-base ${selectedAns === currentQ.correct ? "text-green-700" : "text-red-700"}`}>
+                          {currentQ.meaning}
                         </p>
-                      )}
+                      </div>
+                      <div className="flex gap-2 shrink-0 ml-4">
+                        <button
+                          onClick={() => playAudio(currentQ.word)}
+                          className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-700 transition-colors"
+                        >
+                          <Volume2 size={20} />
+                        </button>
+                        <button
+                          onClick={() => toggleFavorite(currentQ.id)}
+                          disabled={toggleFavoriteLoading === currentQ.id}
+                          className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {toggleFavoriteLoading === currentQ.id ? (
+                            <div className="w-5 h-5 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                          ) : (
+                            <Heart
+                              size={20}
+                              className={
+                                favoriteIds.includes(currentQ.id)
+                                  ? "fill-red-500 text-red-500"
+                                  : "text-gray-400"
+                              }
+                            />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => playAudio(currentQ.word)}
-                        className="p-2 bg-gray-100 rounded-full hover:bg-cyan-100 text-cyan-700 transition-colors"
-                      >
-                        <Volume2 size={24} />
-                      </button>
-                      <button
-                        onClick={() => toggleFavorite(currentQ.id)}
-                        disabled={toggleFavoriteLoading === currentQ.id}
-                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {toggleFavoriteLoading === currentQ.id ? (
-                          <div className="w-6 h-6 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
-                        ) : (
-                          <Heart
-                            size={24}
-                            className={
-                              favoriteIds.includes(currentQ.id)
-                                ? "fill-red-500 text-red-500"
-                                : "text-gray-400"
-                            }
-                          />
-                        )}
-                      </button>
-                    </div>
-                  </div>
 
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={handleNextQuestion}
-                      className="px-8 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center gap-2"
-                    >
-                      Tiếp tục <ArrowRight size={20} />
-                    </button>
+                    <div className="shrink-0 w-full md:w-auto">
+                      <button
+                        onClick={handleNextQuestion}
+                        className={`w-full md:w-auto px-8 py-3 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-white ${selectedAns === currentQ.correct ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"}`}
+                      >
+                        Tiếp tục <ArrowRight size={20} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1283,9 +1320,9 @@ export default function PracticePage({ onBack, initialFilters }) {
 
     return (
       <div className="min-h-screen bg-gray-50 pb-20 p-6 animate-in fade-in duration-300">
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div ref={containerRef} className="max-w-3xl mx-auto space-y-6">
           {quizState === "playing" && (
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 transition-all duration-300">
               <div className="flex justify-between items-center mb-6">
                 <span className="text-gray-500 font-bold">
                   Tiến độ: {matchedIds.length} / {quizData.length}
@@ -1337,100 +1374,98 @@ export default function PracticePage({ onBack, initialFilters }) {
                 </div>
               </div>
 
-              {!matchFeedback ? (
-                <div className="grid grid-cols-2 gap-4">
-                  {matchItems.map((item, idx) => {
-                    if (matchedIds.includes(item.id)) {
-                      return (
-                        <div
-                          key={idx}
-                          className="p-5 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 opacity-0 transition-all duration-500 pointer-events-none"
-                        ></div>
-                      );
-                    }
-                    const isSelected =
-                      selectedMatch &&
-                      selectedMatch.id === item.id &&
-                      selectedMatch.type === item.type;
-
+              <div className="grid grid-cols-2 gap-4">
+                {matchItems.map((item, idx) => {
+                  if (matchedIds.includes(item.id)) {
                     return (
-                      <button
+                      <div
                         key={idx}
-                        onClick={() => handleMatchClick(item)}
-                        className={`p-5 rounded-2xl text-lg font-bold transition-all text-center border-2 ${
-                          isSelected
-                            ? "bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105"
-                            : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm"
-                        }`}
-                      >
-                        {item.text}
-                      </button>
+                        className="p-5 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 opacity-0 transition-all duration-500 pointer-events-none"
+                      ></div>
                     );
-                  })}
-                </div>
-              ) : (
+                  }
+                  const isSelected =
+                    selectedMatch &&
+                    selectedMatch.id === item.id &&
+                    selectedMatch.type === item.type;
+
+                  return (
+                    <button
+                      key={idx}
+                      disabled={!!matchFeedback}
+                      onClick={() => handleMatchClick(item)}
+                      className={`p-5 rounded-2xl text-lg font-bold transition-all text-center border-2 ${
+                        isSelected
+                          ? "bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105"
+                          : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm"
+                      } ${matchFeedback ? "opacity-75 cursor-not-allowed" : ""}`}
+                    >
+                      {item.text}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {matchFeedback && (
                 <div
                   ref={feedbackRef}
-                  className={`mt-4 p-6 rounded-2xl border-2 bg-green-50 border-green-200 animate-in zoom-in-95`}
+                  style={popupStyle}
+                  className={`fixed bottom-4 z-50 p-4 sm:p-5 rounded-2xl border-2 shadow-[0_-5px_40px_rgba(0,0,0,0.15)] duration-300 bg-green-50 border-green-500 ${isMatchFeedbackHiding ? "animate-out slide-out-to-bottom" : "animate-in slide-in-from-bottom"}`}
                 >
-                  <h3 className={`text-3xl font-black mb-4 text-green-600`}>
-                    Chính xác!
-                  </h3>
-                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
-                    <div>
-                      <h4 className="text-2xl font-bold text-gray-900">
-                        {matchFeedback.word}
-                      </h4>
-                      <div className="flex items-center gap-3 text-gray-500 mt-1 mb-2 text-sm">
-                        <span>{matchFeedback.pronunciation}</span>
-                        <span className="px-2 py-0.5 bg-white border border-green-200 rounded text-xs font-semibold">
-                          {matchFeedback.type}
-                        </span>
-                        <StatusBadge status={matchFeedback.status} />
-                      </div>
-                      <p className="text-base text-green-800 font-medium">
-                        {matchFeedback.meaning}
-                      </p>
-                      {matchFeedback.example && (
-                        <p className="text-gray-600 italic text-sm mt-1">
-                          VD: "{matchFeedback.example}"
+                  <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-4 justify-between">
+                    <div className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center w-full">
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <h4 className="text-xl font-bold text-gray-900">
+                            {matchFeedback.word}
+                          </h4>
+                          <span className="text-gray-500 text-sm">{matchFeedback.pronunciation}</span>
+                          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-semibold text-gray-600">
+                            {matchFeedback.type}
+                          </span>
+                        </div>
+                        <p className="text-base text-green-700 font-medium">
+                          {matchFeedback.meaning}
                         </p>
-                      )}
+                      </div>
+                      <div className="flex gap-2 shrink-0 ml-4">
+                        <button
+                          onClick={() => playAudio(matchFeedback.word)}
+                          className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-700 transition-colors shadow-sm"
+                        >
+                          <Volume2 size={20} />
+                        </button>
+                        <button
+                          onClick={() => toggleFavorite(matchFeedback.id)}
+                          disabled={toggleFavoriteLoading === matchFeedback.id}
+                          className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {toggleFavoriteLoading === matchFeedback.id ? (
+                            <div className="w-5 h-5 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                          ) : (
+                            <Heart
+                              size={20}
+                              className={
+                                favoriteIds.includes(matchFeedback.id)
+                                  ? "fill-red-500 text-red-500"
+                                  : "text-gray-400"
+                              }
+                            />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="shrink-0 w-full md:w-auto">
                       <button
-                        onClick={() => playAudio(matchFeedback.word)}
-                        className="p-2 bg-white rounded-full hover:bg-green-100 text-green-700 transition-colors shadow-sm"
+                        onClick={() => {
+                          setIsMatchFeedbackHiding(false);
+                          handleMatchNext();
+                        }}
+                        className="w-full md:w-auto px-8 py-3 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-white bg-green-500 hover:bg-green-600"
                       >
-                        <Volume2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => toggleFavorite(matchFeedback.id)}
-                        disabled={toggleFavoriteLoading === matchFeedback.id}
-                        className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {toggleFavoriteLoading === matchFeedback.id ? (
-                          <div className="w-4.5 h-4.5 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
-                        ) : (
-                          <Heart
-                            size={18}
-                            className={
-                              favoriteIds.includes(matchFeedback.id)
-                                ? "fill-red-500 text-red-500"
-                                : "text-gray-400"
-                            }
-                          />
-                        )}
+                        Bỏ qua <X size={20} />
                       </button>
                     </div>
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={handleMatchNext}
-                      className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center gap-2"
-                    >
-                      Tiếp tục <ArrowRight size={20} />
-                    </button>
                   </div>
                 </div>
               )}
@@ -1546,9 +1581,9 @@ export default function PracticePage({ onBack, initialFilters }) {
 
     return (
       <div className="min-h-screen bg-gray-50 pb-20 p-6 animate-in fade-in duration-300">
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div ref={containerRef} className="max-w-3xl mx-auto space-y-6">
           {quizState === "playing" && (
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 transition-all duration-300">
               {/* Header */}
               <div className="flex justify-between items-center mb-6">
                 <span className="text-gray-500 font-bold">
@@ -1637,70 +1672,61 @@ export default function PracticePage({ onBack, initialFilters }) {
               {selectedAns !== null && (
                 <div
                   ref={feedbackRef}
-                  className={`mt-8 p-6 rounded-2xl border-2 ${selectedAns === 1 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"} animate-in fade-in zoom-in-95`}
+                  style={popupStyle}
+                  className={`fixed bottom-4 z-50 p-4 sm:p-5 rounded-2xl border-2 shadow-[0_-5px_40px_rgba(0,0,0,0.15)] animate-in slide-in-from-bottom duration-300 ${selectedAns === 1 ? "bg-green-50 border-green-500" : "bg-red-50 border-red-500"}`}
                 >
-                  <h3
-                    className={`text-3xl font-black mb-4 ${selectedAns === 1 ? "text-green-600" : "text-red-600"}`}
-                  >
-                    {selectedAns === 1
-                      ? "Tuyệt vời!"
-                      : `Sai rồi! Đáp án là: ${currentQ.word}`}
-                  </h3>
-                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
-                    <div>
-                      <h4 className="text-2xl font-bold text-gray-900">
-                        {currentQ.word}
-                      </h4>
-                      <div className="flex items-center gap-3 text-gray-500 mt-1 mb-3">
-                        <span>{currentQ.pronunciation}</span>
-                        <span className="px-2 py-0.5 bg-gray-100 rounded text-sm font-semibold">
-                          {currentQ.type}
-                        </span>
-                        <StatusBadge status={currentQ.status} />
-                      </div>
-                      <p className="text-orange-800 font-medium text-lg mb-2">
-                        {currentQ.meaning}
-                      </p>
-                      {currentQ.example && (
-                        <p className="text-gray-600 italic text-sm">
-                          VD: "{currentQ.example}"
+                  <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-4 justify-between">
+                    <div className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center w-full">
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <h4 className="text-xl font-bold text-gray-900">
+                            {currentQ.word}
+                          </h4>
+                          <span className="text-gray-500 text-sm">{currentQ.pronunciation}</span>
+                          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-semibold text-gray-600">
+                            {currentQ.type}
+                          </span>
+                        </div>
+                        <p className={`font-medium text-base ${selectedAns === 1 ? "text-green-700" : "text-red-700"}`}>
+                          {currentQ.meaning}
                         </p>
-                      )}
+                      </div>
+                      <div className="flex gap-2 shrink-0 ml-4">
+                        <button
+                          onClick={() => playAudio(currentQ.word)}
+                          className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-700 transition-colors"
+                        >
+                          <Volume2 size={20} />
+                        </button>
+                        <button
+                          onClick={() => toggleFavorite(currentQ.id)}
+                          disabled={toggleFavoriteLoading === currentQ.id}
+                          className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {toggleFavoriteLoading === currentQ.id ? (
+                            <div className="w-5 h-5 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                          ) : (
+                            <Heart
+                              size={20}
+                              className={
+                                favoriteIds.includes(currentQ.id)
+                                  ? "fill-red-500 text-red-500"
+                                  : "text-gray-400"
+                              }
+                            />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+
+                    <div className="shrink-0 w-full md:w-auto">
                       <button
-                        onClick={() => playAudio(currentQ.word)}
-                        className="p-2 bg-gray-100 rounded-full hover:bg-orange-100 text-orange-700 transition-colors"
+                        onClick={handleNextQuestion}
+                        className={`w-full md:w-auto px-8 py-3 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-white ${selectedAns === 1 ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"}`}
                       >
-                        <Volume2 size={24} />
-                      </button>
-                      <button
-                        onClick={() => toggleFavorite(currentQ.id)}
-                        disabled={toggleFavoriteLoading === currentQ.id}
-                        className="p-2 bg-gray-100 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {toggleFavoriteLoading === currentQ.id ? (
-                          <div className="w-6 h-6 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
-                        ) : (
-                          <Heart
-                            size={24}
-                            className={
-                              favoriteIds.includes(currentQ.id)
-                                ? "fill-red-500 text-red-500"
-                                : "text-gray-400"
-                            }
-                          />
-                        )}
+                        Tiếp tục <ArrowRight size={20} />
                       </button>
                     </div>
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={handleNextQuestion}
-                      className="px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center gap-2"
-                    >
-                      Tiếp tục <ArrowRight size={20} />
-                    </button>
                   </div>
                 </div>
               )}

@@ -1,4 +1,4 @@
-﻿import { toast } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import React, { useState, useEffect } from "react";
 import {
   X,
@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 import {
   changeMyPassword,
-  uploadMyAvatar,
 } from "../utils/services/userService";
+import { getFullImageUrl } from "../utils/urlHelper";
+import { compressImageToDataUrl } from "../utils/imageCompress";
 
 export default function ProfileModal({
   isOpen,
@@ -32,6 +33,7 @@ export default function ProfileModal({
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
 
   // change password state
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -53,6 +55,8 @@ export default function ProfileModal({
     if (!isOpen) {
       setIsEditing(false);
       setIsChangingPassword(false);
+      setAvatarPreview(null);
+      setAvatarFile(null);
       setPasswordForm({
         oldPassword: "",
         newPassword: "",
@@ -64,43 +68,30 @@ export default function ProfileModal({
 
   if (!isOpen || !user) return null;
 
-  const handleImageChange = async (e) => {
+  const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    try {
-      const previewUrl = URL.createObjectURL(file);
-      setFormData((prev) => ({ ...prev, avatarUrl: previewUrl }));
-
-      const uploadedUrl = await uploadMyAvatar(file);
-
-      console.log("Cloud URL:", uploadedUrl);
-
-      await onSave({
-        ...formData,
-        avatarUrl: uploadedUrl,
-      });
-
-      setFormData((prev) => ({
-        ...prev,
-        avatarUrl: uploadedUrl,
-      }));
-    } catch (err) {
-      console.error("Upload failed:", err);
-    }
+    // Chỉ hiển thị preview và lưu file — chưa lưu vào DB
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+    setAvatarFile(file);
   };
 
   const handleSaveClick = async () => {
     try {
       let finalFormData = { ...formData };
       if (avatarFile) {
-        // Show loading state if needed, or rely on a global loading
-        const newAvatarUrl = await uploadMyAvatar(avatarFile);
-        finalFormData.avatarUrl = newAvatarUrl;
+        // Nén ảnh thành data URL nhỏ (không cần Cloudinary)
+        const compressedUrl = await compressImageToDataUrl(avatarFile, 128, 0.6);
+        finalFormData.avatarUrl = compressedUrl;
       }
-      if (onSave) onSave(finalFormData);
+      if (onSave) await onSave(finalFormData);
+      setFormData(finalFormData);
       setIsEditing(false);
       setAvatarFile(null);
+      setAvatarPreview(null);
+      toast.success("Cập nhật hồ sơ thành công!");
     } catch (err) {
       toast.error("Lỗi khi cập nhật hồ sơ: " + (err?.message || "Vui lòng thử lại"));
     }
@@ -176,9 +167,9 @@ export default function ProfileModal({
             <div className="flex justify-center mb-6">
               <div className="relative cursor-pointer group">
                 <div className="w-24 h-24 rounded-full bg-cyan-600 text-white flex items-center justify-center text-4xl font-bold shadow-md border-4 border-white outline outline-2 outline-gray-100 group-hover:opacity-80 transition-opacity overflow-hidden">
-                  {formData.avatarUrl ? (
+                  {(avatarPreview || getFullImageUrl(formData.avatarUrl)) ? (
                     <img
-                      src={formData.avatarUrl}
+                      src={avatarPreview || getFullImageUrl(formData.avatarUrl)}
                       alt="Avatar preview"
                       className="w-full h-full object-cover"
                     />
@@ -253,9 +244,9 @@ export default function ProfileModal({
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col items-center mt-2 mb-6">
               <div className="w-24 h-24 rounded-full bg-cyan-600 text-white flex items-center justify-center text-4xl font-bold mb-3 shadow-md border-4 border-white outline outline-2 outline-gray-100 overflow-hidden">
-                {user.avatarUrl ? (
+                {getFullImageUrl(user.avatarUrl) ? (
                   <img
-                    src={user.avatarUrl}
+                    src={getFullImageUrl(user.avatarUrl)}
                     alt="User Avatar"
                     className="w-full h-full object-cover"
                   />

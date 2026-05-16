@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Trophy, Flame, Medal, Award, Crown, Star } from 'lucide-react';
 import { fetchLeaderboard } from '../utils/services/leaderboardService';
+import { getFullImageUrl } from '../utils/urlHelper';
 
 
-function LeaderboardPage({ isAdmin = false }) {
+function LeaderboardPage({ isAdmin = false, refreshKey = 0 }) {
   const [timeFilter, setTimeFilter] = useState('day'); 
   const [sortBy, setSortBy] = useState('score'); 
   const [serverUsers, setServerUsers] = useState(null);
@@ -22,7 +23,7 @@ function LeaderboardPage({ isAdmin = false }) {
             username: u.username,
             fullName: u.fullName ?? u.full_name ?? u.username,
             email: u.email,
-            avatarUrl: u.avatarUrl || `https://i.pravatar.cc/150?u=${String(u.id)}`,
+            avatarUrl: getFullImageUrl(u.avatarUrl) || null,
             totalScoreAll: timeFilter === 'all' ? u.score : 0,
             scoreInDay: timeFilter === 'day' ? u.score : 0,
             streak: u.streak || 0,
@@ -41,7 +42,7 @@ function LeaderboardPage({ isAdmin = false }) {
     };
     run();
     return () => { cancelled = true; };
-  }, [sortBy, timeFilter]);
+  }, [sortBy, timeFilter, refreshKey]);
 
   // SẮP XẾP VÀ XẾP HẠNG
   const rankedUsers = useMemo(() => {
@@ -81,11 +82,17 @@ function LeaderboardPage({ isAdmin = false }) {
       <div className={`flex flex-col items-center justify-end ${isFirst ? 'z-10 -mx-4' : 'z-0'} w-1/3 max-w-[190px]`}>
         <div className="relative mb-6 flex flex-col items-center">
           {isFirst && <Crown className="absolute -top-8 text-yellow-500 fill-yellow-500 animate-bounce" size={32} />}
-          <img 
-            src={user.avatarUrl} 
-            alt={user.fullName || user.username} 
-            className={`rounded-full object-cover border-4 shadow-md ${isFirst ? 'w-24 h-24 border-yellow-400' : 'w-20 h-20 border-gray-300'}`}
-          />
+          {user.avatarUrl ? (
+            <img 
+              src={user.avatarUrl} 
+              alt={user.fullName || user.username} 
+              className={`rounded-full object-cover border-4 shadow-md ${isFirst ? 'w-24 h-24 border-yellow-400' : 'w-20 h-20 border-gray-300'}`}
+            />
+          ) : (
+            <div className={`rounded-full flex items-center justify-center font-bold text-white border-4 shadow-md ${isFirst ? 'w-24 h-24 border-yellow-400 text-3xl bg-cyan-600' : 'w-20 h-20 border-gray-300 text-2xl bg-cyan-600'}`}>
+              {(user.fullName || user.username || 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
           <div className={`absolute -bottom-3 w-8 h-8 rounded-full flex items-center justify-center font-black text-white shadow-lg ${isFirst ? 'bg-yellow-500' : isSecond ? 'bg-gray-400' : 'bg-orange-500'}`}>
             {user.rank}
           </div>
@@ -207,7 +214,13 @@ function LeaderboardPage({ isAdmin = false }) {
               </div>
               
               <div className="flex-1 flex items-center gap-4 pl-4">
-                <img src={user.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-cyan-600 text-white flex items-center justify-center font-bold border border-gray-200">
+                    {(user.fullName || user.username || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="flex flex-col">
                   <span className={`font-bold ${(!isAdmin && user.isCurrentUser) ? 'text-cyan-900' : 'text-gray-800'}`}>
                     {user.fullName}

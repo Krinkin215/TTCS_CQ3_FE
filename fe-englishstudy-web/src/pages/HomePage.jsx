@@ -57,6 +57,7 @@ import {
   fetchFavorites,
 } from "../utils/services/favouriteService";
 import { getLearnedVocabStats } from "../utils/services/progressService";
+import { getFullImageUrl } from "../utils/urlHelper";
 
 const TOPIC_COLORS = [
   "bg-green-100 text-green-700",
@@ -70,6 +71,7 @@ const TOPIC_COLORS = [
 function HomePage({ onLogout, onNavigateToPractice }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
 
   const [topicWordSearchTerm, setTopicWordSearchTerm] = useState("");
 
@@ -276,10 +278,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               masteredVocab: t.masteredVocab ?? t.mastered_vocab ?? 0,
               color: "bg-gray-100 text-gray-700",
               imageUrl:
-                t.image ??
-                t.imageUrl ??
-                t.image_url ??
-                "https://cdn-icons-png.flaticon.com/512/616/616408.png",
+                getFullImageUrl(t.image ?? t.imageUrl ?? t.image_url) || null,
               lessons: topicLessons,
             };
           })
@@ -701,9 +700,9 @@ function HomePage({ onLogout, onNavigateToPractice }) {
             onClick={() => setIsProfileModalOpen(true)}
           >
             <div className="w-10 h-10 rounded-full bg-[#0e7490] text-white flex items-center justify-center font-bold shadow-md overflow-hidden shrink-0">
-              {userData.avatarUrl ? (
+              {getFullImageUrl(userData.avatarUrl) ? (
                 <img
-                  src={userData.avatarUrl}
+                  src={getFullImageUrl(userData.avatarUrl)}
                   alt="Avatar"
                   className="w-full h-full object-cover"
                 />
@@ -963,9 +962,9 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                       <div
                         className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 p-1 ${TOPIC_COLORS[topicIdx % TOPIC_COLORS.length]}`}
                       >
-                        {topic.imageUrl ? (
+                        {getFullImageUrl(topic.imageUrl) ? (
                           <img
-                            src={topic.imageUrl}
+                            src={getFullImageUrl(topic.imageUrl)}
                             alt={topic.title}
                             className="w-full h-full object-contain"
                           />
@@ -987,7 +986,11 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                           Số từ: {topic.totalVocab} từ
                         </span>
 
-                        {topic.masteredVocab === topic.totalVocab ? (
+                        {topic.totalVocab === 0 ? (
+                          <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">
+                            Trống
+                          </span>
+                        ) : topic.masteredVocab === topic.totalVocab ? (
                           <span className="text-[11px] font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg w-fit">
                             Đã hoàn thành
                           </span>
@@ -1052,7 +1055,7 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           />
         )}
 
-        {activeMenu === "Bảng xếp hạng" && <LeaderboardPage />}
+        {activeMenu === "Bảng xếp hạng" && <LeaderboardPage refreshKey={leaderboardRefreshKey} />}
       </main>
       {/* hồ sơ người dùng */}
       <ProfileModal
@@ -1088,6 +1091,10 @@ function HomePage({ onLogout, onNavigateToPractice }) {
               avatarUrl:
                 saved?.avatarUrl ?? saved?.avatar_url ?? updatedData.avatarUrl,
             });
+            // Nếu có avatar mới, yêu cầu leaderboard fetch lại
+            if (updatedData.avatarUrl) {
+              setLeaderboardRefreshKey(prev => prev + 1);
+            }
           } catch {
             // fallback vẫn update local để trải nghiệm mượt
             setUserData(updatedData);
