@@ -77,6 +77,10 @@ function VocabularyPage({ initialFilter }) {
 
   const fileInputRef = useRef(null);
 
+  const [showCsvCollectionModal, setShowCsvCollectionModal] = useState(false);
+  const [csvFile, setCsvFile] = useState(null);
+
+
   const defaultDraftRow = {
     id: Date.now(),
     word: "",
@@ -659,19 +663,39 @@ function VocabularyPage({ initialFilter }) {
     setShowImportDropdown(false);
     fileInputRef.current?.click();
   };
+
   const handleFileUpload = async (e) => {
-    try {
-      if (e.target.files.length > 0) {
+    if (e.target.files.length > 0) {
         const file = e.target.files[0];
-        await importVocabulariesCsv(file, { collectionId: 0 });
-        toast.success(`Đã import file: ${file.name}`);
-      }
-    } catch {
-      toast.error("Import file thất bại. Vui lòng kiểm tra định dạng CSV.");
-    } finally {
-      e.target.value = null;
+        setCsvFile(file);
+        setShowCsvCollectionModal(true);  // Mở modal chọn collection
     }
-  };
+    e.target.value = null;
+};
+
+const handleConfirmCsvImport = async (selectedCollectionId) => {
+    if (!csvFile || !selectedCollectionId) return;
+    setShowCsvCollectionModal(false);
+    try {
+        const result = await importVocabulariesCsv(csvFile, { collectionId: selectedCollectionId });
+        const successCount = result?.successCount ?? 0;
+        const errorCount = result?.errorCount ?? 0;
+        if (errorCount === 0) {
+            toast.success(`✅ Import thành công ${successCount} từ vựng!`);
+        } else {
+            toast(`Import ${successCount} từ, bỏ qua ${errorCount} từ lỗi.`);
+        }
+        // Reload danh sách từ vựng sau khi import
+        // (gọi lại loadData hoặc refetch)
+    } catch (err) {
+        toast.error("Import file thất bại. Vui lòng kiểm tra định dạng CSV.");
+        console.error(err);
+    } finally {
+        setCsvFile(null);
+    }
+};
+
+
 
   const toggleFavorite = async (id) => {
     const isFav = favoriteVocabDB.includes(id);
@@ -1575,6 +1599,46 @@ function VocabularyPage({ initialFilter }) {
           </div>
         </div>
       )}
+
+      {showCsvCollectionModal && (
+        <div className="fixed inset-0 bg-cyan-950/70 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
+                <h3 className="text-xl font-bold text-cyan-950 mb-4">
+                    Chọn bộ từ để import
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                    File: <strong>{csvFile?.name}</strong>
+                </p>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {/* Lọc bỏ "Từ vựng của tôi" (id=0) vì không có collectionId thực */}
+                    {collections.filter(c => c.id && c.id !== 0).map(c => (
+                        <button
+                            key={c.id}
+                            onClick={() => handleConfirmCsvImport(c.id)}
+                            className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:border-cyan-400 hover:bg-cyan-50 transition-colors"
+                        >
+                            <span className="font-semibold text-gray-800">{c.name}</span>
+                            <span className="text-xs text-gray-400 ml-2">({c.wordCount} từ)</span>
+                        </button>
+                    ))}
+                    {collections.filter(c => c.id && c.id !== 0).length === 0 && (
+                        <p className="text-gray-500 text-center py-4">
+                            Bạn chưa có bộ từ nào. Hãy tạo bộ từ trước!
+                        </p>
+                    )}
+                </div>
+                <div className="flex justify-end mt-4">
+                    <button
+                        onClick={() => { setShowCsvCollectionModal(false); setCsvFile(null); }}
+                        className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl"
+                    >
+                        Hủy
+                    </button>
+                </div>
+            </div>
+        </div>
+    )}
+
     </div>
   );
 }
