@@ -356,8 +356,9 @@ function CollectionPage({ onNavigateToPractice }) {
       const apiId = collection.backendId ?? collection.id; // dùng backendId nếu có
 
       let vocabPromise;
-      if (isMyVocab && !collection.backendId) {
-        // Collection chưa tồn tại trong backend → lấy từ vựng do user tạo
+      if (isMyVocab) {
+        // "Từ vựng của tôi" luôn lấy từ fetchUserVocabularies (từ user tự tạo)
+        // Không dùng fetchCollectionVocabs vì collection này không chứa vocab trong bảng collection_vocab
         vocabPromise = fetchUserVocabularies();
       } else {
         vocabPromise = fetchCollectionVocabs(apiId);
@@ -386,7 +387,7 @@ function CollectionPage({ onNavigateToPractice }) {
       if (Array.isArray(list) && list.length > 0) {
         // Nếu lấy từ fetchUserVocabularies, dữ liệu đã đầy đủ
         // Nếu lấy từ fetchCollectionVocabs, cần fetch chi tiết
-        const needsDetail = !isMyVocab || collection.backendId;
+        const needsDetail = !isMyVocab;
         let detailResults = [];
         if (needsDetail) {
           detailResults = await Promise.allSettled(

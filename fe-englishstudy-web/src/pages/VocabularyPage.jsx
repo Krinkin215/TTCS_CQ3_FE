@@ -35,6 +35,7 @@ import {
 import {
   addVocabToCollection,
   fetchCollections,
+  fetchCollectionVocabs,
 } from "../utils/services/collectionService";
 import { getLearnedVocabStats } from "../utils/services/progressService";
 import {
@@ -68,6 +69,9 @@ function VocabularyPage({ initialFilter }) {
   const [favoriteVocabDB, setFavoriteVocabDB] = useState([]);
   const [collections, setCollections] = useState([]);
   const [topicsList, setTopicsList] = useState([]);
+  // Cache vocab IDs của từng collection: { [collectionId]: Set<vocabId> }
+  const [collectionVocabMap, setCollectionVocabMap] = useState({});
+  const [isLoadingCollectionVocabs, setIsLoadingCollectionVocabs] = useState(false);
 
   // modal thêm từ mới
   const [showAddWordModal, setShowAddWordModal] = useState(false);
@@ -747,16 +751,49 @@ function VocabularyPage({ initialFilter }) {
     }
   };
 
-  // Modal Thêm vào bộ từ
+  // Modal Thêm vào bộ từ — ẩn "Từ vựng của tôi" vì từ user tạo đã tự hiển thị ở đó
   const modalFilteredCollections = collections.filter((c) =>
+    c.name !== "Từ vựng của tôi" &&
     c.name.toLowerCase().includes(modalSearchTerm.toLowerCase()),
   );
 
-  const handleOpenAddToCollectionModal = (word) => {
+  const handleOpenAddToCollectionModal = async (word) => {
     setWordToAdd(word);
     setSelectedCollectionIds([]);
     setModalSearchTerm("");
     setShowAddToCollectionModal(true);
+
+    // Fetch vocab của các collection chưa có trong cache
+    const collectionsToFetch = collections.filter(
+      (c) => c.name !== "Từ vựng của tôi" && !(c.id in collectionVocabMap)
+    );
+    if (collectionsToFetch.length === 0) return;
+
+    setIsLoadingCollectionVocabs(true);
+    try {
+      const results = await Promise.allSettled(
+        collectionsToFetch.map((c) => fetchCollectionVocabs(c.id))
+      );
+      setCollectionVocabMap((prev) => {
+        const next = { ...prev };
+        collectionsToFetch.forEach((c, idx) => {
+          const res = results[idx];
+          if (res.status === "fulfilled") {
+            const list = Array.isArray(res.value)
+              ? res.value
+              : (res.value?.items ?? res.value?.data ?? []);
+            next[c.id] = new Set(list.map((v) => v.vocabId ?? v.id));
+          } else {
+            next[c.id] = new Set();
+          }
+        });
+        return next;
+      });
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingCollectionVocabs(false);
+    }
   };
 
   const toggleModalCollectionSelect = (id) => {
@@ -781,24 +818,36 @@ function VocabularyPage({ initialFilter }) {
   const handleConfirmAddToCollections = async (targetCollectionIds) => {
     let addedCount = 0;
     let duplicateCount = 0;
+    const successIds = [];
 
     for (const cId of targetCollectionIds) {
       try {
         await addVocabToCollection(cId, wordToAdd.id);
         addedCount++;
+        successIds.push(cId);
       } catch {
         duplicateCount++;
       }
     }
 
+    // Cập nhật cache: thêm vocabId vào các collection đã thêm thành công
+    if (successIds.length > 0 && wordToAdd?.id) {
+      setCollectionVocabMap((prev) => {
+        const next = { ...prev };
+        successIds.forEach((cId) => {
+          const existing = next[cId] ?? new Set();
+          next[cId] = new Set([...existing, wordToAdd.id]);
+        });
+        return next;
+      });
+    }
+
     if (addedCount > 0 && duplicateCount === 0) {
-      toast.success(`✅ Đã thêm từ vào ${addedCount} bộ từ thành công!`);
+      toast.success(`✅ Đã thêm từ "${wordToAdd?.word}" vào ${addedCount} bộ từ thành công!`);
     } else if (addedCount > 0 && duplicateCount > 0) {
-      toast(
-        `Thêm ${addedCount} thành công, bỏ qua ${duplicateCount} (đã tồn tại).`,
-      );
+      toast(`Thêm vào ${addedCount} bộ thành công, bỏ qua ${duplicateCount} bộ (từ đã tồn tại).`);
     } else {
-      toast(`⚠️ Từ đã tồn tại trong các bộ được chọn.`);
+      toast.error(`❌ Từ "${wordToAdd?.word}" đã tồn tại trong tất cả các bộ được chọn!`);
     }
 
     setShowAddToCollectionModal(false);
@@ -1214,7 +1263,9 @@ function VocabularyPage({ initialFilter }) {
         isOpen={showAddToCollectionModal}
         onClose={() => setShowAddToCollectionModal(false)}
         wordToAdd={wordToAdd}
-        collections={collections}
+        collections={modalFilteredCollections}
+        collectionVocabMap={collectionVocabMap}
+        isLoadingVocabs={isLoadingCollectionVocabs}
         onConfirm={handleConfirmAddToCollections}
       />
 

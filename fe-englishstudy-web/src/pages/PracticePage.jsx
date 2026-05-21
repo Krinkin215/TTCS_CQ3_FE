@@ -755,7 +755,6 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
             backendMode = selectedLessons[0] ? "LESSON" : "TOPIC";
           } else if (activeMode === "collection")
             sourceId = selectedCollections[0] ?? null;
-
           const smartVocabIds =
             activeMode === "smart"
               ? smartGameWords
