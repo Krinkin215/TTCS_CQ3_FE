@@ -822,6 +822,14 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
         const currentQ = quizData.find((q) => q.id === item.id);
         setMatchFeedback(currentQ);
 
+        // Tự động hoàn thành game khi nối xong từ cuối
+        if (matchedIds.length + 1 === quizData.length) {
+          setTimeout(() => {
+            setMatchFeedback(null);
+            setQuizState("result");
+          }, 800); // Đợi 800ms để user nhìn thấy feedback từ cuối
+        }
+
         let points = 0;
         if (currentQ.status === "NEW") points = 10;
         else if (currentQ.status === "LEARNING") points = 5;
