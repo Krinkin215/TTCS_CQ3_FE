@@ -166,6 +166,7 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
   const [matchedIds, setMatchedIds] = useState([]);
   const [matchFeedback, setMatchFeedback] = useState(null);
   const [matchErrors, setMatchErrors] = useState({});
+  const [errorFlash, setErrorFlash] = useState([]); // [{id, type}] flash đỏ khi nối sai
 
   const [listenInput, setListenInput] = useState("");
   const [hintsUsed, setHintsUsed] = useState(0);
@@ -695,12 +696,13 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
       setMatchFeedback(null);
       setMatchErrors({});
       setTimeLeft((gameSettings.timePerQuestion || 15) * nextQuizData.length);
-      const items = [];
-      nextQuizData.forEach((q) => {
-        items.push({ id: q.id, text: q.word, type: "word" });
-        items.push({ id: q.id, text: q.meaning, type: "meaning" });
-      });
-      setMatchItems(items.sort(() => Math.random() - 0.5));
+      const leftItems = nextQuizData
+        .map((q) => ({ id: q.id, text: q.word, type: "word" }))
+        .sort(() => Math.random() - 0.5);
+      const rightItems = nextQuizData
+        .map((q) => ({ id: q.id, text: q.meaning, type: "meaning" }))
+        .sort(() => Math.random() - 0.5);
+      setMatchItems({ left: leftItems, right: rightItems });
     } else if (normalizedGameId === "listen") {
       setListenInput("");
       setHintsUsed(0);
@@ -854,6 +856,13 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
         setSelectedMatch(null);
       } else {
         // NỐI SAI
+        const flashItems = [
+          { id: selectedMatch.id, type: selectedMatch.type },
+          { id: item.id, type: item.type },
+        ];
+        setErrorFlash(flashItems);
+        setTimeout(() => setErrorFlash([]), 1500);
+
         setMatchLives((prev) => prev - 1);
         setSelectedMatch(null);
 
@@ -1388,100 +1397,122 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
                 </div>
               </div>
 
-              {!matchFeedback ? (
-                <div className="grid grid-cols-2 gap-4">
-                  {matchItems.map((item, idx) => {
-                    if (matchedIds.includes(item.id)) {
-                      return (
-                        <div
-                          key={idx}
-                          className="p-5 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 opacity-0 transition-all duration-500 pointer-events-none"
-                        ></div>
+              {/* Lưới nối từ: luôn hiện – cột trái là tiếng Anh, cột phải là nghĩa tiếng Việt */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Cột trái – từ tiếng Anh (filter matched ra để các ô tự đẩy lên) */}
+                <div className="flex flex-col gap-4">
+                  {(matchItems.left ?? [])
+                    .filter((item) => !matchedIds.includes(item.id))
+                    .map((item, idx) => {
+                      const isSelected =
+                        selectedMatch &&
+                        selectedMatch.id === item.id &&
+                        selectedMatch.type === item.type;
+                      const isError = errorFlash.some(
+                        (e) => e.id === item.id && e.type === item.type
                       );
-                    }
-                    const isSelected =
-                      selectedMatch &&
-                      selectedMatch.id === item.id &&
-                      selectedMatch.type === item.type;
-
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => handleMatchClick(item)}
-                        className={`p-5 rounded-2xl text-lg font-bold transition-all text-center border-2 ${
-                          isSelected
-                            ? "bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105"
-                            : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm"
-                        }`}
-                      >
-                        {item.text}
-                      </button>
-                    );
-                  })}
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleMatchClick(item)}
+                          className={`p-5 rounded-2xl text-lg font-bold transition-all text-center border-2 ${
+                            isError
+                              ? "bg-red-50 border-red-500 text-red-700 shadow-md"
+                              : isSelected
+                              ? "bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105"
+                              : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm"
+                          }`}
+                        >
+                          {item.text}
+                        </button>
+                      );
+                    })}
                 </div>
-              ) : (
+
+                {/* Cột phải – nghĩa tiếng Việt (filter matched ra để các ô tự đẩy lên) */}
+                <div className="flex flex-col gap-4">
+                  {(matchItems.right ?? [])
+                    .filter((item) => !matchedIds.includes(item.id))
+                    .map((item, idx) => {
+                      const isSelected =
+                        selectedMatch &&
+                        selectedMatch.id === item.id &&
+                        selectedMatch.type === item.type;
+                      const isError = errorFlash.some(
+                        (e) => e.id === item.id && e.type === item.type
+                      );
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleMatchClick(item)}
+                          className={`p-5 rounded-2xl text-lg font-bold transition-all text-center border-2 ${
+                            isError
+                              ? "bg-red-50 border-red-500 text-red-700 shadow-md"
+                              : isSelected
+                              ? "bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105"
+                              : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm"
+                          }`}
+                        >
+                          {item.text}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Popup kết quả đúng: sticky đáy, cạnh trái/phải thẳng hàng với grid */}
+              {matchFeedback && (
                 <div
                   ref={feedbackRef}
-                  className={`mt-4 p-6 rounded-2xl border-2 bg-green-50 border-green-200 animate-in zoom-in-95`}
+                  className="sticky bottom-4 z-50 mt-4 animate-in slide-in-from-bottom duration-300"
                 >
-                  <h3 className={`text-3xl font-black mb-4 text-green-600`}>
-                    Chính xác!
-                  </h3>
-                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
-                    <div>
-                      <h4 className="text-2xl font-bold text-gray-900">
-                        {matchFeedback.word}
-                      </h4>
-                      <div className="flex items-center gap-3 text-gray-500 mt-1 mb-2 text-sm">
-                        <span>{matchFeedback.pronunciation}</span>
-                        <span className="px-2 py-0.5 bg-white border border-green-200 rounded text-xs font-semibold">
-                          {matchFeedback.type}
-                        </span>
-                        <StatusBadge status={matchFeedback.status} />
+                  <div className="bg-white border-2 border-green-400 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                        <CheckCircle2 size={22} className="text-green-600" />
                       </div>
-                      <p className="text-base text-green-800 font-medium">
-                        {matchFeedback.meaning}
-                      </p>
-                      {matchFeedback.example && (
-                        <p className="text-gray-600 italic text-sm mt-1">
-                          VD: "{matchFeedback.example}"
-                        </p>
-                      )}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xl font-black text-gray-900">{matchFeedback.word}</span>
+                          <span className="text-gray-400 text-sm">{matchFeedback.pronunciation}</span>
+                          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-semibold text-gray-600">{matchFeedback.type}</span>
+                          <StatusBadge status={matchFeedback.status} />
+                        </div>
+                        <p className="text-green-700 font-semibold text-sm mt-0.5 truncate">{matchFeedback.meaning}</p>
+                        {matchFeedback.example && (
+                          <p className="text-gray-500 italic text-xs mt-0.5 truncate">VD: "{matchFeedback.example}"</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => playAudio(matchFeedback.word)}
-                        className="p-2 bg-white rounded-full hover:bg-green-100 text-green-700 transition-colors shadow-sm"
+                        className="p-2 bg-gray-50 rounded-full hover:bg-green-50 text-green-700 transition-colors"
                       >
                         <Volume2 size={18} />
                       </button>
                       <button
                         onClick={() => toggleFavorite(matchFeedback.id)}
                         disabled={toggleFavoriteLoading === matchFeedback.id}
-                        className="p-2 bg-white rounded-full hover:bg-green-100 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-2 bg-gray-50 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50"
                       >
                         {toggleFavoriteLoading === matchFeedback.id ? (
-                          <div className="w-4.5 h-4.5 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
+                          <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
                         ) : (
                           <Heart
                             size={18}
-                            className={
-                              favoriteIds.includes(matchFeedback.id)
-                                ? "fill-red-500 text-red-500"
-                                : "text-gray-400"
-                            }
+                            fill={favoriteIds.includes(matchFeedback.id) ? "#ef4444" : "none"}
+                            className={favoriteIds.includes(matchFeedback.id) ? "text-red-500" : "text-gray-400"}
                           />
                         )}
                       </button>
+                      <button
+                        onClick={handleMatchNext}
+                        className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow transition-colors flex items-center gap-1.5 text-sm"
+                      >
+                        Bỏ qua <X size={16} />
+                      </button>
                     </div>
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={handleMatchNext}
-                      className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center gap-2"
-                    >
-                      Tiếp tục <ArrowRight size={20} />
-                    </button>
                   </div>
                 </div>
               )}

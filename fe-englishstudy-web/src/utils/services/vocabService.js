@@ -20,14 +20,13 @@ export async function deleteVocabulary(id) {
   return apiRequest(`/api/vocabularies/${id}`, { method: 'DELETE', auth: true });
 }
 
-export async function importVocabulariesCsv(file, { collectionId } = {}) {
+export async function importVocabulariesCsv(file) {
   const form = new FormData();
   form.append('file', file);
   return apiRequest('/api/vocabularies/import', {
     method: 'POST',
     auth: true,
     body: form,
-    query: { collectionId }
   });
 }
 

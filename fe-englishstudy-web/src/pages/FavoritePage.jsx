@@ -13,7 +13,7 @@ import { formatWordType } from '../utils/wordFormatters';
 const ITEMS_PER_PAGE = 10;
 
 
-function FavoritePage() {
+function FavoritePage({ onFavoriteChange }) {
   const [favorites, setFavorites] = useState([]);
   const [collections, setCollections] = useState([]);
 
@@ -133,6 +133,7 @@ function FavoritePage() {
     try {
       await removeFavorite(id);
       setFavorites(favorites.filter(item => item.id !== id));
+      onFavoriteChange?.(id, false);
       toast.success('Đã bỏ yêu thích!');
     } catch {
       toast.error('Không thể bỏ yêu thích. Vui lòng thử lại.');

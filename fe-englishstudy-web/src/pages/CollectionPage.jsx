@@ -58,18 +58,18 @@ function CollectionPage({ onNavigateToPractice }) {
 
           // Lấy số lượng thực tế cho "Từ vựng của tôi" ngầm trong lúc tải
           fetchUserVocabularies().then(userVocabs => {
-             if (cancelled) return;
-             const list = Array.isArray(userVocabs) ? userVocabs : (userVocabs?.items ?? userVocabs?.data ?? []);
-             // Filter only truly user-created words (no topic/lesson)
-             const actualCount = list.filter(w => {
-               const hasTopic = w.topicId != null || w.topic_id != null;
-               const hasLesson = w.lessonId != null || w.lesson_id != null || w.lessonName != null;
-               return !hasTopic && !hasLesson;
-             }).length;
-             setCollections(prev => prev.map(c => 
-                 c.name === MY_VOCAB_NAME ? { ...c, wordCount: actualCount } : c
-             ));
-          }).catch(() => {});
+            if (cancelled) return;
+            const list = Array.isArray(userVocabs) ? userVocabs : (userVocabs?.items ?? userVocabs?.data ?? []);
+            // Filter only truly user-created words (no topic/lesson)
+            const actualCount = list.filter(w => {
+              const hasTopic = w.topicId != null || w.topic_id != null;
+              const hasLesson = w.lessonId != null || w.lesson_id != null || w.lessonName != null;
+              return !hasTopic && !hasLesson;
+            }).length;
+            setCollections(prev => prev.map(c =>
+              c.name === MY_VOCAB_NAME ? { ...c, wordCount: actualCount } : c
+            ));
+          }).catch(() => { });
         }
       } catch {
         // API lỗi → vẫn hiển thị "Từ vựng của tôi" rỗng
@@ -143,7 +143,7 @@ function CollectionPage({ onNavigateToPractice }) {
     let duplicateCount = 0;
     let emptyCount = 0;
 
-  
+
     for (const word of editingWords) {
       const wordTrimmed = word.word.trim();
 
@@ -568,9 +568,9 @@ function CollectionPage({ onNavigateToPractice }) {
           </button>
         </div>
 
-        
+
         <div className="flex gap-4 items-center">
-          
+
           <SearchBar
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -589,111 +589,111 @@ function CollectionPage({ onNavigateToPractice }) {
             .slice(0, idx)
             .filter(c => c.name !== MY_VOCAB_NAME).length + 1;
           return (
-          <div
-            key={collection.name === MY_VOCAB_NAME ? 'my-vocab' : collection.id}
-            className={`relative bg-white rounded-2xl shadow-sm border p-5 flex flex-col justify-between min-h-[14rem] transition-all group hover:shadow-lg hover:-translate-y-1 ${collection.name === MY_VOCAB_NAME ? 'border-orange-200 ring-1 ring-orange-100' : 'border-cyan-100'}`}
-          >
+            <div
+              key={collection.name === MY_VOCAB_NAME ? 'my-vocab' : collection.id}
+              className={`relative bg-white rounded-2xl shadow-sm border p-5 flex flex-col justify-between min-h-[14rem] transition-all group hover:shadow-lg hover:-translate-y-1 ${collection.name === MY_VOCAB_NAME ? 'border-orange-200 ring-1 ring-orange-100' : 'border-cyan-100'}`}
+            >
 
-            
-            <div className={collection.wordCount > 0 ? "cursor-pointer" : ""} onClick={() => { if (collection.wordCount > 0) setActiveFlashcardSession({ collection }); }}>
-              
-              <div className="flex items-center gap-3 mb-4">
-                {collection.name === 'Từ vựng của tôi' ? (
-                  <span className="flex items-center justify-center w-12 h-12 bg-orange-100 text-orange-500 rounded-xl">
-                    <Bookmark size={24} fill="currentColor" />
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center w-12 h-12 bg-cyan-100/50 text-cyan-600 font-bold text-xl rounded-xl">
-                    {displayIndex < 10 ? `0${displayIndex}` : displayIndex}
-                  </span>
-                )}
-              </div>
 
-              {/* tiêu đề và sửa tên */}
-              {editingId === collection.id ? (
-                <div className="flex gap-2 items-center -ml-1 mb-3" onClick={(e) => e.stopPropagation()}>
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={tempName}
-                      onChange={(e) => {
-                        if (e.target.value.length <= COLLECTION_NAME_LIMIT) setTempName(e.target.value);
-                      }}
-                      className="w-full px-3 py-1.5 pr-16 border border-cyan-500 rounded-lg outline-none text-lg font-bold text-cyan-950 focus:ring-2 focus:ring-cyan-200 transition-all shadow-inner"
-                      autoFocus
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">
-                      {tempName.length}/{COLLECTION_NAME_LIMIT}
+              <div className={collection.wordCount > 0 ? "cursor-pointer" : ""} onClick={() => { if (collection.wordCount > 0) setActiveFlashcardSession({ collection }); }}>
+
+                <div className="flex items-center gap-3 mb-4">
+                  {collection.name === 'Từ vựng của tôi' ? (
+                    <span className="flex items-center justify-center w-12 h-12 bg-orange-100 text-orange-500 rounded-xl">
+                      <Bookmark size={24} fill="currentColor" />
                     </span>
-                  </div>
-                  <button onClick={saveRename} className="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors"><Check size={18} /></button>
-                  <button onClick={cancelRename} className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors"><X size={18} /></button>
-                </div>
-              ) : (
-                <div className="flex gap-2 items-start group/title mb-3 pr-8 relative">
-                  <h3 title={collection.name} className="text-lg font-bold text-cyan-950 line-clamp-2 flex-1 mt-1 leading-snug">
-                    {collection.name}
-                  </h3>
-                  {collection.name !== 'Từ vựng của tôi' && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); startEditing(collection); }}
-                      className="p-1.5 text-cyan-600 hover:bg-cyan-100 rounded-full opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0 absolute right-0 top-1"
-                      title="Đổi tên"
-                    >
-                      <Edit2 size={16} />
-                    </button>
+                  ) : (
+                    <span className="flex items-center justify-center w-12 h-12 bg-cyan-100/50 text-cyan-600 font-bold text-xl rounded-xl">
+                      {displayIndex < 10 ? `0${displayIndex}` : displayIndex}
+                    </span>
                   )}
                 </div>
-              )}
 
-              
-              <div className="flex flex-col gap-2.5 mb-4">
-                <span className="text-xs text-gray-600 font-medium bg-gray-100/80 px-3 py-1.5 rounded-lg w-fit">
-                  Số từ: {collection.wordCount} từ
-                </span>
-
-                {collection.wordCount === 0 ? (
-                  <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">Trống</span>
-                ) : collection.masteredVocab === collection.wordCount ? (
-                  <span className="text-[11px] font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg w-fit">Đã hoàn thành</span>
-                ) : collection.masteredVocab === 0 ? (
-                  <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">Chưa học</span>
-                ) : (
-                  <div className="flex flex-col gap-1.5 w-full pr-4 mt-1">
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${(collection.masteredVocab / collection.wordCount) * 100}%` }}></div>
+                {/* tiêu đề và sửa tên */}
+                {editingId === collection.id ? (
+                  <div className="flex gap-2 items-center -ml-1 mb-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={tempName}
+                        onChange={(e) => {
+                          if (e.target.value.length <= COLLECTION_NAME_LIMIT) setTempName(e.target.value);
+                        }}
+                        className="w-full px-3 py-1.5 pr-16 border border-cyan-500 rounded-lg outline-none text-lg font-bold text-cyan-950 focus:ring-2 focus:ring-cyan-200 transition-all shadow-inner"
+                        autoFocus
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">
+                        {tempName.length}/{COLLECTION_NAME_LIMIT}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-gray-500 font-bold">{collection.masteredVocab}/{collection.wordCount} đã thuộc</span>
+                    <button onClick={saveRename} className="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors"><Check size={18} /></button>
+                    <button onClick={cancelRename} className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors"><X size={18} /></button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 items-start group/title mb-3 pr-8 relative">
+                    <h3 title={collection.name} className="text-lg font-bold text-cyan-950 line-clamp-2 flex-1 mt-1 leading-snug">
+                      {collection.name}
+                    </h3>
+                    {collection.name !== 'Từ vựng của tôi' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startEditing(collection); }}
+                        className="p-1.5 text-cyan-600 hover:bg-cyan-100 rounded-full opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0 absolute right-0 top-1"
+                        title="Đổi tên"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    )}
                   </div>
                 )}
+
+
+                <div className="flex flex-col gap-2.5 mb-4">
+                  <span className="text-xs text-gray-600 font-medium bg-gray-100/80 px-3 py-1.5 rounded-lg w-fit">
+                    Số từ: {collection.wordCount} từ
+                  </span>
+
+                  {collection.wordCount === 0 ? (
+                    <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">Trống</span>
+                  ) : collection.masteredVocab === collection.wordCount ? (
+                    <span className="text-[11px] font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg w-fit">Đã hoàn thành</span>
+                  ) : collection.masteredVocab === 0 ? (
+                    <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg w-fit">Chưa học</span>
+                  ) : (
+                    <div className="flex flex-col gap-1.5 w-full pr-4 mt-1">
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${(collection.masteredVocab / collection.wordCount) * 100}%` }}></div>
+                      </div>
+                      <span className="text-[10px] text-gray-500 font-bold">{collection.masteredVocab}/{collection.wordCount} đã thuộc</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-            
-            <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center gap-2">
-              <button
-                onClick={() => openWordList(collection)}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm"
-              >
-                <Eye size={16} /> Xem từ
-              </button>
 
-              {collection.name !== 'Từ vựng của tôi' && (
+              <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center gap-2">
                 <button
-                  onClick={() => openDeleteModal(collection)}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-red-500 hover:bg-red-50 border border-red-100 transition-colors shrink-0 shadow-sm"
+                  onClick={() => openWordList(collection)}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-cyan-700 hover:bg-cyan-50 border border-cyan-100 transition-colors shrink-0 shadow-sm"
                 >
-                  <Trash2 size={16} /> Xóa
+                  <Eye size={16} /> Xem từ
                 </button>
-              )}
-            </div>
 
-          </div>
-        );
+                {collection.name !== 'Từ vựng của tôi' && (
+                  <button
+                    onClick={() => openDeleteModal(collection)}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-white text-red-500 hover:bg-red-50 border border-red-100 transition-colors shrink-0 shadow-sm"
+                  >
+                    <Trash2 size={16} /> Xóa
+                  </button>
+                )}
+              </div>
+
+            </div>
+          );
         })}
       </div>
 
-      
+
       {filteredCollections.length === 0 && (
         <div className="text-center p-16 mt-16 bg-white rounded-2xl border border-dashed border-cyan-200">
           <FolderClosed className="mx-auto text-cyan-200" size={64} />
@@ -770,8 +770,8 @@ function CollectionPage({ onNavigateToPractice }) {
               type="submit"
               disabled={!newCollectionName.trim()}
               className={`px-6 py-2.5 rounded-lg font-bold transition-all shadow-md ${newCollectionName.trim()
-                  ? 'bg-cyan-600 text-white hover:bg-cyan-700 hover:shadow-cyan-500/50 cursor-pointer'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                ? 'bg-cyan-600 text-white hover:bg-cyan-700 hover:shadow-cyan-500/50 cursor-pointer'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
             >
               Tạo bộ từ
@@ -782,7 +782,7 @@ function CollectionPage({ onNavigateToPractice }) {
       {/* modal danh sách từ trong bộ */}
       <ModalWrapper isOpen={showWordListModal && activeCollection} zIndex="z-[100]" className="rounded-2xl p-6 w-full max-w-6xl flex flex-col max-h-[90vh]">
 
-        
+
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-cyan-950 flex items-center gap-2">
@@ -792,10 +792,10 @@ function CollectionPage({ onNavigateToPractice }) {
             <p className="text-gray-500 mt-1 text-sm">Đang quản lý {collectionWords.length} từ vựng trong bộ này</p>
           </div>
 
-          
+
           <div className="flex items-center gap-4">
 
-            
+
             <SearchBar
               value={wordListSearchTerm}
               onChange={(e) => setWordListSearchTerm(e.target.value)}
@@ -866,7 +866,7 @@ function CollectionPage({ onNavigateToPractice }) {
           </div>
         </div>
 
-        
+
         <div className="flex-1 overflow-y-auto mt-2">
           {collectionWords.length > 0 ? (
             filteredCollectionWords.length > 0 ? (
@@ -889,7 +889,7 @@ function CollectionPage({ onNavigateToPractice }) {
         </div>
       </ModalWrapper>
 
-      
+
       <ConfirmModal
         isOpen={showWordDeleteModal}
         onClose={() => setShowWordDeleteModal(false)}
@@ -917,7 +917,7 @@ function CollectionPage({ onNavigateToPractice }) {
       {/* modal chỉnh sửa từ */}
       <ModalWrapper isOpen={showEditWordModal} zIndex="z-[200]" className="rounded-[1.5rem] w-full max-w-6xl flex flex-col max-h-[90vh] overflow-hidden">
 
-        
+
         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white z-10 shrink-0">
           <h2 className="text-xl font-bold text-cyan-950 flex items-center gap-2">
             <Edit2 className="text-cyan-600" /> Chỉnh sửa {editingWords.length} từ vựng
@@ -925,7 +925,7 @@ function CollectionPage({ onNavigateToPractice }) {
           <button onClick={() => setShowEditWordModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><X size={24} /></button>
         </div>
 
-        
+
         <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <table className="w-full text-left border-collapse">
@@ -970,7 +970,7 @@ function CollectionPage({ onNavigateToPractice }) {
           </div>
         </div>
 
-        
+
         <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0 rounded-b-[1.5rem]">
           <button onClick={() => setShowEditWordModal(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 font-bold rounded-xl transition-colors">Hủy</button>
           <button onClick={handleSaveEditedWords} className="px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all bg-[#0e7490] hover:bg-[#164e63] text-white">Xác nhận Lưu</button>

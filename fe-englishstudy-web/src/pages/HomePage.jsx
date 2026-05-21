@@ -343,6 +343,22 @@ function HomePage({ onLogout, onNavigateToPractice }) {
   });
 
   // Load danh sách yêu thích
+  const refreshFavoriteCount = useCallback(async () => {
+    try {
+      const data = await fetchFavorites();
+      const list = Array.isArray(data)
+        ? data
+        : (data?.items ?? data?.data ?? []);
+      if (Array.isArray(list)) {
+        setFavoriteVocabDB(
+          list.map((f) => f.vocabId ?? f.id).filter(Boolean),
+        );
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -365,6 +381,13 @@ function HomePage({ onLogout, onNavigateToPractice }) {
       cancelled = true;
     };
   }, []);
+
+  // Re-sync số từ yêu thích khi quay về Trang chủ
+  useEffect(() => {
+    if (activeMenu === "Trang chủ") {
+      refreshFavoriteCount();
+    }
+  }, [activeMenu, refreshFavoriteCount]);
 
   // Load thống kê từ vựng
   useEffect(() => {
@@ -1038,7 +1061,17 @@ function HomePage({ onLogout, onNavigateToPractice }) {
           </div>
         )}
 
-        {activeMenu === "Yêu thích" && <FavoritePage />}
+        {activeMenu === "Yêu thích" && (
+          <FavoritePage
+            onFavoriteChange={(vocabId, added) => {
+              setFavoriteVocabDB((prev) =>
+                added
+                  ? prev.includes(vocabId) ? prev : [...prev, vocabId]
+                  : prev.filter((id) => id !== vocabId)
+              );
+            }}
+          />
+        )}
 
         {activeMenu === "Bộ từ vựng" && (
           <CollectionPage

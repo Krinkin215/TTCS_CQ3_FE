@@ -45,6 +45,7 @@ import { fetchLessons } from "../utils/services/lessonService";
 import { getMe } from "../utils/services/authService";
 import { formatWordType } from "../utils/wordFormatters";
 
+
 const FILTER_OPTIONS = {
   statuses: ["Đã thuộc", "Đã học", "Chưa thuộc", "Chưa học"],
   types: ["Danh từ", "Động từ", "Tính từ", "Trạng từ"],
@@ -77,8 +78,6 @@ function VocabularyPage({ initialFilter }) {
 
   const fileInputRef = useRef(null);
 
-  const [showCsvCollectionModal, setShowCsvCollectionModal] = useState(false);
-  const [csvFile, setCsvFile] = useState(null);
 
 
   const defaultDraftRow = {
@@ -112,6 +111,7 @@ function VocabularyPage({ initialFilter }) {
   };
   const [activeFilters, setActiveFilters] = useState(initialFilters);
   const [draftFilters, setDraftFilters] = useState(initialFilters);
+
 
   useEffect(() => {
     const baseFilters = {
@@ -250,11 +250,11 @@ function VocabularyPage({ initialFilter }) {
         const favIds =
           favRes.status === "fulfilled"
             ? (Array.isArray(favRes.value)
-                ? favRes.value
-                : (favRes.value?.items ?? favRes.value?.data ?? [])
-              )
-                .map((f) => f.vocabId ?? f.id)
-                .filter(Boolean)
+              ? favRes.value
+              : (favRes.value?.items ?? favRes.value?.data ?? [])
+            )
+              .map((f) => f.vocabId ?? f.id)
+              .filter(Boolean)
             : [];
         if (!cancelled) setFavoriteVocabDB(favIds);
 
@@ -665,35 +665,69 @@ function VocabularyPage({ initialFilter }) {
   };
 
   const handleFileUpload = async (e) => {
-    if (e.target.files.length > 0) {
-        const file = e.target.files[0];
-        setCsvFile(file);
-        setShowCsvCollectionModal(true);  // Mở modal chọn collection
-    }
+    if (e.target.files.length === 0) return;
+    const file = e.target.files[0];
     e.target.value = null;
-};
+    setShowImportDropdown(false);
 
-const handleConfirmCsvImport = async (selectedCollectionId) => {
-    if (!csvFile || !selectedCollectionId) return;
-    setShowCsvCollectionModal(false);
+    const toastId = toast.loading("⏳ Đang import từ vựng...");
     try {
-        const result = await importVocabulariesCsv(csvFile, { collectionId: selectedCollectionId });
-        const successCount = result?.successCount ?? 0;
-        const errorCount = result?.errorCount ?? 0;
-        if (errorCount === 0) {
-            toast.success(`✅ Import thành công ${successCount} từ vựng!`);
-        } else {
-            toast(`Import ${successCount} từ, bỏ qua ${errorCount} từ lỗi.`);
+      const result = await importVocabulariesCsv(file);
+      const successCount = result?.successCount ?? 0;
+      const errorCount = result?.errorCount ?? 0;
+
+      toast.dismiss(toastId);
+      if (successCount === 0 && errorCount > 0) {
+        toast.error(`❌ Import thất bại: ${errorCount} từ bị lỗi. Kiểm tra lại file CSV.`);
+      } else if (errorCount === 0) {
+        toast.success(`✅ Import thành công ${successCount} từ vựng vào bộ từ của bạn!`);
+      } else {
+        toast(`📋 Import ${successCount} từ thành công, bỏ qua ${errorCount} từ lỗi.`);
+      }
+
+      if (successCount > 0) {
+        // Reload danh sách từ vựng của user
+        try {
+          const freshVocabs = await fetchUserVocabularies();
+          const newItems = Array.isArray(freshVocabs)
+            ? freshVocabs
+            : (freshVocabs?.items ?? freshVocabs?.data ?? []);
+          const LEVEL_MAP = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+          const newFormatted = newItems
+            .filter((v) => !v.topicId && !v.lessonId && !v.lessonName)
+            .map((v) => ({
+              id: v.vocabId ?? v.id,
+              word: v.word || "",
+              word_type: formatWordType(v.wordType || v.word_type || ""),
+              pronunciation: v.pronunciation || "",
+              meaning: v.meaning || "",
+              example: v.example || "",
+              level: LEVEL_MAP[v.level] ?? v.level ?? 1,
+              status: "Chưa học",
+              pForget: null,
+              isFavorite: false,
+              isUserCreated: true,
+              topicId: null,
+              topic: null,
+              lessonId: null,
+              lesson: null,
+              lessonName: null,
+            }));
+          setVocabularies((prev) => {
+            const existingIds = new Set(prev.map((w) => w.id));
+            const brand = newFormatted.filter((w) => !existingIds.has(w.id));
+            return [...brand, ...prev];
+          });
+        } catch {
+          // Reload lỗi nhẹ - không ảnh hưởng UX
         }
-        // Reload danh sách từ vựng sau khi import
-        // (gọi lại loadData hoặc refetch)
+      }
     } catch (err) {
-        toast.error("Import file thất bại. Vui lòng kiểm tra định dạng CSV.");
-        console.error(err);
-    } finally {
-        setCsvFile(null);
+      toast.dismiss(toastId);
+      toast.error("Import file thất bại. Vui lòng kiểm tra định dạng CSV.");
+      console.error(err);
     }
-};
+  };
 
 
 
@@ -792,6 +826,7 @@ const handleConfirmCsvImport = async (selectedCollectionId) => {
             className={`transition-colors duration-300 ${isFav ? "text-red-500" : "text-gray-300 hover:text-red-400"}`}
           />
         </button>
+
       </div>
     );
   };
@@ -1242,9 +1277,9 @@ const handleConfirmCsvImport = async (selectedCollectionId) => {
                   <HelpCircle size={18} className="text-cyan-600" /> Hướng dẫn
                 </button>
 
-                <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                {/* <div className="w-px h-6 bg-gray-200 mx-1"></div> */}
 
-                <button
+                {/* <button
                   onClick={() =>
                     setAddWordTab(addWordTab === "manual" ? "paste" : "manual")
                   }
@@ -1259,7 +1294,7 @@ const handleConfirmCsvImport = async (selectedCollectionId) => {
                     }
                   />{" "}
                   Thêm nhanh (Paste)
-                </button>
+                </button> */}
               </div>
             </div>
 
@@ -1336,6 +1371,7 @@ const handleConfirmCsvImport = async (selectedCollectionId) => {
                                 }
                                 className="w-full pl-3 pr-9 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-cyan-500 outline-none text-sm text-gray-600 bg-white appearance-none cursor-pointer"
                               >
+                                <option value="">Chọn</option>
                                 <option value="Danh từ">Danh từ</option>
                                 <option value="Động từ">Động từ</option>
                                 <option value="Tính từ">Tính từ</option>
@@ -1486,11 +1522,10 @@ const handleConfirmCsvImport = async (selectedCollectionId) => {
               <button
                 onClick={handleSaveNewWords}
                 disabled={isSaving}
-                className={`px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 ${
-                  isSaving
-                    ? "bg-gray-400 text-white cursor-not-allowed"
-                    : "bg-[#65a30d] hover:bg-[#4d7c0f] text-white hover:shadow-xl hover:-translate-y-0.5"
-                }`}
+                className={`px-8 py-2.5 font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 ${isSaving
+                  ? "bg-gray-400 text-white cursor-not-allowed"
+                  : "bg-[#65a30d] hover:bg-[#4d7c0f] text-white hover:shadow-xl hover:-translate-y-0.5"
+                  }`}
               >
                 {isSaving ? <>Đang kiểm tra dữ liệu...</> : <>Lưu từ vựng</>}
               </button>
@@ -1549,13 +1584,12 @@ const handleConfirmCsvImport = async (selectedCollectionId) => {
                       <strong>Level</strong> - Cấp độ (A1, A2, B1, B2, C1, C2)
                     </li>
                     <li>
-                      <strong>Example</strong> - Câu ví dụ
+                      <strong>Example:</strong><br></br> Apple,/ˈæp.l/,Danh từ,Quả táo,A1,I eat an apple every day
                     </li>
                   </ol>
                 </li>
                 <li>
-                  <strong className="text-cyan-800">Dòng đầu tiên:</strong> Có
-                  thể có hoặc không có Header (Tiêu đề cột).
+                  <strong className="text-cyan-800">Dòng đầu tiên:</strong> Là dòng hướng dẫn thứ tự các cột, hãy xóa nó khi upload file
                 </li>
               </ul>
 
@@ -1600,44 +1634,8 @@ const handleConfirmCsvImport = async (selectedCollectionId) => {
         </div>
       )}
 
-      {showCsvCollectionModal && (
-        <div className="fixed inset-0 bg-cyan-950/70 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
-                <h3 className="text-xl font-bold text-cyan-950 mb-4">
-                    Chọn bộ từ để import
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                    File: <strong>{csvFile?.name}</strong>
-                </p>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {/* Lọc bỏ "Từ vựng của tôi" (id=0) vì không có collectionId thực */}
-                    {collections.filter(c => c.id && c.id !== 0).map(c => (
-                        <button
-                            key={c.id}
-                            onClick={() => handleConfirmCsvImport(c.id)}
-                            className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:border-cyan-400 hover:bg-cyan-50 transition-colors"
-                        >
-                            <span className="font-semibold text-gray-800">{c.name}</span>
-                            <span className="text-xs text-gray-400 ml-2">({c.wordCount} từ)</span>
-                        </button>
-                    ))}
-                    {collections.filter(c => c.id && c.id !== 0).length === 0 && (
-                        <p className="text-gray-500 text-center py-4">
-                            Bạn chưa có bộ từ nào. Hãy tạo bộ từ trước!
-                        </p>
-                    )}
-                </div>
-                <div className="flex justify-end mt-4">
-                    <button
-                        onClick={() => { setShowCsvCollectionModal(false); setCsvFile(null); }}
-                        className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl"
-                    >
-                        Hủy
-                    </button>
-                </div>
-            </div>
-        </div>
-    )}
+
+
 
     </div>
   );
