@@ -1640,7 +1640,7 @@ function VocabularyPage({ initialFilter }) {
                   </ol>
                 </li>
                 <li>
-                  <strong className="text-cyan-800">Dòng đầu tiên:</strong> Là dòng hướng dẫn thứ tự các cột, hãy xóa nó khi upload file
+                  <strong className="text-cyan-800">Dòng đầu tiên:</strong> Là dòng hướng dẫn thứ tự các cột, hãy sắp xếp đúng thứ tự.
                 </li>
               </ul>
 

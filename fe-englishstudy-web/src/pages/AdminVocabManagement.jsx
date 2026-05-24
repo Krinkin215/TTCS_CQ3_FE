@@ -458,7 +458,8 @@ export default function AdminVocabManagement() {
       return;
     }
 
-    // update backend (best-effort) rồi update UI
+    // update backend rồi update UI
+    let hasError = false;
     await Promise.all(
       editingWords.map(async (w) => {
         try {
@@ -469,12 +470,18 @@ export default function AdminVocabManagement() {
             meaning: w.meaning,
             level: INT_TO_LEVEL[w.level] ?? w.level ?? 'A1',
             example: w.example,
+            lessonId: w.lessonId ?? null,
           });
         } catch {
-          // ignore để UI vẫn lưu local
+          hasError = true;
         }
       }),
     );
+
+    if (hasError) {
+      toast.error("Một số từ cập nhật thất bại. Vui lòng kiểm tra kết nối và thử lại.");
+      return;
+    }
 
     setVocabularies((prev) =>
       prev.map((cw) => {

@@ -211,10 +211,11 @@ export default function AdminTopicManagement() {
   };
 
   const handleSaveEditedWords = async () => {
+    const INT_TO_LEVEL = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
+    let hasError = false;
     await Promise.all(
       editingWords.map(async (w) => {
         try {
-          const INT_TO_LEVEL = { 1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2' };
           await updateVocabulary(w.id, {
             word: w.word,
             pronunciation: w.pronunciation,
@@ -222,12 +223,17 @@ export default function AdminTopicManagement() {
             meaning: w.meaning,
             level: INT_TO_LEVEL[w.level] ?? w.level ?? 'A1',
             example: w.example,
+            lessonId: w.lessonId ?? null,
           });
         } catch {
-          // ignore để UI vẫn cập nhật local
+          hasError = true;
         }
       }),
     );
+    if (hasError) {
+      toast.error("Một số từ cập nhật thất bại. Vui lòng thử lại.");
+      return;
+    }
     setAllWords((prev) =>
       prev.map((cw) => {
         const edited = editingWords.find((ew) => ew.id === cw.id);
@@ -264,6 +270,16 @@ export default function AdminTopicManagement() {
 
   const handleCreateTopic = async () => {
     if (!newTopicName.trim()) return;
+
+    // Kiểm tra trùng tên chủ đề (không phân biệt hoa thường)
+    const isDuplicate = topics.some(
+      (t) => t.title.trim().toLowerCase() === newTopicName.trim().toLowerCase()
+    );
+    if (isDuplicate) {
+      toast.error(`Chủ đề "${newTopicName.trim()}" đã tồn tại. Vui lòng chọn tên khác!`);
+      return;
+    }
+
     try {
       // Tạo topic trước (không kèm ảnh nếu sẽ upload file)
       const created = await apiCreateTopic({
@@ -297,6 +313,7 @@ export default function AdminTopicManagement() {
           lessons: [],
         },
       ]);
+      toast.success(`Đã tạo chủ đề "${newTopicName.trim()}" thành công!`);
       setNewTopicName("");
       setNewTopicImage("");
       setNewTopicImageFile(null);
@@ -318,6 +335,18 @@ export default function AdminTopicManagement() {
 
   const handleEditTopic = async () => {
     if (!newTopicName.trim() || !editingTopic) return;
+
+    // Kiểm tra trùng tên chủ đề (bỏ qua chính topic đang sửa)
+    const isDuplicate = topics.some(
+      (t) =>
+        t.id !== editingTopic.id &&
+        t.title.trim().toLowerCase() === newTopicName.trim().toLowerCase()
+    );
+    if (isDuplicate) {
+      toast.error(`Chủ đề "${newTopicName.trim()}" đã tồn tại. Vui lòng chọn tên khác!`);
+      return;
+    }
+
     try {
       let finalImageUrl = newTopicImage;
 
@@ -396,21 +425,54 @@ export default function AdminTopicManagement() {
     const file = e.target.files?.[0];
     if (!file || !activeLesson || !activeTopic) return;
     try {
-      await adminImportVocabulariesCsv(file, {
+      const result = await adminImportVocabulariesCsv(file, {
         topicId: activeTopic.id,
         lessonId: activeLesson.id,
       });
-      toast.success(
-        `Đã import CSV vào bài học "${activeLesson.name}" thành công!`,
-      );
+
+      // Đọc kết quả từ response { successCount, errorCount, errors }
+      const successCount = result?.successCount ?? 0;
+      const errorCount = result?.errorCount ?? 0;
+      const errors = Array.isArray(result?.errors) ? result.errors : [];
+
+      if (successCount === 0 && errorCount > 0) {
+        // Toàn bộ từ đều trùng lặp / lỗi → báo thất bại
+        toast.error(
+          `Import thất bại! ${errorCount} từ đã tồn tại hoặc có lỗi. Không có từ nào được thêm mới.`,
+          { duration: 5000 }
+        );
+        // Hiển thị chi tiết lỗi nếu số lỗi ít
+        if (errors.length > 0 && errors.length <= 10) {
+          errors.forEach((err) => toast.error(err, { duration: 4000 }));
+        }
+        // Reset file input và dừng
+        e.target.value = null;
+        return;
+      }
+
+      if (successCount > 0 && errorCount > 0) {
+        // Một phần thành công, một phần lỗi
+        toast(
+          `Đã thêm ${successCount} từ mới. ${errorCount} từ bị bỏ qua do trùng lặp hoặc lỗi.`,
+          { icon: "⚠️", duration: 5000 }
+        );
+        if (errors.length > 0 && errors.length <= 5) {
+          errors.forEach((err) => toast.error(err, { duration: 4000 }));
+        }
+      } else if (successCount > 0) {
+        // Tất cả thành công
+        toast.success(
+          `Đã import thành công ${successCount} từ vào bài học "${activeLesson.name}"!`
+        );
+      }
+
       // reload words for this lesson
       const words = await fetchLessonVocabularies(activeLesson.id);
       const list = Array.isArray(words)
         ? words
         : (words?.items ?? words?.data ?? []);
-      if (Array.isArray(list) && list.length > 0) {
-        setModalWords(
-          list.map((w) => ({
+      const mappedList = Array.isArray(list) && list.length > 0
+        ? list.map((w) => ({
             id: w.id ?? w.vocabId ?? w.vocab_id,
             word: w.word ?? "",
             pronunciation: w.pronunciation ?? "",
@@ -421,9 +483,47 @@ export default function AdminTopicManagement() {
             topicId: activeTopic.id,
             lessonId: activeLesson.id,
             lessonName: activeLesson.name,
-          })),
+          }))
+        : [];
+
+      // Cập nhật danh sách từ trong modal
+      setModalWords(mappedList);
+
+      const newWordCount = mappedList.length;
+
+      // Cập nhật wordCount của bài học trong danh sách topics (render ngay)
+      setTopics((prevTopics) =>
+        prevTopics.map((t) => {
+          if (t.id !== activeTopic.id) return t;
+          const updatedLessons = t.lessons.map((l) =>
+            l.id === activeLesson.id ? { ...l, wordCount: newWordCount } : l
+          );
+          // Tính lại totalVocab của chủ đề
+          const newTotalVocab = updatedLessons.reduce(
+            (sum, l) => sum + (l.wordCount ?? 0),
+            0
+          );
+          return { ...t, lessons: updatedLessons, totalVocab: newTotalVocab };
+        })
+      );
+
+      // Cập nhật activeTopic để modal bài học hiển thị đúng wordCount
+      setActiveTopic((prev) => {
+        if (!prev || prev.id !== activeTopic.id) return prev;
+        const updatedLessons = prev.lessons.map((l) =>
+          l.id === activeLesson.id ? { ...l, wordCount: newWordCount } : l
         );
-      }
+        const newTotalVocab = updatedLessons.reduce(
+          (sum, l) => sum + (l.wordCount ?? 0),
+          0
+        );
+        return { ...prev, lessons: updatedLessons, totalVocab: newTotalVocab };
+      });
+
+      // Cập nhật activeLesson
+      setActiveLesson((prev) =>
+        prev ? { ...prev, wordCount: newWordCount } : prev
+      );
     } catch {
       toast.error("Import CSV thất bại. Vui lòng kiểm tra định dạng file.");
     } finally {
@@ -792,16 +892,6 @@ export default function AdminTopicManagement() {
             >
               <Edit2 size={16} /> Chỉnh sửa
             </button>
-            <button
-              onClick={() => {
-                closeMenu();
-                openMoveModal([item], true);
-              }}
-              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-cyan-50 font-medium flex items-center gap-2"
-            >
-              <FolderInput size={16} /> Đổi bài học
-            </button>
-            <div className="border-t border-gray-100 my-1"></div>
             <button
               onClick={() => {
                 closeMenu();
@@ -1268,6 +1358,7 @@ export default function AdminTopicManagement() {
             ActionColumn={TopicActionColumn}
             showTopicColumn={false}
             showLessonColumn={true}
+            showActionColumn={false}
           />
         </div>
       </ModalWrapper>

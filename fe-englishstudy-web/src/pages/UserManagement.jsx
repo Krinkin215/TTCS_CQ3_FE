@@ -30,8 +30,8 @@ export default function UserManagement() {
             email: u.email ?? '',
             date_of_birth: u.date_of_birth ?? u.dateOfBirth ?? u.dob ?? '2000-01-01',
             joinDate: u.joinDate ?? u.join_date ?? '01/01/2026',
-            streak: u.streak ?? u.bestStreak ?? 0,
-            totalXP: u.totalXP ?? u.totalScore ?? u.score ?? 0,
+            streak: u.currentStreak ?? u.streak ?? u.bestStreak ?? 0,
+            totalXP: u.totalScore ?? u.totalXP ?? u.score ?? 0,
             avatarChar: (u.fullName ?? u.username ?? 'U').slice(0, 1).toUpperCase(),
             avatarUrl: u.avatarUrl ?? u.avatar_url ?? null
           }));
@@ -125,8 +125,8 @@ export default function UserManagement() {
           email: detail.email ?? user.email,
           date_of_birth: detail.date_of_birth ?? detail.dateOfBirth ?? user.date_of_birth,
           joinDate: detail.joinDate ?? detail.join_date ?? user.joinDate,
-          streak: detail.streak ?? detail.bestStreak ?? user.streak,
-          totalXP: detail.totalXP ?? detail.totalScore ?? detail.score ?? user.totalXP,
+          streak: detail.currentStreak ?? detail.streak ?? detail.bestStreak ?? user.streak,
+          totalXP: detail.totalScore ?? detail.totalXP ?? detail.score ?? user.totalXP,
           avatarUrl: detail.avatarUrl ?? detail.avatar_url ?? user.avatarUrl
         };
         setSelectedProfileUser(mapped);

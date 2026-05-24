@@ -16,7 +16,8 @@ function VocabTable({
   onSelectAll, 
   ActionColumn,
   showTopicColumn = false,
-  showLessonColumn = false
+  showLessonColumn = false,
+  showActionColumn = true
 }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [openExampleId, setOpenExampleId] = useState(null);
@@ -113,7 +114,7 @@ function VocabTable({
 
               <th className="p-4 font-semibold text-center">Audio</th>
               
-              {!isSelectMode ? (
+              {showActionColumn && (!isSelectMode ? (
                 <th className="p-4 font-semibold text-center min-w-[120px]">Hành động</th>
               ) : (
                 <th className="p-4 font-semibold text-center w-20">
@@ -124,7 +125,7 @@ function VocabTable({
                     className="w-5 h-5 text-[#0e7490] rounded border-gray-300 focus:ring-[#0e7490] cursor-pointer"
                   />
                 </th>
-              )}
+              ))}
             </tr>
           </thead>
           <tbody className="text-gray-700">
@@ -166,7 +167,7 @@ function VocabTable({
                     </button>
                   </td>
 
-                  {!isSelectMode ? (
+                  {showActionColumn && (!isSelectMode ? (
                     <td className="p-4 text-center">
                       {ActionColumn && <ActionColumn item={item} />}
                     </td>
@@ -179,7 +180,7 @@ function VocabTable({
                           className="w-5 h-5 text-cyan-600 rounded focus:ring-cyan-500 cursor-pointer"
                         />
                     </td>
-                  )}
+                  ))}
                 </tr>
 
                 {openExampleId === item.id && (
