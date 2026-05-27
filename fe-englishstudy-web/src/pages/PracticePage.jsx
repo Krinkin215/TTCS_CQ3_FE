@@ -80,7 +80,11 @@ const loadGameHistory = (userId) => {
   }
 };
 
-export default function PracticePage({ onBack, initialFilters, onGameFinished }) {
+export default function PracticePage({
+  onBack,
+  initialFilters,
+  onGameFinished,
+}) {
   const [activeMode, setActiveMode] = useState("topic");
   const [activeTab, setActiveTab] = useState("history");
   const [instructionGame, setInstructionGame] = useState(null);
@@ -827,7 +831,7 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
           setTimeout(() => {
             setMatchFeedback(null);
             setQuizState("result");
-          }, 800); // Đợi 800ms để user nhìn thấy feedback từ cuối
+          }, 3000); // Đợi 3000ms để user nhìn thấy feedback từ cuối
         }
 
         let points = 0;
@@ -1416,7 +1420,7 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
                         selectedMatch.id === item.id &&
                         selectedMatch.type === item.type;
                       const isError = errorFlash.some(
-                        (e) => e.id === item.id && e.type === item.type
+                        (e) => e.id === item.id && e.type === item.type,
                       );
                       return (
                         <button
@@ -1426,8 +1430,8 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
                             isError
                               ? "bg-red-50 border-red-500 text-red-700 shadow-md"
                               : isSelected
-                              ? "bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105"
-                              : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm"
+                                ? "bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105"
+                                : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm"
                           }`}
                         >
                           {item.text}
@@ -1446,7 +1450,7 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
                         selectedMatch.id === item.id &&
                         selectedMatch.type === item.type;
                       const isError = errorFlash.some(
-                        (e) => e.id === item.id && e.type === item.type
+                        (e) => e.id === item.id && e.type === item.type,
                       );
                       return (
                         <button
@@ -1456,8 +1460,8 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
                             isError
                               ? "bg-red-50 border-red-500 text-red-700 shadow-md"
                               : isSelected
-                              ? "bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105"
-                              : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm"
+                                ? "bg-purple-100 border-purple-500 text-purple-800 shadow-md scale-105"
+                                : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm"
                           }`}
                         >
                           {item.text}
@@ -1480,14 +1484,24 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xl font-black text-gray-900">{matchFeedback.word}</span>
-                          <span className="text-gray-400 text-sm">{matchFeedback.pronunciation}</span>
-                          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-semibold text-gray-600">{matchFeedback.type}</span>
+                          <span className="text-xl font-black text-gray-900">
+                            {matchFeedback.word}
+                          </span>
+                          <span className="text-gray-400 text-sm">
+                            {matchFeedback.pronunciation}
+                          </span>
+                          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-semibold text-gray-600">
+                            {matchFeedback.type}
+                          </span>
                           <StatusBadge status={matchFeedback.status} />
                         </div>
-                        <p className="text-green-700 font-semibold text-sm mt-0.5 truncate">{matchFeedback.meaning}</p>
+                        <p className="text-green-700 font-semibold text-sm mt-0.5 truncate">
+                          {matchFeedback.meaning}
+                        </p>
                         {matchFeedback.example && (
-                          <p className="text-gray-500 italic text-xs mt-0.5 truncate">VD: "{matchFeedback.example}"</p>
+                          <p className="text-gray-500 italic text-xs mt-0.5 truncate">
+                            VD: "{matchFeedback.example}"
+                          </p>
                         )}
                       </div>
                     </div>
@@ -1508,8 +1522,16 @@ export default function PracticePage({ onBack, initialFilters, onGameFinished })
                         ) : (
                           <Heart
                             size={18}
-                            fill={favoriteIds.includes(matchFeedback.id) ? "#ef4444" : "none"}
-                            className={favoriteIds.includes(matchFeedback.id) ? "text-red-500" : "text-gray-400"}
+                            fill={
+                              favoriteIds.includes(matchFeedback.id)
+                                ? "#ef4444"
+                                : "none"
+                            }
+                            className={
+                              favoriteIds.includes(matchFeedback.id)
+                                ? "text-red-500"
+                                : "text-gray-400"
+                            }
                           />
                         )}
                       </button>

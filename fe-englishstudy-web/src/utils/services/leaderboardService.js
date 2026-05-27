@@ -22,6 +22,7 @@ function normalizeEntry(entry) {
     fullName,
     email,
     avatarUrl,
+    totalScore: Number(score) || 0,
     score: Number(score) || 0,
     streak: Number(streak) || 0,
     rank: rank != null ? Number(rank) : null,
@@ -50,4 +51,3 @@ export async function fetchLeaderboard({ sortBy, timeFilter, limit }) {
   // Nếu backend chưa trả rank, gán theo thứ tự đã nhận
   return normalized.map((u, idx) => ({ ...u, rank: u.rank ?? idx + 1 }));
 }
-
