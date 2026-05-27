@@ -21,6 +21,11 @@ import {
   uploadMyAvatar,
 } from "../utils/services/userService";
 
+const normalizeDateInput = (value) => {
+  if (!value) return "";
+  return String(value).includes("T") ? String(value).split("T")[0] : String(value);
+};
+
 export default function ProfileModal({
   isOpen,
   onClose,
@@ -49,7 +54,12 @@ export default function ProfileModal({
   const [isSavingPassword, setIsSavingPassword] = useState(false);
 
   useEffect(() => {
-    if (user) setFormData(user);
+    if (user) {
+      setFormData({
+        ...user,
+        date_of_birth: normalizeDateInput(user.date_of_birth ?? user.dateOfBirth),
+      });
+    }
     if (!isOpen) {
       setIsEditing(false);
       setIsChangingPassword(false);
@@ -98,7 +108,7 @@ export default function ProfileModal({
         const newAvatarUrl = await uploadMyAvatar(avatarFile);
         finalFormData.avatarUrl = newAvatarUrl;
       }
-      if (onSave) onSave(finalFormData);
+      if (onSave) await onSave(finalFormData);
       setIsEditing(false);
       setAvatarFile(null);
     } catch (err) {
