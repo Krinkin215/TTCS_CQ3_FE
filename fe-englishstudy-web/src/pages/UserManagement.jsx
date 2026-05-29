@@ -170,23 +170,24 @@ export default function UserManagement() {
   };
 
   const confirmDelete = async () => {
+    const targetUser = userToDelete;
+    setIsDeleteModalOpen(false);
+    setUserToDelete(null);
     try {
-      if (userToDelete) {
-        await deleteUserById(userToDelete.id);
-        setUsers(users.filter((u) => u.id !== userToDelete.id));
+      if (targetUser) {
+        await deleteUserById(targetUser.id);
+        setUsers((prev) => prev.filter((u) => u.id !== targetUser.id));
+        toast.success(`Đã xóa tài khoản "${targetUser.fullName || targetUser.username}" thành công.`);
+        // Điều chỉnh phân trang nếu cần
+        setUsers((prev) => {
+          const newTotal = prev.length;
+          const newTotalPages = Math.ceil(newTotal / itemsPerPage) || 1;
+          if (currentPage > newTotalPages) setCurrentPage(newTotalPages);
+          return prev;
+        });
       }
     } catch {
-      toast.error("Xóa user thất bại. Vui lòng thử lại.");
-    } finally {
-      setIsDeleteModalOpen(false);
-      setUserToDelete(null);
-    }
-
-    // Điều chỉnh phân trang nếu cần
-    const remainingItems = userToDelete ? users.length - 1 : users.length;
-    const newTotalPages = Math.ceil(remainingItems / itemsPerPage) || 1;
-    if (currentPage > newTotalPages) {
-      setCurrentPage(newTotalPages);
+      toast.error('Xóa user thất bại. Vui lòng thử lại.');
     }
   };
 

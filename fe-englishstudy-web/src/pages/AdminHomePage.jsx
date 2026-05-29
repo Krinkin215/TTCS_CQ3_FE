@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, Users, BookOpen, BarChart3, LogOut, ShieldCheck, Bell, Library, Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, Users, BookOpen, LogOut, ShieldCheck, Library, Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
 import LeaderboardPage from './LeaderboardPage';
 import UserManagement from './UserManagement';
 import AdminVocabManagement from './AdminVocabManagement';
@@ -20,7 +20,6 @@ export default function AdminHomePage({ onLogout }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [totalUsers, setTotalUsers] = useState('—');
   const [totalVocabs, setTotalVocabs] = useState('—');
-  const [todayLearns, setTodayLearns] = useState('—');
 
   useEffect(() => {
     let cancelled = false;
@@ -49,8 +48,6 @@ export default function AdminHomePage({ onLogout }) {
           }
         }
 
-        // Lượt học hôm nay
-        setTodayLearns(0);
       } catch (err) {
         // Handle error silently
       }
@@ -99,7 +96,6 @@ export default function AdminHomePage({ onLogout }) {
   const stats = [
     { label: 'Tổng người dùng', value: totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Từ vựng hệ thống', value: totalVocabs, icon: BookOpen, color: 'text-cyan-600', bg: 'bg-cyan-50' },
-    { label: 'Lượt học hôm nay', value: todayLearns, icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50' },
   ];
 
   const renderNavBtn = (id, icon, label) => {
