@@ -536,7 +536,7 @@ function VocabularyPage({ initialFilter }) {
 
     if (wordsToProcess.length === 0) {
       toast.error(
-        "⚠️ Vui lòng nhập ít nhất 1 từ vựng có đủ TỪ TIẾNG ANH và NGHĨA!",
+        "Vui lòng nhập ít nhất 1 từ vựng có đủ TỪ TIẾNG ANH và NGHĨA!",
       );
       return;
     }
@@ -630,7 +630,7 @@ function VocabularyPage({ initialFilter }) {
       addedCount > 0 &&
       duplicateCount + formatErrorCount + apiErrorCount === 0
     ) {
-      toast.success(`✅ Thành công: Thêm ${addedCount} từ mới.`);
+      toast.success(`Thành công: Thêm ${addedCount} từ mới.`);
     } else {
       let alertMsg = `KẾT QUẢ THÊM TỪ VỰNG:\n\n`;
       if (addedCount > 0)
@@ -682,9 +682,9 @@ function VocabularyPage({ initialFilter }) {
 
       toast.dismiss(toastId);
       if (successCount === 0 && errorCount > 0) {
-        toast.error(`❌ Import thất bại: ${errorCount} từ bị lỗi. Kiểm tra lại file CSV.`);
+        toast.error(`Import thất bại: ${errorCount} từ bị lỗi. Kiểm tra lại file CSV.`);
       } else if (errorCount === 0) {
-        toast.success(`✅ Import thành công ${successCount} từ vựng vào bộ từ của bạn!`);
+        toast.success(`Import thành công ${successCount} từ vựng vào bộ từ của bạn!`);
       } else {
         toast(`📋 Import ${successCount} từ thành công, bỏ qua ${errorCount} từ lỗi.`);
       }
@@ -843,11 +843,11 @@ function VocabularyPage({ initialFilter }) {
     }
 
     if (addedCount > 0 && duplicateCount === 0) {
-      toast.success(`✅ Đã thêm từ "${wordToAdd?.word}" vào ${addedCount} bộ từ thành công!`);
+      toast.success(`Đã thêm từ "${wordToAdd?.word}" vào ${addedCount} bộ từ thành công!`);
     } else if (addedCount > 0 && duplicateCount > 0) {
       toast(`Thêm vào ${addedCount} bộ thành công, bỏ qua ${duplicateCount} bộ (từ đã tồn tại).`);
     } else {
-      toast.error(`❌ Từ "${wordToAdd?.word}" đã tồn tại trong tất cả các bộ được chọn!`);
+      toast.error(`Từ "${wordToAdd?.word}" đã tồn tại trong tất cả các bộ được chọn!`);
     }
 
     setShowAddToCollectionModal(false);

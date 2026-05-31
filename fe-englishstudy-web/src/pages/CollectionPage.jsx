@@ -192,7 +192,7 @@ function CollectionPage({ onNavigateToPractice }) {
         return edited ? edited : cw;
       }));
 
-      toast.success("✅ Đã cập nhật thông tin từ vựng thành công!");
+      toast.success("Đã cập nhật thông tin từ vựng thành công!");
       setShowEditWordModal(false);
     } catch (error) {
       toast.error("Cập nhật từ vựng thất bại!");
@@ -234,7 +234,7 @@ function CollectionPage({ onNavigateToPractice }) {
     }
 
     if (addedCount > 0 && duplicateCount === 0) {
-      toast.success(`✅ Đã thêm từ vào ${addedCount} bộ từ thành công!`);
+      toast.success(`Đã thêm từ vào ${addedCount} bộ từ thành công!`);
     } else if (addedCount > 0 && duplicateCount > 0) {
       toast(`Thêm ${addedCount} thành công, bỏ qua ${duplicateCount} (đã tồn tại).`);
     } else {
