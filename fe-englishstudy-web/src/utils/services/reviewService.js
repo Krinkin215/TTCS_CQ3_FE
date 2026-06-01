@@ -13,3 +13,10 @@ export async function getSmartReviewDebug(userId, limit = 20) {
     auth: true 
   });
 }
+
+export async function resetPForget(vocabId) {
+  return apiRequest(`/api/review/${vocabId}/p-forget/reset`, {
+    method: 'PATCH',
+    auth: true
+  });
+}

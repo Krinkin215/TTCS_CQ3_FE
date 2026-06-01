@@ -31,7 +31,6 @@ import VocabResultList from "../components/VocabResultList";
 import Pagination from "../components/Pagination";
 import { playAudio } from "../utils/audio";
 import { initGame, finishGame } from "../utils/services/practiceService";
-import { fetchVocabReview } from "../utils/services/userService";
 import { fetchTopics } from "../utils/services/topicService";
 import { fetchLessons } from "../utils/services/lessonService";
 import { fetchCollections } from "../utils/services/collectionService";
@@ -43,6 +42,7 @@ import {
   addFavorite,
   removeFavorite,
 } from "../utils/services/favouriteService";
+import { getSmartReview, resetPForget } from "../utils/services/reviewService";
 import { getMe } from "../utils/services/authService";
 import { formatWordType } from "../utils/wordFormatters";
 
@@ -54,6 +54,7 @@ const STATUS_OPTIONS = [
 ];
 
 const MIN_SMART_P_FORGET = 0.5;
+const SMART_REVIEW_FETCH_LIMIT = 1000;
 const SMART_WORDS_PER_PAGE = 10;
 const HIDDEN_SMART_REVIEW_WORDS_KEY = "hiddenSmartReviewWordIds";
 const GAME_HISTORY_STORAGE_KEY = "englishstudy_game_history";
@@ -387,20 +388,55 @@ export default function PracticePage({
     let cancelled = false;
     const run = async () => {
       if (activeMode !== "smart") return;
+      if (!currentUserId) return;
+
       setIsSmartLoading(true);
       try {
-        const res = await fetchVocabReview();
+        const numericUserId = Number(currentUserId);
+        if (!Number.isFinite(numericUserId) || numericUserId <= 0) {
+          throw new Error(
+            "Không xác định được userId để gọi ôn tập thông minh",
+          );
+        }
+
+        const res = await getSmartReview(
+          numericUserId,
+          SMART_REVIEW_FETCH_LIMIT,
+        );
+        //console.log("SMART REVIEW RESPONSE", res);
+
         const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
         if (!cancelled && Array.isArray(list)) {
           setSmartReviewWords(list);
           setSelectedSmartWordIds([]);
           setSmartReviewPage(1);
+
+          // Nếu backend trả về một từ → nghĩa là pForget của nó đã vượt 0.5 trở lại.
+          // Tự động bỏ ẩn những từ đó khỏi hiddenSmartWordIds để chúng hiển thị lại.
+          const returnedIds = new Set(
+            list.map((w) => w.vocabId ?? w.id).filter(Boolean),
+          );
+          setHiddenSmartWordIds((prev) => {
+            const next = prev.filter((id) => !returnedIds.has(id));
+            if (next.length !== prev.length) {
+              try {
+                localStorage.setItem(
+                  HIDDEN_SMART_REVIEW_WORDS_KEY,
+                  JSON.stringify(next),
+                );
+              } catch {
+                /* ignore */
+              }
+            }
+            return next;
+          });
         }
       } catch {
         if (!cancelled) {
           setSmartReviewWords([]);
           setSelectedSmartWordIds([]);
           setSmartReviewPage(1);
+          toast.error("Không tải được danh sách ôn tập thông minh từ ML");
         }
       } finally {
         if (!cancelled) setIsSmartLoading(false);
@@ -410,7 +446,7 @@ export default function PracticePage({
     return () => {
       cancelled = true;
     };
-  }, [activeMode]);
+  }, [activeMode, currentUserId]);
 
   const availableLessons = useMemo(() => {
     return topics
@@ -421,7 +457,7 @@ export default function PracticePage({
   const getSmartWordId = (word) => word.vocabId ?? word.id;
 
   const getPForgetValue = (word) => {
-    const raw = word.pforget;
+    const raw = word.pForget ?? word.pforget ?? word.p_forget;
     if (raw === null || raw === undefined || raw === "") return null;
     const value = Number(raw);
     if (Number.isNaN(value)) return null;
@@ -438,10 +474,10 @@ export default function PracticePage({
     const reviewableWords = smartReviewWords.filter((word) => {
       const pForget = getPForgetValue(word);
       const wordId = getSmartWordId(word);
-      // Smart review chỉ hiển thị các từ có xác suất quên từ 50% trở lên.
+      // Smart review chỉ hiển thị các từ có xác suất quên trên 50%.
       return (
         pForget !== null &&
-        pForget >= MIN_SMART_P_FORGET &&
+        pForget > MIN_SMART_P_FORGET &&
         !hiddenSmartWordIds.includes(wordId)
       );
     });
@@ -505,19 +541,29 @@ export default function PracticePage({
     setSelectedSmartWordIds(allSelected ? [] : selectableIds);
   };
 
-  const removeSmartWord = (targetWordId) => {
+  const removeSmartWord = async (targetWordId) => {
     if (targetWordId === null || targetWordId === undefined) return;
 
-    setSmartReviewWords((prev) =>
-      prev.filter((word) => getSmartWordId(word) !== targetWordId),
-    );
-    setSelectedSmartWordIds((prev) => prev.filter((id) => id !== targetWordId));
-    setHiddenSmartWordIds((prev) => {
-      if (prev.includes(targetWordId)) return prev;
-      const next = [...prev, targetWordId];
-      localStorage.setItem(HIDDEN_SMART_REVIEW_WORDS_KEY, JSON.stringify(next));
-      return next;
-    });
+    try {
+      await resetPForget(targetWordId);
+      setSmartReviewWords((prev) =>
+        prev.filter((word) => getSmartWordId(word) !== targetWordId),
+      );
+      setSelectedSmartWordIds((prev) =>
+        prev.filter((id) => id !== targetWordId),
+      );
+      setHiddenSmartWordIds((prev) => {
+        if (prev.includes(targetWordId)) return prev;
+        const next = [...prev, targetWordId];
+        localStorage.setItem(
+          HIDDEN_SMART_REVIEW_WORDS_KEY,
+          JSON.stringify(next),
+        );
+        return next;
+      });
+    } catch {
+      toast.error("Không thể cập nhật xác suất quên của từ vựng.");
+    }
   };
 
   // Fetch status summary thực tế từ backend khi user chọn collection hoặc lesson
@@ -2076,7 +2122,7 @@ export default function PracticePage({
             )}
             {!isSmartLoading && sortedSmartReviewWords.length === 0 && (
               <div className="mt-5 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm font-bold text-gray-400">
-                Chưa có từ vựng nào có xác suất quên từ 50% trở lên.
+                Chưa có từ vựng nào có xác suất quên trên 50%.
               </div>
             )}
             {!isSmartLoading && sortedSmartReviewWords.length > 0 && (
