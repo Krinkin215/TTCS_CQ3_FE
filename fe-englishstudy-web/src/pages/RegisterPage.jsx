@@ -13,9 +13,13 @@ function RegisterPage({ onNavigateToLogin }) {
   });
 
   const [errors, setErrors] = useState({
+    date_of_birth: '',
     password: '',
     confirmPassword: ''
   });
+
+  // Ngày hôm nay định dạng YYYY-MM-DD (dùng cho thuộc tính max)
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -32,21 +36,29 @@ function RegisterPage({ onNavigateToLogin }) {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
+    if (name === 'date_of_birth') {
+      if (value && value > todayStr) {
+        setErrors(prev => ({ ...prev, date_of_birth: 'Ngày sinh không được là ngày trong tương lai.' }));
+      } else {
+        setErrors(prev => ({ ...prev, date_of_birth: '' }));
+      }
+    }
+
     if (name === 'password') {
       const passError = validatePassword(value);
       setErrors(prev => ({ ...prev, password: passError }));
       if (formData.confirmPassword && value !== formData.confirmPassword) {
-        setErrors(prev => ({ ...prev, confirmPassword: "Mật khẩu xác nhận không khớp." }));
+        setErrors(prev => ({ ...prev, confirmPassword: 'Mật khẩu xác nhận không khớp.' }));
       } else {
-        setErrors(prev => ({ ...prev, confirmPassword: "" }));
+        setErrors(prev => ({ ...prev, confirmPassword: '' }));
       }
     }
 
     if (name === 'confirmPassword') {
       if (value !== formData.password) {
-        setErrors(prev => ({ ...prev, confirmPassword: "Mật khẩu xác nhận không khớp." }));
+        setErrors(prev => ({ ...prev, confirmPassword: 'Mật khẩu xác nhận không khớp.' }));
       } else {
-        setErrors(prev => ({ ...prev, confirmPassword: "" }));
+        setErrors(prev => ({ ...prev, confirmPassword: '' }));
       }
     }
   };
@@ -55,7 +67,14 @@ function RegisterPage({ onNavigateToLogin }) {
     e.preventDefault();
 
     if (!formData.fullName || !formData.email || !formData.date_of_birth) {
-      toast.error("Vui lòng điền đầy đủ thông tin!");
+      toast.error('Vui lòng điền đầy đủ thông tin!');
+      return;
+    }
+
+    // Kiểm tra ngày sinh không được trong tương lai
+    if (formData.date_of_birth > todayStr) {
+      setErrors(prev => ({ ...prev, date_of_birth: 'Ngày sinh không được là ngày trong tương lai.' }));
+      toast.error('Ngày sinh không hợp lệ!');
       return;
     }
 
@@ -109,8 +128,18 @@ function RegisterPage({ onNavigateToLogin }) {
               name="date_of_birth"
               value={formData.date_of_birth}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
+              max={todayStr}
+              className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:border-cyan-500 outline-none transition-all ${
+                errors.date_of_birth
+                  ? 'border-red-500 focus:ring-red-400'
+                  : 'border-gray-300 focus:ring-cyan-500'
+              }`}
             />
+            {errors.date_of_birth && (
+              <p className="text-red-500 text-xs mt-1.5 font-medium flex items-center">
+                <span className="mr-1">⚠️</span> {errors.date_of_birth}
+              </p>
+            )}
           </div>
 
           <div>

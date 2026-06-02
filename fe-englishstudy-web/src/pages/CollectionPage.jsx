@@ -121,7 +121,9 @@ function CollectionPage({ onNavigateToPractice }) {
   const [wordToAdd, setWordToAdd] = useState(null);
   const [addModalSearchTerm, setAddModalSearchTerm] = useState('');
   const [selectedTargetCollectionIds, setSelectedTargetCollectionIds] = useState([]);
-  const [collectionVocabDB, setCollectionVocabDB] = useState([]);
+  // map { collectionId -> Set<vocabId> } để kiểm tra từ đã tồn tại trong modal
+  const [collectionVocabMap, setCollectionVocabMap] = useState({});
+  const [isLoadingVocabMap, setIsLoadingVocabMap] = useState(false);
 
   // chỉnh sửa từ của tôi
   const [showEditWordModal, setShowEditWordModal] = useState(false);
@@ -199,11 +201,37 @@ function CollectionPage({ onNavigateToPractice }) {
     }
   };
 
-  const handleOpenAddToCollectionModal = (word) => {
+  const handleOpenAddToCollectionModal = async (word) => {
     setWordToAdd(word);
     setSelectedTargetCollectionIds([]);
     setAddModalSearchTerm('');
     setShowAddToCollectionModal(true);
+
+    // Fetch vocab của tất cả các collection (trừ "Từ vựng của tôi") để build map kiểm tra trùng
+    const targetColls = collections.filter(c => c.name !== MY_VOCAB_NAME && c.id !== 0);
+    if (targetColls.length === 0) return;
+
+    setIsLoadingVocabMap(true);
+    try {
+      const results = await Promise.allSettled(
+        targetColls.map(c => fetchCollectionVocabs(c.backendId ?? c.id))
+      );
+      const newMap = {};
+      results.forEach((res, idx) => {
+        const cId = targetColls[idx].id;
+        if (res.status === 'fulfilled') {
+          const list = Array.isArray(res.value) ? res.value : (res.value?.items ?? res.value?.data ?? []);
+          newMap[cId] = new Set(list.map(v => v.vocabId ?? v.id).filter(Boolean));
+        } else {
+          newMap[cId] = new Set();
+        }
+      });
+      setCollectionVocabMap(newMap);
+    } catch {
+      // lỗi thì để map rỗng, modal vẫn hoạt động bình thường
+    } finally {
+      setIsLoadingVocabMap(false);
+    }
   };
 
   const targetFilteredCollections = collections.filter(c =>
@@ -238,7 +266,7 @@ function CollectionPage({ onNavigateToPractice }) {
     } else if (addedCount > 0 && duplicateCount > 0) {
       toast(`Thêm ${addedCount} thành công, bỏ qua ${duplicateCount} (đã tồn tại).`);
     } else {
-      toast(`⚠️ Từ đã tồn tại trong tất cả các bộ được chọn.`);
+      toast.error(`Từ đã tồn tại trong tất cả các bộ được chọn.`);
     }
 
     setShowAddToCollectionModal(false);
@@ -265,13 +293,23 @@ function CollectionPage({ onNavigateToPractice }) {
 
   const handleCreateCollection = async (e) => {
     e.preventDefault();
-    if (!newCollectionName.trim()) return;
+    const trimmedName = newCollectionName.trim();
+    if (!trimmedName) return;
+
+    // Kiểm tra trùng tên (không phân biệt hoa thường)
+    const isDuplicateName = collections.some(
+      c => c.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (isDuplicateName) {
+      toast.error(`Bộ từ “${trimmedName}” đã tồn tại. Vui lòng chọn tên khác.`);
+      return;
+    }
 
     try {
-      const created = await apiCreateCollection(newCollectionName.trim());
+      const created = await apiCreateCollection(trimmedName);
       const newCollection = {
         id: created?.collectionId ?? created?.id ?? Date.now(),
-        name: created?.collectionName ?? newCollectionName.trim(),
+        name: created?.collectionName ?? trimmedName,
         wordCount: created?.vocabCount ?? 0,
         masteredVocab: 0
       };
@@ -596,7 +634,7 @@ function CollectionPage({ onNavigateToPractice }) {
             >
 
 
-              <div className={collection.wordCount > 0 ? "cursor-pointer" : ""} onClick={() => { if (collection.wordCount > 0) setActiveFlashcardSession({ collection }); }}>
+              <div className={collection.wordCount > 0 && collection.name !== MY_VOCAB_NAME ? "cursor-pointer" : ""} onClick={() => { if (collection.wordCount > 0 && collection.name !== MY_VOCAB_NAME) setActiveFlashcardSession({ collection }); }}>
 
                 <div className="flex items-center gap-3 mb-4">
                   {collection.name === 'Từ vựng của tôi' ? (
@@ -751,12 +789,22 @@ function CollectionPage({ onNavigateToPractice }) {
                 }
               }}
               placeholder="Ví dụ: Luyện thi TOEIC 600+..."
-              className="w-full px-4 py-3 pr-16 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all text-cyan-950 font-medium"
+              className={`w-full px-4 py-3 pr-16 border rounded-lg focus:ring-2 outline-none transition-all text-cyan-950 font-medium ${
+                collections.some(c => c.name.trim().toLowerCase() === newCollectionName.trim().toLowerCase() && newCollectionName.trim())
+                  ? 'border-red-400 focus:ring-red-300 focus:border-red-400 bg-red-50/30'
+                  : 'border-gray-300 focus:ring-cyan-500 focus:border-cyan-500'
+              }`}
               autoFocus
             />
             <span className="absolute right-4 top-[2.4rem] text-xs font-medium text-gray-400">
               {newCollectionName.length}/{COLLECTION_NAME_LIMIT}
             </span>
+            {/* Cảnh báo trùng tên inline */}
+            {newCollectionName.trim() && collections.some(c => c.name.trim().toLowerCase() === newCollectionName.trim().toLowerCase()) && (
+              <p className="mt-1.5 text-xs font-semibold text-red-500 flex items-center gap-1">
+                Bộ từ này đã tồn tại, vui lòng chọn tên khác.
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end gap-4">
@@ -769,11 +817,15 @@ function CollectionPage({ onNavigateToPractice }) {
             </button>
             <button
               type="submit"
-              disabled={!newCollectionName.trim()}
-              className={`px-6 py-2.5 rounded-lg font-bold transition-all shadow-md ${newCollectionName.trim()
-                ? 'bg-cyan-600 text-white hover:bg-cyan-700 hover:shadow-cyan-500/50 cursor-pointer'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
+              disabled={
+                !newCollectionName.trim() ||
+                collections.some(c => c.name.trim().toLowerCase() === newCollectionName.trim().toLowerCase())
+              }
+              className={`px-6 py-2.5 rounded-lg font-bold transition-all shadow-md ${
+                newCollectionName.trim() && !collections.some(c => c.name.trim().toLowerCase() === newCollectionName.trim().toLowerCase())
+                  ? 'bg-cyan-600 text-white hover:bg-cyan-700 hover:shadow-cyan-500/50 cursor-pointer'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
             >
               Tạo bộ từ
             </button>
@@ -912,6 +964,8 @@ function CollectionPage({ onNavigateToPractice }) {
         onClose={() => setShowAddToCollectionModal(false)}
         wordToAdd={wordToAdd}
         collections={collections.filter(c => c.id !== activeCollection?.id)}
+        collectionVocabMap={collectionVocabMap}
+        isLoadingVocabs={isLoadingVocabMap}
         onConfirm={handleConfirmAddToCollections}
       />
 

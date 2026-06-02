@@ -1,15 +1,12 @@
 import { toast } from "react-hot-toast";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Search,
   X,
   Filter,
   Plus,
-  Upload,
-  ChevronDown,
   Trash2,
   Edit2,
-  FileSpreadsheet,
   MoreVertical,
 } from "lucide-react";
 import VocabTable from "../components/VocabTable";
@@ -17,7 +14,6 @@ import SearchBar from "../components/SearchBar";
 import ConfirmModal from "../components/ConfirmModal";
 import FilterDropdown from "../components/FilterDropdown";
 import {
-  adminImportVocabulariesCsv,
   createVocabulary,
   updateVocabulary,
   deleteVocabulary,
@@ -139,10 +135,7 @@ export default function AdminVocabManagement() {
 
   // modal thêm từ mới
   const [showAddWordModal, setShowAddWordModal] = useState(false);
-  const [showImportDropdown, setShowImportDropdown] = useState(false);
   const [showExitWarning, setShowExitWarning] = useState(false);
-
-  const fileInputRef = useRef(null);
 
   const defaultDraftRow = {
     id: Date.now(),
@@ -371,35 +364,6 @@ export default function AdminVocabManagement() {
     if (addedCount > 0) forceCloseAddModal();
   };
 
-  const triggerFileInput = () => {
-    setShowImportDropdown(false);
-    fileInputRef.current?.click();
-  };
-
-  const handleFileUpload = async (e) => {
-    try {
-      if (e.target.files.length > 0) {
-        const file = e.target.files[0];
-        const topicId = draftWords?.[0]?.topicId ?? activeFilters?.topics?.[0];
-        const lessonId = draftWords?.[0]?.lessonId ?? activeFilters?.lessons?.[0];
-
-        if (!topicId || !lessonId) {
-          toast.error("Vui lòng chọn Chủ đề và Bài học trước khi Import file CSV!");
-          e.target.value = null;
-          return;
-        }
-
-        await adminImportVocabulariesCsv(file, { topicId, lessonId });
-        toast.success(`Đã import file: ${file.name}`);
-      }
-    } catch {
-      toast.error(
-        "Import file thất bại. Vui lòng kiểm tra quyền admin và định dạng CSV.",
-      );
-    } finally {
-      e.target.value = null;
-    }
-  };
 
   const handleOpenEditModal = (wordsToEdit) => {
     setEditingWords(JSON.parse(JSON.stringify(wordsToEdit)));
@@ -513,6 +477,14 @@ export default function AdminVocabManagement() {
   const AdminActionColumn = ({ item }) => {
     return (
       <div className="relative flex justify-center">
+        {/* Overlay trong suốt: bắt click bên ngoài để đóng menu */}
+        {openMenuId === item.id && (
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setOpenMenuId(null)}
+          />
+        )}
+
         <button
           onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
           className="p-2 text-gray-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-full transition-colors"
@@ -791,41 +763,6 @@ export default function AdminVocabManagement() {
                 </button>
               </div>
 
-              <div className="flex gap-3 items-center">
-                <div className="relative">
-                  <button
-                    onClick={() => setShowImportDropdown(!showImportDropdown)}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#0e7490] hover:bg-[#164e63] text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
-                  >
-                    <Upload size={18} /> Nhập file{" "}
-                    <ChevronDown
-                      size={16}
-                      className={`transition-transform ${showImportDropdown ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                  {showImportDropdown && (
-                    <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 shadow-xl rounded-xl py-2 z-50">
-                      <button
-                        onClick={triggerFileInput}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cyan-50 text-gray-700 font-medium text-sm transition-colors"
-                      >
-                        <FileSpreadsheet
-                          size={18}
-                          className="text-emerald-600"
-                        />{" "}
-                        Nhập file CSV (.csv)
-                      </button>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    accept=".csv"
-                  />
-                </div>
-              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto bg-gray-50/50 p-6">

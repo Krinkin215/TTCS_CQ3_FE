@@ -27,20 +27,28 @@ export default function FlashcardLearning({ topic, lesson, collection, onExit, o
           if (Array.isArray(list)) vocabList = list;
         } catch { /* ignore */ }
       } else if (collection) {
-        isCollectionSource = true;
         const isMyVocab = collection.name === MY_VOCAB_NAME;
         const apiId = collection.backendId ?? collection.id;
 
         try {
           let res;
-          if (isMyVocab && !collection.backendId) {
-            // "Từ vựng của tôi" chưa có backend collection → lấy từ user vocabs
+          if (isMyVocab) {
+            // "Từ vựng của tôi": luôn lấy từ user vocabs (không lưu trong bảng collection_vocab)
             res = await fetchUserVocabularies();
+            // Lọc chỉ lấy từ do user tự tạo (không thuộc topic/lesson)
+            const rawList = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
+            vocabList = rawList.filter(w => {
+              const hasTopic = w.topicId != null || w.topic_id != null;
+              const hasLesson = w.lessonId != null || w.lesson_id != null || w.lessonName != null;
+              return !hasTopic && !hasLesson;
+            });
+            // isCollectionSource = false: dữ liệu đã đầy đủ, không cần fetch thêm
           } else {
+            isCollectionSource = true;
             res = await fetchCollectionVocabs(apiId);
+            const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
+            if (Array.isArray(list)) vocabList = list;
           }
-          const list = Array.isArray(res) ? res : (res?.items ?? res?.data ?? []);
-          if (Array.isArray(list)) vocabList = list;
         } catch { /* ignore */ }
       }
 

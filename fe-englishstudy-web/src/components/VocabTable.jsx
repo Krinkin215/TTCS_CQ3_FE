@@ -97,7 +97,7 @@ function VocabTable({
               </th>
               
               <th className="p-4 font-semibold">Phiên âm</th>
-              <th className="p-4 font-semibold">Loại từ</th>
+              <th className="p-4 font-semibold whitespace-nowrap">Loại từ</th>
               <th className="p-4 font-semibold">Nghĩa</th>
               
               <th 
@@ -109,7 +109,7 @@ function VocabTable({
                 </div>
               </th>
               
-              {showTopicColumn && <th className="p-4 font-semibold">Chủ đề</th>}
+              {showTopicColumn && <th className="p-4 font-semibold w-32">Chủ đề</th>}
               {showLessonColumn && <th className="p-4 font-semibold">Bài học</th>}
 
               <th className="p-4 font-semibold text-center">Audio</th>
@@ -146,12 +146,12 @@ function VocabTable({
                   </td>
                   
                   <td className="p-4 text-gray-500">{item.pronunciation}</td>
-                  <td className="p-4"><span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-sm font-medium">{item.word_type || item.wordType || ''}</span></td>
+                  <td className="p-4 whitespace-nowrap"><span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-sm font-medium whitespace-nowrap">{item.word_type || item.wordType || ''}</span></td>
                   <td className="p-4 font-medium max-w-[200px] truncate" title={item.meaning}>{item.meaning}</td>
                   <td className="p-4 text-center"><span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{LEVEL_LABEL[item.level] || item.level}</span></td>
                   
                   {showTopicColumn && (
-                    <td className="p-4 text-gray-600 font-medium whitespace-nowrap">
+                    <td className="p-4 text-gray-600 font-medium max-w-[150px] truncate" title={item.topic || ''}>
                       {item.topic || <span className="text-gray-300">Chưa có</span>}
                     </td>
                   )}

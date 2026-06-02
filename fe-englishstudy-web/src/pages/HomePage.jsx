@@ -46,7 +46,7 @@ import {
   fetchTopics,
   fetchTopicVocabularies,
 } from "../utils/services/topicService";
-import { fetchLessons } from "../utils/services/lessonService";
+import { fetchLessons, fetchLessonVocabularies } from "../utils/services/lessonService";
 import {
   fetchCollections,
   addVocabToCollection,
@@ -56,7 +56,7 @@ import {
   removeFavorite,
   fetchFavorites,
 } from "../utils/services/favouriteService";
-import { getLearnedVocabStats } from "../utils/services/progressService";
+import { getLearnedVocabStats, getLessonStatusSummary } from "../utils/services/progressService";
 
 const TOPIC_COLORS = [
   "bg-green-100 text-green-700",
@@ -120,11 +120,49 @@ function HomePage({ onLogout, onNavigateToPractice }) {
 
   const [activeFlashcardSession, setActiveFlashcardSession] = useState(null);
 
-  const handleOpenLearning = (topic) => {
+  const handleOpenLearning = async (topic) => {
+    // Mở modal ngay để UX mượt, dữ liệu load bất đồng bộ sau
     setActiveLearningTopic(topic);
     setLearningSearchTerm("");
     setLearningDifficultyFilter("all");
     setShowLearningModal(true);
+
+    // Fetch wordCount và masteredCount song song cho tất cả bài học
+    try {
+      const lessonIds = (topic.lessons ?? []).map((l) => l.id);
+      if (lessonIds.length === 0) return;
+
+      const [vocabResults, progressResults] = await Promise.all([
+        Promise.allSettled(lessonIds.map((id) => fetchLessonVocabularies(id))),
+        Promise.allSettled(lessonIds.map((id) => getLessonStatusSummary(id))),
+      ]);
+
+      const lessonsWithStats = topic.lessons.map((lesson, index) => {
+        const vocabResult = vocabResults[index];
+        const progressResult = progressResults[index];
+
+        const wordCount =
+          vocabResult.status === 'fulfilled'
+            ? (Array.isArray(vocabResult.value)
+                ? vocabResult.value.length
+                : (vocabResult.value?.items ?? vocabResult.value?.data ?? []).length)
+            : (lesson.wordCount ?? 0);
+
+        const summary = progressResult.status === 'fulfilled' ? progressResult.value : null;
+        const masteredCount = summary?.masteredCount ?? 0;
+        const learningCount = summary?.learningCount ?? 0;
+        const newCount = summary?.newCount ?? 0;
+
+        return { ...lesson, wordCount, masteredCount, learningCount, newCount };
+      });
+
+      const updatedTopic = { ...topic, lessons: lessonsWithStats };
+      setActiveLearningTopic(updatedTopic);
+      // Cập nhật cả danh sách topics để giữ đồng bộ
+      setTopics((prev) => prev.map((t) => (t.id === topic.id ? updatedTopic : t)));
+    } catch {
+      // nếu lỗi, modal vẫn mở với dữ liệu cũ
+    }
   };
 
   const [topics, setTopics] = useState([]);
@@ -1359,25 +1397,46 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                     5: "C1",
                     6: "C2",
                   };
+                  const wordCount = lesson.wordCount ?? 0;
+                  const masteredCount = lesson.masteredCount ?? 0;
+                  const learningCount = lesson.learningCount ?? 0;
+                  const progressPct = wordCount > 0
+                    ? Math.round((masteredCount / wordCount) * 100)
+                    : 0;
 
                   return (
                     <div
                       key={lesson.id}
-                      className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-4 hover:border-cyan-400 hover:shadow-md transition-all group"
+                      className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-3 hover:border-cyan-400 hover:shadow-md transition-all group"
                     >
                       <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-start gap-4 flex-1">
+                        <div className="flex items-start gap-4 flex-1 min-w-0">
                           <div className="w-10 h-10 rounded-full bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold border border-cyan-100 shrink-0">
                             {index + 1}
                           </div>
-                          <div>
-                            <h4 className="font-bold text-gray-800 text-lg group-hover:text-cyan-700 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-gray-800 text-lg group-hover:text-cyan-700 transition-colors truncate">
                               {lesson.name}
                             </h4>
-                            <div className="flex items-center gap-3 mt-1.5 shrink-0">
-                              <span className="text-[11px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                              {/* Badge độ khó */}
+                              <span className="text-[11px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md shrink-0">
                                 Độ khó: {difficultyLabels[lesson.difficulty]}
                               </span>
+                              {/* Tổng số từ */}
+                              <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md shrink-0">
+                                 {wordCount} từ
+                              </span>
+                              {/* Đã thuộc */}
+                              <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md shrink-0">
+                                 {masteredCount} đã thuộc
+                              </span>
+                              {/* Đang học */}
+                              {learningCount > 0 && (
+                                <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md shrink-0">
+                                  ⟳ {learningCount} đang học
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1396,26 +1455,33 @@ function HomePage({ onLogout, onNavigateToPractice }) {
                         </button>
                       </div>
 
-                      <div className="mt-1 flex flex-col gap-1.5 w-full pr-1">
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500"
-                            style={{
-                              width: `${(lesson.masteredCount / lesson.wordCount) * 100}%`,
-                            }}
-                          ></div>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold">
-                          <span>Số lượng: {lesson.wordCount} từ</span>
+                      {/* Thanh tiến độ */}
+                      <div className="flex flex-col gap-1.5 w-full">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-gray-400 font-medium">Tiến độ học</span>
                           <span
-                            className={
-                              lesson.masteredCount === lesson.wordCount
-                                ? "text-green-600"
-                                : ""
-                            }
+                            className={`text-[11px] font-bold ${
+                              progressPct === 100 ? 'text-emerald-600' :
+                              progressPct > 50 ? 'text-cyan-600' : 'text-amber-600'
+                            }`}
                           >
-                            {lesson.masteredCount}/{lesson.wordCount} đã thuộc
+                            {progressPct === 100 ? 'Hoàn thành!' : `${progressPct}%`}
                           </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{
+                              width: `${progressPct}%`,
+                              background: progressPct === 100
+                                ? 'linear-gradient(90deg,#10b981,#059669)'
+                                : progressPct > 50
+                                ? 'linear-gradient(90deg,#06b6d4,#0891b2)'
+                                : progressPct > 0
+                                ? 'linear-gradient(90deg,#f59e0b,#d97706)'
+                                : '#e5e7eb',
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
